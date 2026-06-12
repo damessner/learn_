@@ -1,0 +1,118 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id               String             @id @default(uuid())
+  username         String             @unique
+  passwordHash     String
+  role             String             // "TEACHER" or "STUDENT"
+  createdAt        DateTime           @default(now())
+  
+  // Relations
+  classroomsTaught Classroom[]        @relation("TeacherClassrooms")
+  classroomsJoined ClassroomStudent[]
+  submissions      Submission[]
+}
+
+model Classroom {
+  id        String             @id @default(uuid())
+  name      String
+  joinCode  String             @unique
+  teacherId String
+  createdAt DateTime           @default(now())
+
+  // Relations
+  teacher           User               @relation("TeacherClassrooms", fields: [teacherId], references: [id], onDelete: Cascade)
+  students          ClassroomStudent[]
+  assignments       Assignment[]
+  courseAssignments CourseAssignment[]
+}
+
+model ClassroomStudent {
+  classroomId String
+  studentId   String
+  joinedAt    DateTime @default(now())
+
+  // Relations
+  classroom Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  student   User      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@id([classroomId, studentId])
+}
+
+model Course {
+  id          String     @id @default(uuid())
+  title       String
+  description String     @default("")
+  order       Int        @default(0)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  // Relations
+  exercises      Exercise[]
+  courseAssignments CourseAssignment[]
+}
+
+model Exercise {
+  id          String    @id // matches directory name
+  title       String
+  description String
+  type        String   // "multiple-choice", "drag-drop", "gap-fill", "categorization", "tiptoi"
+  courseId    String?
+  order       Int       @default(0) // position within course
+  updatedAt   DateTime  @default(now())
+
+  // Relations
+  course      Course?      @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  assignments Assignment[]
+}
+
+model Assignment {
+  id                String            @id @default(uuid())
+  classroomId      String
+  exerciseId       String
+  dueDate           DateTime?
+  createdAt         DateTime          @default(now())
+  courseAssignmentId String?
+
+  // Relations
+  classroom        Classroom         @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  exercise         Exercise          @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  submissions     Submission[]
+  courseAssignment CourseAssignment? @relation(fields: [courseAssignmentId], references: [id], onDelete: SetNull)
+}
+
+model CourseAssignment {
+  id          String   @id @default(uuid())
+  classroomId String
+  courseId    String
+  dueDate     DateTime?
+  createdAt   DateTime @default(now())
+
+  // Relations
+  classroom   Classroom   @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  course      Course      @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  assignments Assignment[]
+}
+
+model Submission {
+  id            String   @id @default(uuid())
+  assignmentId  String
+  studentId     String
+  answersJson   String   // JSON string of submitted answers
+  score         Float    // raw percentage, e.g., 85.0
+  effectiveScore Float   @default(0) // score after attempt-number multiplier
+  attemptNumber Int      @default(1) // 1st attempt, 2nd, 3rd, etc.
+  completed     Boolean  @default(true)
+  completedAt   DateTime @default(now())
+
+  // Relations
+  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  student      User       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+}

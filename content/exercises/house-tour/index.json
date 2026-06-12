@@ -1,0 +1,133 @@
+{
+  "id": "house-tour",
+  "title": "Interactive House Tour",
+  "description": "Explore the house layout, click on objects to learn about them, and complete the challenge!",
+  "type": "tiptoi",
+  "startScene": "house",
+  "scenes": {
+    "house": {
+      "image": "layout.png",
+      "hotspots": [
+        {
+          "id": "to-kitchen",
+          "shape": "rect",
+          "coords": [10, 30, 38, 50],
+          "action": {
+            "type": "change-scene",
+            "scene": "kitchen"
+          },
+          "popupText": "Let's check the Kitchen room!",
+          "label": "kitchen"
+        },
+        {
+          "id": "to-bedroom",
+          "shape": "rect",
+          "coords": [52, 30, 38, 50],
+          "action": {
+            "type": "change-scene",
+            "scene": "bedroom"
+          },
+          "popupText": "Let's check the Bedroom!",
+          "label": "bedroom"
+        }
+      ]
+    },
+    "kitchen": {
+      "image": "layout.png",
+      "hotspots": [
+        {
+          "id": "fridge",
+          "shape": "rect",
+          "coords": [16, 46, 12, 24],
+          "action": {
+            "type": "play-audio"
+          },
+          "popupText": "This is a blue refrigerator! It keeps our food cold.",
+          "label": "fridge"
+        },
+        {
+          "id": "stove",
+          "shape": "rect",
+          "coords": [36, 58, 9, 12],
+          "action": {
+            "type": "play-audio"
+          },
+          "popupText": "This is a stove. We use it to cook hot meals.",
+          "label": "stove"
+        },
+        {
+          "id": "kitchen-door",
+          "shape": "rect",
+          "coords": [50, 45, 5, 29],
+          "action": {
+            "type": "change-scene",
+            "scene": "bedroom"
+          },
+          "popupText": "Walking through the door into the Bedroom.",
+          "label": "door"
+        }
+      ]
+    },
+    "bedroom": {
+      "image": "layout.png",
+      "hotspots": [
+        {
+          "id": "bed",
+          "shape": "rect",
+          "coords": [60, 60, 22, 14],
+          "action": {
+            "type": "play-audio"
+          },
+          "popupText": "This is a blue bed with pillows. Good night!",
+          "label": "bed"
+        },
+        {
+          "id": "lamp",
+          "shape": "rect",
+          "coords": [77, 48, 5, 12],
+          "action": {
+            "type": "play-audio"
+          },
+          "popupText": "This is a blue lamp. It lights up the bedroom.",
+          "label": "lamp"
+        },
+        {
+          "id": "bedroom-door",
+          "shape": "rect",
+          "coords": [50, 45, 5, 29],
+          "action": {
+            "type": "change-scene",
+            "scene": "kitchen"
+          },
+          "popupText": "Walking through the door into the Kitchen.",
+          "label": "door"
+        }
+      ]
+    }
+  },
+  "gameMode": {
+    "enabled": true,
+    "challenges": [
+      {
+        "id": "c1",
+        "promptText": "Can you find the Kitchen room in the house?",
+        "targetLabel": "kitchen"
+      },
+      {
+        "id": "c2",
+        "promptText": "Click on the blue Refrigerator in the kitchen!",
+        "targetLabel": "fridge"
+      },
+      {
+        "id": "c3",
+        "promptText": "Find the Bed in the bedroom!",
+        "targetLabel": "bed"
+      },
+      {
+        "id": "c4",
+        "promptText": "Find the Lamp that lights up the bedroom!",
+        "targetLabel": "lamp"
+      }
+    ]
+  }
+}

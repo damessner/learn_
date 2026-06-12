@@ -1,0 +1,331 @@
+import React from "react";
+import { getSession } from "@/lib/session";
+import { prisma } from "@/lib/db";
+import { redirect } from "next/navigation";
+import { Navbar } from "@/components/Navbar";
+import Link from "next/link";
+import { Play, AlertCircle, BookOpen, Users, RotateCcw, Trophy, FolderOpen } from "lucide-react";
+import { getExerciseTypeLabel } from "@/lib/exerciseLabels";
+
+export default async function StudentDashboard() {
+  const session = await getSession();
+
+  if (!session || session.role !== "STUDENT") {
+    redirect("/login");
+  }
+
+  // Fetch classrooms the student has joined, with all submissions per assignment
+  const classroomsJoined = await prisma.classroomStudent.findMany({
+    where: { studentId: session.userId },
+    include: {
+      classroom: {
+        include: {
+          teacher: true,
+          assignments: {
+            include: {
+              exercise: true,
+              submissions: {
+                where: { studentId: session.userId },
+                orderBy: { completedAt: "desc" },
+              },
+            },
+            orderBy: { createdAt: "desc" },
+          },
+          courseAssignments: {
+            include: {
+              course: true,
+              assignments: {
+                include: {
+                  exercise: true,
+                  submissions: {
+                    where: { studentId: session.userId },
+                    orderBy: { completedAt: "desc" },
+                  },
+                },
+                orderBy: { createdAt: "desc" },
+              },
+            },
+            orderBy: { createdAt: "desc" },
+          },
+        },
+      },
+    },
+  });
+
+  return (
+    <>
+      <Navbar />
+      <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-8 space-y-8">
+        {/* Header */}
+        <div className="border-b pb-4">
+          <h1 className="text-3xl font-extrabold tracking-tight font-mono uppercase">
+            Student Dashboard
+          </h1>
+          <p className="text-sm text-neutral-500">
+            View your classrooms, active assignments, and review your scores.
+          </p>
+        </div>
+
+        {/* Classrooms & Assignments */}
+        {classroomsJoined.length === 0 ? (
+          <div className="text-center py-12 border border-dashed rounded text-neutral-500 space-y-4">
+            <p>You have not joined any classrooms yet.</p>
+            <p className="text-xs">
+              Please register a new student account using a classroom Join Code provided by your teacher.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-8">
+            {classroomsJoined.map(({ classroom }) => (
+              <div
+                key={classroom.id}
+                className="border border-neutral-300 dark:border-neutral-800 rounded bg-white dark:bg-neutral-900 shadow-sm p-6 space-y-4"
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-3">
+                  <div>
+                    <h2 className="text-xl font-bold font-mono uppercase text-neutral-900 dark:text-neutral-100 flex items-center gap-2">
+                      <Users className="w-5 h-5 text-neutral-500" />
+                      {classroom.name}
+                    </h2>
+                    <p className="text-xs text-neutral-500">
+                      Teacher: <span className="font-semibold">{classroom.teacher.username}</span>
+                    </p>
+                  </div>
+                  <span className="text-[10px] font-mono uppercase bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 rounded text-neutral-600 dark:text-neutral-300 self-start sm:self-center">
+                    Join Code: {classroom.joinCode}
+                  </span>
+                </div>
+
+                {/* Course Sections */}
+                {classroom.courseAssignments.length > 0 && (
+                  <div className="space-y-3">
+                    {classroom.courseAssignments.map((courseAssignment) => {
+                      const totalCount = courseAssignment.assignments.length;
+                      const completedCount = courseAssignment.assignments.filter(
+                        (a) => a.submissions.length > 0
+                      ).length;
+
+                      return (
+                        <details
+                          key={courseAssignment.id}
+                          className="group border border-neutral-200 dark:border-neutral-800 rounded overflow-hidden"
+                        >
+                          <summary className="flex items-center justify-between gap-3 px-4 py-3 cursor-pointer bg-neutral-50 dark:bg-neutral-800/50 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition text-sm font-mono uppercase list-none [&::-webkit-details-marker]:hidden">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <FolderOpen className="w-4 h-4 shrink-0 text-neutral-500" />
+                              <span className="font-semibold text-neutral-900 dark:text-neutral-100 truncate">
+                                {courseAssignment.course.title}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-3 shrink-0">
+                              <span className="text-[10px] text-neutral-500 whitespace-nowrap">
+                                {completedCount}/{totalCount} completed
+                              </span>
+                              {courseAssignment.dueDate && (
+                                <span className="text-[10px] text-neutral-500 font-mono whitespace-nowrap">
+                                  Due: {new Date(courseAssignment.dueDate).toLocaleDateString("en-GB")}
+                                </span>
+                              )}
+                            </div>
+                          </summary>
+
+                          <div className="divide-y divide-neutral-200 dark:divide-neutral-800">
+                            {courseAssignment.assignments.map((assignment) => {
+                              const submissions = assignment.submissions;
+                              const attemptCount = submissions.length;
+                              const isCompleted = attemptCount > 0;
+
+                              const bestEffective = isCompleted
+                                ? Math.max(...submissions.map((s) => s.effectiveScore))
+                                : null;
+
+                              return (
+                                <div
+                                  key={assignment.id}
+                                  className="py-3 px-4 first:pt-3 last:pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                                >
+                                  <div className="space-y-1">
+                                    <h4 className="font-bold text-sm text-neutral-900 dark:text-neutral-200">
+                                      {assignment.exercise.title}
+                                    </h4>
+                                    <div className="flex flex-wrap items-center gap-3 text-xs text-neutral-500">
+                                      <span className="font-mono uppercase text-[10px] bg-neutral-100 dark:bg-neutral-850 px-1.5 py-0.5 rounded">
+                                        {getExerciseTypeLabel(assignment.exercise.type)}
+                                      </span>
+                                      {assignment.dueDate && (
+                                        <span className="font-mono">
+                                          Due: {new Date(assignment.dueDate).toLocaleDateString("en-GB")}
+                                        </span>
+                                      )}
+                                      {isCompleted && attemptCount > 1 && (
+                                        <span className="font-mono text-amber-600 dark:text-amber-400">
+                                          {attemptCount} attempts
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center gap-3 self-end sm:self-center shrink-0">
+                                    {isCompleted ? (
+                                      <div className="flex items-center gap-3">
+                                        <div className="flex items-center gap-1.5 text-xs text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950/20 border border-green-200/50 dark:border-green-900/50 px-2.5 py-1.5 rounded">
+                                          <Trophy className="w-3.5 h-3.5 shrink-0" />
+                                          <div className="flex flex-col leading-tight">
+                                            <span className="font-bold">
+                                              {bestEffective?.toFixed(0)}%
+                                            </span>
+                                            <span className="text-[9px] font-mono opacity-80">
+                                              Best score
+                                            </span>
+                                          </div>
+                                        </div>
+
+                                        <Link
+                                          href={`/assignments/${assignment.id}`}
+                                          className="flex items-center gap-1.5 text-xs font-semibold uppercase font-mono border border-neutral-350 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 px-3 py-2 rounded transition text-neutral-700 dark:text-neutral-300"
+                                          title={`Attempt #${attemptCount + 1} — score ×${attemptCount === 1 ? "75" : attemptCount === 2 ? "50" : "25"}%`}
+                                        >
+                                          <RotateCcw className="w-3 h-3" />
+                                          Redo
+                                        </Link>
+                                      </div>
+                                    ) : (
+                                      <div className="flex items-center gap-3">
+                                        <div className="flex items-center gap-1 text-xs text-amber-700 dark:text-amber-500 bg-amber-50 dark:bg-amber-950/20 px-2 py-1 rounded">
+                                          <AlertCircle className="w-3.5 h-3.5" />
+                                          <span>Not Started</span>
+                                        </div>
+                                        <Link
+                                          href={`/assignments/${assignment.id}`}
+                                          className="flex items-center gap-1 bg-black text-white dark:bg-white dark:text-black px-4 py-2 rounded text-xs font-semibold font-mono uppercase hover:opacity-90 transition shadow cursor-pointer"
+                                        >
+                                          <Play className="w-3 h-3 fill-current" />
+                                          Start
+                                        </Link>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </details>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Standalone Assignments (no courseAssignmentId) */}
+                {(() => {
+                  const standaloneAssignments = classroom.assignments.filter(
+                    (a) => !a.courseAssignmentId
+                  );
+                  return standaloneAssignments.length > 0 ? (
+                    <div className="space-y-3">
+                      <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-500 flex items-center gap-1.5">
+                        <BookOpen className="w-3.5 h-3.5" />
+                        Assignments
+                      </h3>
+
+                      <div className="divide-y divide-neutral-200 dark:divide-neutral-800">
+                        {standaloneAssignments.map((assignment) => {
+                          const submissions = assignment.submissions;
+                          const attemptCount = submissions.length;
+                          const isCompleted = attemptCount > 0;
+
+                          // Best effective score across all attempts
+                          const bestEffective = isCompleted
+                            ? Math.max(...submissions.map((s) => s.effectiveScore))
+                            : null;
+
+                          return (
+                            <div
+                              key={assignment.id}
+                              className="py-4 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                            >
+                              <div className="space-y-1.5">
+                                <h4 className="font-bold text-base text-neutral-900 dark:text-neutral-200">
+                                  {assignment.exercise.title}
+                                </h4>
+                                <div className="flex flex-wrap items-center gap-3 text-xs text-neutral-500">
+                                  <span className="font-mono uppercase text-[10px] bg-neutral-100 dark:bg-neutral-850 px-1.5 py-0.5 rounded">
+                                    {getExerciseTypeLabel(assignment.exercise.type)}
+                                  </span>
+                                  {assignment.dueDate && (
+                                    <span className="font-mono">
+                                      Due: {new Date(assignment.dueDate).toLocaleDateString("en-GB")}
+                                    </span>
+                                  )}
+                                  {isCompleted && attemptCount > 1 && (
+                                    <span className="font-mono text-amber-600 dark:text-amber-400">
+                                      {attemptCount} attempts
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-3 self-end sm:self-center shrink-0">
+                                {isCompleted ? (
+                                  <div className="flex items-center gap-3">
+                                    {/* Best effective score badge */}
+                                    <div className="flex items-center gap-1.5 text-xs text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950/20 border border-green-200/50 dark:border-green-900/50 px-2.5 py-1.5 rounded">
+                                      <Trophy className="w-3.5 h-3.5 shrink-0" />
+                                      <div className="flex flex-col leading-tight">
+                                        <span className="font-bold">
+                                          {bestEffective?.toFixed(0)}%
+                                        </span>
+                                        <span className="text-[9px] font-mono opacity-80">
+                                          Best score
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    {/* Redo button */}
+                                    <Link
+                                      href={`/assignments/${assignment.id}`}
+                                      className="flex items-center gap-1.5 text-xs font-semibold uppercase font-mono border border-neutral-350 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 px-3 py-2 rounded transition text-neutral-700 dark:text-neutral-300"
+                                      title={`Attempt #${attemptCount + 1} — score ×${attemptCount === 1 ? "75" : attemptCount === 2 ? "50" : "25"}%`}
+                                    >
+                                      <RotateCcw className="w-3 h-3" />
+                                      Redo
+                                    </Link>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-1 text-xs text-amber-700 dark:text-amber-500 bg-amber-50 dark:bg-amber-950/20 px-2 py-1 rounded">
+                                      <AlertCircle className="w-3.5 h-3.5" />
+                                      <span>Not Started</span>
+                                    </div>
+                                    <Link
+                                      href={`/assignments/${assignment.id}`}
+                                      className="flex items-center gap-1 bg-black text-white dark:bg-white dark:text-black px-4 py-2 rounded text-xs font-semibold font-mono uppercase hover:opacity-90 transition shadow cursor-pointer"
+                                    >
+                                      <Play className="w-3 h-3 fill-current" />
+                                      Start
+                                    </Link>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ) : null;
+                })()}
+
+                {/* Empty state when there are neither course nor standalone assignments */}
+                {classroom.courseAssignments.length === 0 &&
+                  classroom.assignments.filter((a) => !a.courseAssignmentId).length === 0 && (
+                    <p className="text-xs text-neutral-450 italic">
+                      No exercises assigned yet. Check back later!
+                    </p>
+                  )}
+              </div>
+            ))}
+          </div>
+        )}
+      </main>
+    </>
+  );
+}
