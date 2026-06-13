@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { WidgetProps, VocabularyConfig } from "./types";
-import { Check, X, Award, Volume2, ArrowRight, BookOpen, HelpCircle, FileText } from "lucide-react";
+import { Check, X, Award, Volume2, ArrowRight, BookOpen, HelpCircle, FileText, Sparkles, Loader2 } from "lucide-react";
+import { getVocabContextChallengeAction } from "@/lib/actions/ai-coach";
 
 // Human-readable level labels
 const LEVEL_LABELS = ["Flashcard", "Choice", "Spelling", "Mastered"];
@@ -64,6 +65,30 @@ export const Vocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
   const [selectedOptionIdx, setSelectedOptionIdx] = useState<number | null>(null);
   const [spellingInput, setSpellingInput] = useState("");
 
+  // AI Challenge States
+  const [challengeMode, setChallengeMode] = useState<"idle" | "loading" | "playing" | "completed">(
+    savedState?.challengeMode || "idle"
+  );
+  const [challengeWords, setChallengeWords] = useState<number[]>(
+    savedState?.challengeWords || []
+  );
+  const [challengeActiveIdx, setChallengeActiveIdx] = useState<number>(
+    savedState?.challengeActiveIdx || 0
+  );
+  const [challengeData, setChallengeData] = useState<{ sentence: string; hint: string } | null>(
+    savedState?.challengeData || null
+  );
+  const [challengeInput, setChallengeInput] = useState(
+    savedState?.challengeInput || ""
+  );
+  const [challengeFeedback, setChallengeFeedback] = useState<"idle" | "correct" | "incorrect">(
+    savedState?.challengeFeedback || "idle"
+  );
+  const [challengeCorrectCount, setChallengeCorrectCount] = useState<number>(
+    savedState?.challengeCorrectCount || 0
+  );
+  const [challengeError, setChallengeError] = useState<string | null>(null);
+
   // Unmastered indices
   const unmasteredIndices = useMemo(() => {
     const indices: number[] = [];
@@ -114,8 +139,33 @@ export const Vocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
     });
 
     const score = totalCount > 0 ? (firstTryCount / totalCount) * 100 : 0;
-    onChangeRef.current({ levels, firstTryCorrect }, isComplete, score);
-  }, [levels, firstTryCorrect, vocabList]);
+    onChangeRef.current(
+      {
+        levels,
+        firstTryCorrect,
+        challengeMode,
+        challengeWords,
+        challengeActiveIdx,
+        challengeData,
+        challengeInput,
+        challengeFeedback,
+        challengeCorrectCount,
+      },
+      isComplete,
+      score
+    );
+  }, [
+    levels,
+    firstTryCorrect,
+    vocabList,
+    challengeMode,
+    challengeWords,
+    challengeActiveIdx,
+    challengeData,
+    challengeInput,
+    challengeFeedback,
+    challengeCorrectCount,
+  ]);
 
   if (vocabList.length === 0) {
     return (
@@ -285,21 +335,267 @@ export const Vocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
     }
   };
 
+  const startChallenge = async () => {
+    setChallengeMode("loading");
+    setChallengeError(null);
+    const indices = vocabList.map((_, idx) => idx);
+    // eslint-disable-next-line react-hooks/purity
+    const shuffled = seededShuffle(indices, Date.now() & 0xffff);
+    setChallengeWords(shuffled);
+    setChallengeActiveIdx(0);
+    setChallengeCorrectCount(0);
+    await loadChallengeForIndex(shuffled[0], 0, shuffled);
+  };
+
+  const loadChallengeForIndex = async (wordIdx: number, challengeIdx: number, currentShuffledList?: number[]) => {
+    setChallengeMode("loading");
+    setChallengeError(null);
+    setChallengeInput("");
+    setChallengeFeedback("idle");
+
+    const targetWord = vocabList[wordIdx];
+    try {
+      const res = await getVocabContextChallengeAction(targetWord.word, targetWord.translation);
+      if (res.error) {
+        setChallengeError(res.error);
+        setChallengeMode("idle");
+      } else if (res.data) {
+        setChallengeData(res.data);
+        setChallengeActiveIdx(challengeIdx);
+        if (currentShuffledList) {
+          setChallengeWords(currentShuffledList);
+        }
+        setChallengeMode("playing");
+      }
+    } catch (err: unknown) {
+      setChallengeError(err instanceof Error ? err.message : "An unexpected error occurred.");
+      setChallengeMode("idle");
+    }
+  };
+
   // Completed State
   if (unmasteredIndices.length === 0) {
     let firstTryCount = 0;
     vocabList.forEach((_, idx) => { if (firstTryCorrect[idx]) firstTryCount++; });
+
+    if (challengeMode === "loading") {
+      return (
+        <div className="text-center py-16 space-y-4 max-w-md mx-auto">
+          <Loader2 className="w-12 h-12 text-purple-600 animate-spin mx-auto" />
+          <h4 className="font-bold font-mono text-sm uppercase tracking-wider text-purple-600">
+            AI Coach is preparing your challenge...
+          </h4>
+          <p className="text-xs text-neutral-450">
+            Generating custom contextual sentence and hint...
+          </p>
+        </div>
+      );
+    }
+
+    if (challengeMode === "playing" && challengeData) {
+      const activeWordIdx = challengeWords[challengeActiveIdx];
+      const targetWord = vocabList[activeWordIdx];
+
+      const handleChallengeSubmit = (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+        if (challengeFeedback !== "idle") return;
+
+        const isCorrect =
+          challengeInput.trim().toLowerCase() === targetWord.translation.trim().toLowerCase();
+        if (isCorrect) {
+          setChallengeFeedback("correct");
+          setChallengeCorrectCount((prev) => prev + 1);
+        } else {
+          setChallengeFeedback("incorrect");
+        }
+      };
+
+      const handleChallengeNext = () => {
+        const nextIdx = challengeActiveIdx + 1;
+        if (nextIdx < challengeWords.length) {
+          loadChallengeForIndex(challengeWords[nextIdx], nextIdx);
+        } else {
+          setChallengeMode("completed");
+        }
+      };
+
+      const sentenceParts = challengeData.sentence.split("____");
+      const beforeGap = sentenceParts[0] || "";
+      const afterGap = sentenceParts[1] || "";
+
+      return (
+        <div className="space-y-6 max-w-md mx-auto py-4">
+          <div className="text-center space-y-1">
+            <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold uppercase tracking-wider text-purple-550">
+              <Sparkles className="w-3 h-3 text-purple-500 animate-pulse" />
+              AI Challenge Arena
+            </span>
+            <h4 className="font-bold text-sm text-neutral-500 font-mono">
+              Word {challengeActiveIdx + 1} of {challengeWords.length}
+            </h4>
+          </div>
+
+          <div className="p-6 border rounded-xl bg-neutral-50 dark:bg-neutral-955 border-neutral-300 dark:border-neutral-800 space-y-4">
+            <div className="text-base text-neutral-800 dark:text-neutral-200 leading-relaxed font-medium text-center">
+              {beforeGap}
+              <span className="inline-block mx-1">
+                <input
+                  type="text"
+                  autoFocus
+                  autoComplete="off"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  disabled={challengeFeedback !== "idle"}
+                  value={challengeInput}
+                  onChange={(e) => setChallengeInput(e.target.value)}
+                  placeholder="word"
+                  className={`border-b-2 bg-transparent text-center focus:outline-none transition-all px-1 font-semibold ${
+                    challengeFeedback === "correct"
+                      ? "border-green-500 text-green-600"
+                      : challengeFeedback === "incorrect"
+                      ? "border-red-500 text-red-600"
+                      : "border-purple-400 focus:border-black dark:focus:border-white"
+                  }`}
+                  style={{ width: `${Math.max(4, challengeInput.length || 4) * 10 + 15}px` }}
+                />
+              </span>
+              {afterGap}
+            </div>
+
+            <div className="text-xs text-neutral-500 bg-white dark:bg-neutral-900 p-3 rounded-lg border border-neutral-100 dark:border-neutral-850 flex items-start gap-2 leading-relaxed">
+              <span className="text-base leading-none">💡</span>
+              <div className="text-left">
+                <span className="font-semibold text-neutral-750 dark:text-neutral-300">Context Tip:</span>{" "}
+                {challengeData.hint}
+              </div>
+            </div>
+          </div>
+
+          {challengeFeedback === "idle" ? (
+            <button
+              type="button"
+              onClick={() => handleChallengeSubmit()}
+              className="w-full bg-purple-600 hover:bg-purple-700 text-white font-mono font-bold text-xs uppercase py-4 rounded-lg shadow-sm transition active:scale-95 cursor-pointer"
+            >
+              Verify Answer
+            </button>
+          ) : (
+            <div className="space-y-4">
+              <div
+                className={`p-3 rounded-lg border text-xs font-medium flex flex-col gap-1.5 ${
+                  challengeFeedback === "correct"
+                    ? "border-green-300 bg-green-50/20 text-green-700 dark:text-green-300"
+                    : "border-red-350 bg-red-50/20 text-red-750 dark:text-red-300"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  {challengeFeedback === "correct" ? (
+                    <>
+                      <Check className="w-4 h-4 text-green-500" />
+                      <span>Perfect! Your answer fits the context perfectly.</span>
+                    </>
+                  ) : (
+                    <>
+                      <X className="w-4 h-4 text-red-500" />
+                      <span>Not quite. Let&apos;s learn the correct fit.</span>
+                    </>
+                  )}
+                </div>
+                {challengeFeedback === "incorrect" && (
+                  <span className="text-xs opacity-90 pl-6 text-left">
+                    Correct word:{" "}
+                    <strong className="font-mono bg-white/50 dark:bg-black/20 px-1 rounded text-neutral-850 dark:text-neutral-100">
+                      {targetWord.translation}
+                    </strong>{" "}
+                    (German: *{targetWord.word}*)
+                  </span>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={handleChallengeNext}
+                className="w-full bg-black hover:bg-neutral-800 text-white dark:bg-white dark:text-black py-4 rounded-lg font-mono font-bold text-xs uppercase shadow transition flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                Continue
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    if (challengeMode === "completed") {
+      return (
+        <div className="text-center py-12 border border-purple-200 dark:border-purple-950/40 rounded bg-purple-50/15 dark:bg-purple-950/5 space-y-6 max-w-md mx-auto">
+          <Award className="w-16 h-16 mx-auto text-purple-500 animate-bounce" />
+          <div className="space-y-2">
+            <h3 className="text-xl font-extrabold font-mono text-neutral-800 dark:text-neutral-200 uppercase tracking-wide">
+              AI Arena Completed!
+            </h3>
+            <p className="text-sm text-neutral-600 dark:text-neutral-400 max-w-xs mx-auto leading-relaxed">
+              Incredible job! You solved context sentences for all vocabulary words.
+            </p>
+          </div>
+          <div className="inline-block border border-purple-300 dark:border-purple-800 px-5 py-2.5 rounded bg-white dark:bg-neutral-900 font-mono text-sm font-bold text-purple-700 dark:text-purple-300">
+            Context Challenge Score: {challengeCorrectCount} / {challengeWords.length} correct
+          </div>
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={() => setChallengeMode("idle")}
+              className="px-4 py-2 border border-neutral-300 hover:bg-neutral-50 dark:border-neutral-700 dark:hover:bg-neutral-800 rounded-lg text-xs font-mono font-semibold uppercase tracking-wider text-neutral-600 dark:text-neutral-400 transition cursor-pointer"
+            >
+              Back to Summary
+            </button>
+          </div>
+        </div>
+      );
+    }
+
     return (
-      <div className="text-center py-12 border border-green-200 dark:border-green-950/40 rounded bg-green-50/15 dark:bg-green-950/5 space-y-4">
-        <Award className="w-16 h-16 mx-auto text-green-500 animate-bounce" />
-        <h3 className="text-xl font-extrabold font-mono text-neutral-800 dark:text-neutral-200 uppercase tracking-wide">
-          All Vocabulary Mastered!
-        </h3>
-        <p className="text-sm text-neutral-600 dark:text-neutral-400 max-w-sm mx-auto">
-          Congratulations! You have completed all vocabulary items.
-        </p>
-        <div className="inline-block border border-green-300 dark:border-green-800 px-4 py-2 rounded bg-white dark:bg-neutral-900 font-mono text-sm font-bold text-green-700 dark:text-green-300">
-          Accuracy Score: {((firstTryCount / vocabList.length) * 100).toFixed(0)}%
+      <div className="space-y-6">
+        <div className="text-center py-12 border border-green-200 dark:border-green-950/40 rounded bg-green-50/15 dark:bg-green-950/5 space-y-4 max-w-md mx-auto">
+          <Award className="w-16 h-16 mx-auto text-green-500 animate-bounce" />
+          <h3 className="text-xl font-extrabold font-mono text-neutral-800 dark:text-neutral-200 uppercase tracking-wide">
+            All Vocabulary Mastered!
+          </h3>
+          <p className="text-sm text-neutral-600 dark:text-neutral-400 max-w-sm mx-auto">
+            Congratulations! You have completed all vocabulary items.
+          </p>
+          <div className="inline-block border border-green-300 dark:border-green-800 px-4 py-2 rounded bg-white dark:bg-neutral-900 font-mono text-sm font-bold text-green-700 dark:text-green-300">
+            Accuracy Score: {((firstTryCount / vocabList.length) * 100).toFixed(0)}%
+          </div>
+        </div>
+
+        <div className="p-6 border border-purple-200 dark:border-purple-800 bg-purple-50/10 dark:bg-purple-950/5 rounded-xl shadow-sm space-y-4 max-w-md mx-auto text-center">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-purple-100 dark:bg-purple-950/40 text-purple-750 dark:text-purple-300 rounded-full text-[10px] font-bold font-mono uppercase tracking-wider">
+            <Sparkles className="w-3.5 h-3.5 text-purple-500 animate-pulse" />
+            Bonus AI Arena
+          </div>
+          <h4 className="font-extrabold text-neutral-800 dark:text-neutral-200 text-sm">
+            Context Sentence Challenge
+          </h4>
+          <p className="text-xs text-neutral-600 dark:text-neutral-450 leading-relaxed">
+            Test your spelling in real English context! The AI coach will generate a simple sentence with a blank gap and a secret hint for your vocabulary words.
+          </p>
+
+          {challengeError && (
+            <div className="p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/40 rounded-lg text-[11px] text-red-750 dark:text-red-400 text-left">
+              {challengeError}
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={startChallenge}
+            className="w-full bg-purple-650 hover:bg-purple-750 active:scale-95 text-white font-mono font-bold text-xs uppercase py-3.5 rounded-lg shadow transition flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <Sparkles className="w-4 h-4" />
+            Enter AI Arena
+          </button>
         </div>
       </div>
     );

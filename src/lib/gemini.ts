@@ -241,3 +241,92 @@ Please improve this feedback goal. Output it strictly in the required JSON forma
   }
 }
 
+export interface VocabChallengeResponse {
+  sentence: string;
+  hint: string;
+}
+
+/**
+ * Uses Gemini to generate an age-appropriate contextual English sentence with a "____" blank
+ * where the target word fits, along with a helpful student tip/hint.
+ */
+export async function fetchVocabContextChallenge(
+  word: string,
+  translation: string
+): Promise<VocabChallengeResponse> {
+  if (!GEMINI_API_KEY) {
+    throw new Error("AI services are currently unavailable: GEMINI_API_KEY is not configured.");
+  }
+
+  const model = GEMINI_MODEL || "gemini-3.5-flash-latest";
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+
+  const systemInstructionText = `
+You are an expert English language teacher creating context-based vocabulary challenges for young pupils (around 10 years old).
+Your task is to generate a simple, fun English sentence containing exactly one blank "____" (four underscores) where the target English word fits.
+Also provide a "hint" in English that describes the meaning of the word without using the word itself.
+
+Rules:
+1. The target word must fit naturally in the "____" blank of the sentence.
+2. The sentence must be simple and suitable for basic English learners.
+3. The hint must describe the word's meaning clearly and keep it under 15 words.
+4. Do NOT mention the target English word in the sentence or the hint (except in the blank placeholder "____").
+`;
+
+  const userPrompt = `
+Target Word: "${word}" (Translation: "${translation}")
+
+Generate a sentence with "____" and a hint. Output strictly in the required JSON format.
+`;
+
+  const requestBody = {
+    contents: [
+      {
+        role: "user",
+        parts: [{ text: userPrompt }],
+      },
+    ],
+    systemInstruction: {
+      parts: [{ text: systemInstructionText }],
+    },
+    generationConfig: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: "OBJECT",
+        properties: {
+          sentence: { type: "STRING" },
+          hint: { type: "STRING" },
+        },
+        required: ["sentence", "hint"],
+      },
+    },
+  };
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(requestBody),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "Unknown error");
+    console.error("Gemini API call failed:", response.status, errorText);
+    throw new Error(`Failed to generate vocabulary challenge: HTTP ${response.status}`);
+  }
+
+  const data = await response.json();
+  const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+  if (!rawText) {
+    throw new Error("Empty response from Gemini.");
+  }
+
+  try {
+    return JSON.parse(rawText) as VocabChallengeResponse;
+  } catch (err) {
+    console.error("Failed to parse Gemini response text as JSON:", rawText, err);
+    throw new Error("Invalid response format from Gemini.");
+  }
+}
+
+
