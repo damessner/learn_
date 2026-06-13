@@ -21,6 +21,13 @@ export async function POST(request: Request) {
       );
     }
 
+    if (password.length < 6) {
+      return NextResponse.json(
+        { error: "Password must be at least 6 characters long" },
+        { status: 400 }
+      );
+    }
+
     // Check if username is taken
     const existingUser = await prisma.user.findUnique({
       where: { username },
@@ -43,8 +50,10 @@ export async function POST(request: Request) {
         );
       }
 
+      const normalizedJoinCode = joinCode.trim().toUpperCase();
+
       classroom = await prisma.classroom.findUnique({
-        where: { joinCode },
+        where: { joinCode: normalizedJoinCode },
       });
 
       if (!classroom) {

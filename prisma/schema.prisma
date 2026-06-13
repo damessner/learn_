@@ -60,13 +60,15 @@ model Course {
 }
 
 model Exercise {
-  id          String    @id // matches directory name
-  title       String
-  description String
-  type        String   // "multiple-choice", "drag-drop", "gap-fill", "categorization", "tiptoi"
-  courseId    String?
-  order       Int       @default(0) // position within course
-  updatedAt   DateTime  @default(now())
+  id              String       @id // matches directory name
+  title           String
+  description     String
+  type            String       // "multiple-choice", "drag-drop", "gap-fill", "categorization", "tiptoi"
+  courseId        String?
+  order           Int          @default(0) // position within course
+  updatedAt       DateTime     @default(now())
+  pendingDeletion Boolean      @default(false)
+  tags            String       @default("")
 
   // Relations
   course      Course?      @relation(fields: [courseId], references: [id], onDelete: SetNull)
@@ -102,15 +104,19 @@ model CourseAssignment {
 }
 
 model Submission {
-  id            String   @id @default(uuid())
-  assignmentId  String
-  studentId     String
-  answersJson   String   // JSON string of submitted answers
-  score         Float    // raw percentage, e.g., 85.0
-  effectiveScore Float   @default(0) // score after attempt-number multiplier
-  attemptNumber Int      @default(1) // 1st attempt, 2nd, 3rd, etc.
-  completed     Boolean  @default(true)
-  completedAt   DateTime @default(now())
+  id             String     @id @default(uuid())
+  assignmentId   String
+  studentId      String
+  answersJson    String     // JSON string of submitted answers
+  score          Float      // raw percentage, e.g., 85.0
+  effectiveScore Float      @default(0) // score after attempt-number multiplier
+  attemptNumber  Int        @default(1) // 1st attempt, 2nd, 3rd, etc.
+  completed      Boolean    @default(true)
+  completedAt    DateTime   @default(now())
+  feedback       String?
+  teacherScore   Float?
+  reviewedAt     DateTime?
+  draft          Boolean    @default(false)
 
   // Relations
   assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)

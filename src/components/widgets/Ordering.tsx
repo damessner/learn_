@@ -49,9 +49,6 @@ export const Ordering: React.FC<WidgetProps<OrderingConfig>> = ({
     if (shuffled.length === 0) return;
 
     const isComplete = placed.length === shuffled.length;
-    const studentText = placed.map((idx) => shuffled[idx]).join(" ").trim();
-    const correctText = config.elements.join(" ").trim();
-    const isCorrect = studentText === correctText;
 
     // Partial credit: count words in correct position
     const correctPositions = placed.reduce((count, shuffledIdx, pos) => {

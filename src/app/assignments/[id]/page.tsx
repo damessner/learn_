@@ -109,13 +109,14 @@ export default async function AssignmentPage({
       <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-8">
         <AssignmentPlayer
           assignmentId={assignmentId}
-          exercise={exercise}
+          exerciseJson={JSON.stringify(exercise)}
           assetsPath={assetsPath}
-          savedAnswers={savedAnswers}
+          savedAnswersJson={JSON.stringify(savedAnswers)}
           role={session.role}
           attemptNumber={nextAttemptNumber}
           multiplier={nextMultiplier}
           priorAttemptCount={priorAttemptCount}
+          dueDate={assignment.dueDate ? assignment.dueDate.toISOString() : undefined}
         />
       </main>
     </>

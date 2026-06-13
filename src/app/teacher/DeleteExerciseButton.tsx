@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useTransition } from "react";
-import { deleteExercise } from "@/app/actions";
+import { deleteExercise } from "@/lib/actions/exercise";
 import { Trash2, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 

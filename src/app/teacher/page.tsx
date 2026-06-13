@@ -17,12 +17,31 @@ import {
 import { getExerciseTypeLabel } from "@/lib/exerciseLabels";
 import DragDropWrapper from "./DragDropWrapper";
 
-export default async function TeacherDashboard() {
+export default async function TeacherDashboard({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
   const session = await getSession();
 
   if (!session || session.role !== "TEACHER") {
     redirect("/login");
   }
+
+  const totalSubmissions = await prisma.submission.count({
+    where: {
+      assignment: {
+        classroom: {
+          teacherId: session.userId,
+        },
+      },
+    },
+  });
+
+  const pageSize = 25;
+  const totalPages = Math.ceil(totalSubmissions / pageSize) || 1;
+  const currentPage = Math.max(1, Math.min(totalPages, parseInt((await searchParams).page || "1", 10)));
+  const skip = (currentPage - 1) * pageSize;
 
   // Fetch Classrooms taught by teacher
   const classrooms = await prisma.classroom.findMany({
@@ -45,19 +64,17 @@ export default async function TeacherDashboard() {
 
   // Fetch Exercises from db
   const exercises = await prisma.exercise.findMany({
+    where: { pendingDeletion: false },
     orderBy: { title: "asc" },
   });
 
   // Fetch Courses with their exercises
   const courses = await prisma.course.findMany({
     orderBy: { order: "asc" },
-    include: { exercises: { orderBy: { order: "asc" } } },
+    include: { exercises: { where: { pendingDeletion: false }, orderBy: { order: "asc" } } },
   });
 
-  // Standalone exercises (not in any course)
-  const standaloneExercises = exercises.filter((e) => e.courseId === null);
-
-  // Fetch all submissions for assignments belonging to the teacher's classrooms
+  // Fetch the paginated submissions for assignments belonging to the teacher's classrooms
   const submissions = await prisma.submission.findMany({
     where: {
       assignment: {
@@ -66,6 +83,8 @@ export default async function TeacherDashboard() {
         },
       },
     },
+    skip,
+    take: pageSize,
     include: {
       student: true,
       assignment: {
@@ -143,8 +162,15 @@ export default async function TeacherDashboard() {
                   <div className="space-y-3">
                     <div className="flex items-start justify-between">
                       <div>
-                        <h3 className="font-bold text-lg text-neutral-900 dark:text-neutral-100">
+                        <h3 className="font-bold text-lg text-neutral-900 dark:text-neutral-100 flex items-center gap-2">
                           {classroom.name}
+                          <Link
+                            href={`/teacher/classrooms/${classroom.id}`}
+                            className="inline-flex items-center gap-0.5 text-[9px] uppercase font-mono tracking-wider bg-neutral-150 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 px-1.5 py-0.5 border border-neutral-300 dark:border-neutral-700 rounded text-neutral-600 dark:text-neutral-300 transition"
+                          >
+                            Gradebook
+                            <ExternalLink className="w-2.5 h-2.5" />
+                          </Link>
                         </h3>
                         <p className="text-xs text-neutral-500 flex items-center gap-1 mt-0.5">
                           Join Code:{" "}
@@ -226,14 +252,14 @@ export default async function TeacherDashboard() {
         {/* Courses & Drag-and-Drop */}
         <DragDropWrapper
           courses={courses}
-          standaloneExercises={standaloneExercises}
+          allExercises={exercises}
         />
 
         {/* Student Submissions */}
         <div className="space-y-4">
           <h2 className="text-xl font-bold font-mono uppercase tracking-wide border-b pb-2 flex items-center gap-2">
             <BookOpen className="w-5 h-5 text-neutral-500" />
-            Recent Student Submissions ({submissions.length})
+            Recent Student Submissions
           </h2>
 
           {submissions.length === 0 ? (
@@ -328,6 +354,46 @@ export default async function TeacherDashboard() {
                   </tbody>
                 </table>
               </div>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between px-6 py-4 border-t border-neutral-300 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/50">
+                  <span className="text-xs font-mono text-neutral-500">
+                    Showing {skip + 1}–{Math.min(skip + pageSize, totalSubmissions)} of {totalSubmissions} submissions
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {currentPage > 1 ? (
+                      <Link
+                        href={`/teacher?page=${currentPage - 1}`}
+                        className="px-3 py-1.5 border border-neutral-350 dark:border-neutral-700 rounded text-xs font-mono font-semibold uppercase hover:bg-neutral-100 dark:hover:bg-neutral-800 transition active:scale-95 text-neutral-700 dark:text-neutral-300"
+                      >
+                        &larr; Prev
+                      </Link>
+                    ) : (
+                      <span className="px-3 py-1.5 border border-neutral-200 dark:border-neutral-800/80 rounded text-xs font-mono text-neutral-400 dark:text-neutral-600 uppercase cursor-not-allowed select-none bg-neutral-100/50 dark:bg-neutral-900/20">
+                        &larr; Prev
+                      </span>
+                    )}
+
+                    <span className="text-xs font-mono font-bold px-2 py-1 bg-neutral-200 dark:bg-neutral-800 rounded text-neutral-850 dark:text-neutral-250">
+                      Page {currentPage} of {totalPages}
+                    </span>
+
+                    {currentPage < totalPages ? (
+                      <Link
+                        href={`/teacher?page=${currentPage + 1}`}
+                        className="px-3 py-1.5 border border-neutral-350 dark:border-neutral-700 rounded text-xs font-mono font-semibold uppercase hover:bg-neutral-100 dark:hover:bg-neutral-800 transition active:scale-95 text-neutral-700 dark:text-neutral-300"
+                      >
+                        Next &rarr;
+                      </Link>
+                    ) : (
+                      <span className="px-3 py-1.5 border border-neutral-200 dark:border-neutral-800/80 rounded text-xs font-mono text-neutral-400 dark:text-neutral-600 uppercase cursor-not-allowed select-none bg-neutral-100/50 dark:bg-neutral-900/20">
+                        Next &rarr;
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -1,17 +1,39 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { WIDGET_REGISTRY } from "@/components/widgets";
 import { MediaEmbed } from "@/components/widgets/MediaEmbed";
-import { getTaskMaxPoints } from "@/app/assignments/[id]/AssignmentPlayer";
-import { ArrowLeft, Clock, Award, User, Check, X } from "lucide-react";
+import { getTaskMaxPoints } from "@/lib/points";
+import { ArrowLeft, Clock, Award, User } from "lucide-react";
 import Link from "next/link";
 import { getExerciseTypeLabel } from "@/lib/exerciseLabels";
 import { getAttemptMultiplier } from "@/lib/scoring";
+import { overrideSubmissionGrade } from "@/lib/actions/submission";
+
+interface WorksheetQuestionData {
+  id: string;
+  type: string;
+  question?: string;
+  options?: string[];
+  correctOptionIndex?: number;
+  text?: string;
+  categories?: string[];
+  items?: Array<{ id?: string; name: string; category: string }>;
+  choices?: string[];
+  statements?: Array<{ text: string; correctChoice: string }>;
+  pairs?: Array<{ id: string; leftText?: string; leftMedia?: string; rightText: string }>;
+  media?: string;
+  hint?: string;
+  keywords?: string[];
+  elements?: string[];
+  [key: string]: unknown;
+}
 
 interface SubmissionReviewPlayerProps {
-  exercise: any;
-  savedAnswers: any;
+  exercise?: Record<string, unknown>;
+  exerciseJson?: string;
+  savedAnswers?: Record<string, unknown> | null;
+  savedAnswersJson?: string;
   assetsPath: string;
   studentName: string;
   completedAt: string;
@@ -19,11 +41,101 @@ interface SubmissionReviewPlayerProps {
   effectiveScore: number;
   attemptNumber: number;
   backUrl: string;
+  isTeacher?: boolean;
+  submissionId?: string;
+  teacherScore?: number;
+  feedback?: string;
+  reviewedAt?: string;
+}
+
+function TeacherOverrideForm({
+  submissionId,
+  initialScore,
+  initialFeedback,
+}: {
+  submissionId: string;
+  initialScore: number;
+  initialFeedback: string;
+}) {
+  const [score, setScore] = useState(initialScore);
+  const [feedback, setFeedback] = useState(initialFeedback);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    setMessage(null);
+    try {
+      const res = await overrideSubmissionGrade(submissionId, score, feedback);
+      if (res?.error) {
+        setMessage({ type: "error", text: res.error });
+      } else {
+        setMessage({ type: "success", text: "Grade override and feedback saved!" });
+      }
+    } catch (err: unknown) {
+      setMessage({ type: "error", text: err instanceof Error ? err.message : "An error occurred." });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-3">
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="w-full sm:w-1/4 space-y-1">
+          <label className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider block">
+            Override Score (%)
+          </label>
+          <input
+            type="number"
+            min={0}
+            max={100}
+            required
+            value={score}
+            onChange={(e) => setScore(Number(e.target.value))}
+            className="w-full text-sm border border-neutral-300 dark:border-neutral-750 rounded px-3 py-1.5 bg-transparent outline-none focus:border-black dark:focus:border-white font-mono"
+          />
+        </div>
+        <div className="flex-1 space-y-1">
+          <label className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider block">
+            Written Feedback / Comments
+          </label>
+          <input
+            type="text"
+            placeholder="e.g. Excellent work! Keep practicing spelling."
+            value={feedback}
+            onChange={(e) => setFeedback(e.target.value)}
+            className="w-full text-sm border border-neutral-300 dark:border-neutral-750 rounded px-3 py-1.5 bg-transparent outline-none focus:border-black dark:focus:border-white"
+          />
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between gap-4 pt-1">
+        {message && (
+          <span className={`text-xs font-semibold ${
+            message.type === "success" ? "text-green-600" : "text-red-650"
+          }`}>
+            {message.text}
+          </span>
+        )}
+        <button
+          type="submit"
+          disabled={saving}
+          className="ml-auto px-4 py-1.5 bg-neutral-900 hover:bg-neutral-800 text-white dark:bg-neutral-100 dark:hover:bg-neutral-200 dark:text-black text-xs font-bold uppercase tracking-wider rounded transition disabled:opacity-50 font-mono"
+        >
+          {saving ? "Saving..." : "Save Assessment"}
+        </button>
+      </div>
+    </form>
+  );
 }
 
 export default function SubmissionReviewPlayer({
-  exercise,
-  savedAnswers,
+  exercise: initialExercise,
+  exerciseJson,
+  savedAnswers: initialSavedAnswers,
+  savedAnswersJson,
   assetsPath,
   studentName,
   completedAt,
@@ -31,7 +143,34 @@ export default function SubmissionReviewPlayer({
   effectiveScore,
   attemptNumber,
   backUrl,
+  isTeacher = false,
+  submissionId,
+  teacherScore,
+  feedback,
+  reviewedAt,
 }: SubmissionReviewPlayerProps) {
+  const exercise = React.useMemo(() => {
+    if (exerciseJson) {
+      try {
+        return JSON.parse(exerciseJson);
+      } catch (e) {
+        console.error("Failed to parse exerciseJson:", e);
+      }
+    }
+    return initialExercise;
+  }, [initialExercise, exerciseJson]);
+
+  const savedAnswers = React.useMemo(() => {
+    if (savedAnswersJson) {
+      try {
+        return JSON.parse(savedAnswersJson);
+      } catch (e) {
+        console.error("Failed to parse savedAnswersJson:", e);
+      }
+    }
+    return initialSavedAnswers;
+  }, [initialSavedAnswers, savedAnswersJson]);
+
   const Widget = exercise.type !== "worksheet" && exercise.type !== "image-hotspot-quiz" && exercise.type !== "interactive-reading"
     ? WIDGET_REGISTRY[exercise.type as keyof typeof WIDGET_REGISTRY]
     : null;
@@ -76,10 +215,15 @@ export default function SubmissionReviewPlayer({
             <span className="text-[10px] text-neutral-555 font-semibold uppercase tracking-wider block font-mono">
               Effective Score
             </span>
-            <span className="text-lg font-black font-mono text-neutral-900 dark:text-neutral-100">
-              {effectiveScore.toFixed(0)}%
+            <span className="text-lg font-black font-mono text-neutral-900 dark:text-neutral-100 font-mono">
+              {teacherScore !== undefined ? `${teacherScore}%` : `${effectiveScore.toFixed(0)}%`}
             </span>
-            {attemptNumber > 1 && (
+            {teacherScore !== undefined && (
+              <span className="text-[9px] font-mono text-emerald-600 dark:text-emerald-400 block leading-tight font-bold">
+                ✓ Overridden (Auto: {effectiveScore.toFixed(0)}%)
+              </span>
+            )}
+            {attemptNumber > 1 && teacherScore === undefined && (
               <span className="text-[9px] font-mono text-amber-600 dark:text-amber-400 block leading-tight">
                 Attempt #{attemptNumber} · Raw {score.toFixed(0)}% × {Math.round(getAttemptMultiplier(attemptNumber) * 100)}%
               </span>
@@ -88,15 +232,60 @@ export default function SubmissionReviewPlayer({
         </div>
       </div>
 
+      {/* Teacher Override & Feedback Panel */}
+      {(isTeacher || feedback || teacherScore !== undefined) && (
+        <div className="p-5 border border-amber-300 dark:border-neutral-800 rounded bg-amber-500/5 dark:bg-amber-950/5 space-y-4">
+          <div className="flex items-center gap-2 text-amber-800 dark:text-amber-400">
+            <Award className="w-5 h-5 text-amber-600" />
+            <h3 className="font-bold text-xs uppercase font-mono tracking-wider">
+              {isTeacher ? "Teacher Assessment & Override" : "Teacher Feedback"}
+            </h3>
+          </div>
+
+          {isTeacher ? (
+            <TeacherOverrideForm
+              submissionId={submissionId!}
+              initialScore={teacherScore ?? Math.round(effectiveScore)}
+              initialFeedback={feedback ?? ""}
+            />
+          ) : (
+            <div className="space-y-2 text-sm">
+              {teacherScore !== undefined && (
+                <p className="text-neutral-700 dark:text-neutral-300">
+                  <strong>Graded Score:</strong>{" "}
+                  <span className="font-mono bg-white dark:bg-neutral-900 px-2 py-0.5 border rounded">
+                    {teacherScore}%
+                  </span>{" "}
+                  (auto-graded: {effectiveScore.toFixed(0)}%)
+                </p>
+              )}
+              {feedback && (
+                <div className="text-neutral-700 dark:text-neutral-300">
+                  <strong>Comments:</strong>
+                  <p className="mt-1 p-3 bg-white dark:bg-neutral-900 border rounded italic">
+                    &ldquo;{feedback}&rdquo;
+                  </p>
+                </div>
+              )}
+              {reviewedAt && (
+                <p className="text-[10px] text-neutral-500 font-mono">
+                  Reviewed: {new Date(reviewedAt).toLocaleString("en-GB")}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Read-Only Widget rendering */}
       {exercise.type === "worksheet" ? (
         <div className="space-y-8">
-          {exercise.questions.map((q: any, index: number) => {
+          {(exercise.questions as WorksheetQuestionData[]).map((q, index: number) => {
             const ChildWidget = WIDGET_REGISTRY[q.type as keyof typeof WIDGET_REGISTRY];
             if (!ChildWidget) return null;
 
             // Adapt on the fly
-            const adaptedConfig: any = {
+            const adaptedConfig: Record<string, unknown> = {
               id: q.id,
               title: q.question || `${q.type} task`,
               type: q.type,

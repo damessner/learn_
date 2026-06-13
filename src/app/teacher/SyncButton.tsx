@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { triggerManualSync } from "@/app/actions";
+import { triggerManualSync } from "@/lib/actions/exercise";
 import { RefreshCw } from "lucide-react";
 
 export default function SyncButton() {
@@ -20,7 +20,7 @@ export default function SyncButton() {
         // Auto clear status after 3 seconds
         setTimeout(() => setStatus(null), 3000);
       }
-    } catch (err) {
+    } catch {
       setStatus("Sync failed.");
     } finally {
       setSyncing(false);

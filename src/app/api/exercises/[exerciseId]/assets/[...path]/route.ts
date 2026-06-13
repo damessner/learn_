@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
+import { getSession } from "@/lib/session";
 
 const EXERCISES_DIR = path.join(process.cwd(), "content", "exercises");
 
@@ -10,7 +11,6 @@ const MIME_TYPES: Record<string, string> = {
   ".jpeg": "image/jpeg",
   ".png": "image/png",
   ".gif": "image/gif",
-  ".svg": "image/svg+xml",
   ".webp": "image/webp",
   // Audio
   ".mp3": "audio/mpeg",
@@ -23,42 +23,69 @@ const MIME_TYPES: Record<string, string> = {
   ".webm": "video/webm",
 };
 
+/** Filenames that are never served (blocked regardless of casing). */
+const BLOCKED_FILE_NAMES = new Set(["index.json", "index.md"]);
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ exerciseId: string; path: string[] }> }
 ) {
   try {
+    const session = await getSession();
+    if (!session) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
     const { exerciseId, path: pathParts } = await params;
 
     if (!exerciseId || !pathParts || pathParts.length === 0) {
       return new NextResponse("Invalid path parameters", { status: 400 });
     }
 
+    // Prevent directory traversal: reject any path part containing ".."
+    for (const part of pathParts) {
+      if (part === ".." || part.includes("..") || part.includes("/") || part.includes("\\")) {
+        return new NextResponse("Forbidden", { status: 403 });
+      }
+    }
+
     const fileName = pathParts[pathParts.length - 1];
 
-    // Security: Block access to exercise configuration files
-    if (fileName === "index.json" || fileName === "index.md") {
+    // Security: Block access to exercise configuration files (case-insensitive match)
+    const fileNameLower = fileName.toLowerCase();
+    if (BLOCKED_FILE_NAMES.has(fileNameLower)) {
       return new NextResponse("Forbidden", { status: 403 });
     }
 
-    // Resolve full path and check directory traversal
-    // uploadMedia stores files in an "assets/" subfolder, but some older
-    // exercises have assets directly in the exercise root. Try both.
+    // Resolve full path strictly inside the exercise's own directory.
+    // Allow both files in exercise root (legacy) and in assets/ subfolder,
+    // while preventing traversal/cross-exercise access.
     const exerciseDir = path.join(EXERCISES_DIR, exerciseId);
     const assetsDir = path.join(exerciseDir, "assets");
-    let resolvedFilePath = path.resolve(assetsDir, ...pathParts);
 
-    // Fallback: try exercise root if not found in assets/ subfolder
-    if (!fs.existsSync(resolvedFilePath)) {
-      resolvedFilePath = path.resolve(exerciseDir, ...pathParts);
-    }
-
-    if (!resolvedFilePath.startsWith(EXERCISES_DIR)) {
+    // Verify exercise directory exists and is inside EXERCISES_DIR
+    const resolvedExerciseDir = path.resolve(exerciseDir);
+    if (!resolvedExerciseDir.startsWith(EXERCISES_DIR)) {
       return new NextResponse("Forbidden", { status: 403 });
     }
 
-    if (!fs.existsSync(resolvedFilePath)) {
+    const resolvedExerciseDirWithSep = `${path.resolve(exerciseDir)}${path.sep}`;
+    const resolvedFromAssets = path.resolve(assetsDir, ...pathParts);
+    const resolvedFromExerciseRoot = path.resolve(exerciseDir, ...pathParts);
+
+    const candidatePaths = [resolvedFromAssets, resolvedFromExerciseRoot];
+    const resolvedFilePath = candidatePaths.find(
+      (candidate) =>
+        candidate.startsWith(resolvedExerciseDirWithSep) && fs.existsSync(candidate)
+    );
+
+    if (!resolvedFilePath) {
       return new NextResponse("File not found", { status: 404 });
+    }
+
+    // Extra guard against edge cases where resolved path equals exercise dir
+    if (!resolvedFilePath.startsWith(resolvedExerciseDirWithSep)) {
+      return new NextResponse("Forbidden", { status: 403 });
     }
 
     const stat = fs.statSync(resolvedFilePath);
@@ -77,6 +104,7 @@ export async function GET(
         "Content-Type": contentType,
         "Content-Length": stat.size.toString(),
         "Cache-Control": "public, max-age=31536000, immutable",
+        "X-Content-Type-Options": "nosniff",
       },
     });
   } catch (error) {

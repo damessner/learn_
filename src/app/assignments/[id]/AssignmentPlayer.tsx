@@ -2,47 +2,62 @@
 
 import React, { useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { submitAssignment } from "@/app/actions";
+import { submitAssignment } from "@/lib/actions/submission";
 import { WIDGET_REGISTRY } from "@/components/widgets";
-import { ExerciseData } from "@/lib/exercises";
+import type { ExerciseData } from "@/lib/exercises";
 import { ArrowLeft, Check, AlertTriangle } from "lucide-react";
 import { MediaEmbed } from "@/components/widgets/MediaEmbed";
 import Link from "next/link";
 import { getExerciseTypeLabel } from "@/lib/exerciseLabels";
+import WidgetErrorBoundary from "@/components/widgets/WidgetErrorBoundary";
+import { getTaskMaxPoints } from "@/lib/points";
+export { getTaskMaxPoints } from "@/lib/points";
+
+interface WorksheetQuestionData {
+  id: string;
+  type: string;
+  question?: string;
+  options?: string[];
+  correctOptionIndex?: number;
+  text?: string;
+  categories?: string[];
+  items?: Array<{ id?: string; name: string; category: string }>;
+  choices?: string[];
+  statements?: Array<{ text: string; correctChoice: string }>;
+  pairs?: Array<{ id: string; leftText?: string; leftMedia?: string; rightText: string }>;
+  media?: string;
+  hint?: string;
+  keywords?: string[];
+  elements?: string[];
+  [key: string]: unknown;
+}
 
 interface AssignmentPlayerProps {
   assignmentId: string;
-  exercise: ExerciseData;
+  exercise?: ExerciseData;
+  exerciseJson?: string;
   assetsPath: string;
-  savedAnswers?: any;
+  savedAnswers?: Record<string, unknown> | null;
+  savedAnswersJson?: string;
   role: "STUDENT" | "TEACHER";
   attemptNumber?: number;      // 1-indexed: what this submission will be recorded as
   multiplier?: number;         // score multiplier for this attempt (1.0, 0.75, 0.5, 0.25)
   priorAttemptCount?: number;  // how many submissions already exist
-}
-
-export function getTaskMaxPoints(q: any): number {
-  if (q.type === "media" || q.type === "instruction") return 0;
-  if (q.type === "multiple-choice") return 1;
-  if (q.type === "gap-fill" || q.type === "drag-drop") {
-    const gaps = (q.text || "").match(/<<(.*?)>>/g) || [];
-    return gaps.length > 0 ? gaps.length : 1;
-  }
-  if (q.type === "categorization") return (q.items || []).length || 1;
-  if (q.type === "clickable-choice") return (q.statements || []).length || 1;
-  if (q.type === "matching") return (q.pairs || []).length || 1;
-  if (q.type === "open-question") return 1;
-  if (q.type === "ordering") return 1;
-  return 1;
+  dueDate?: string;
 }
 
 interface WorksheetQuestionRowProps {
-  q: any;
+  q: WorksheetQuestionData;
   index: number;
-  ChildWidget: any;
+  ChildWidget: React.ComponentType<{
+    config: Record<string, unknown>;
+    assetsPath: string;
+    savedState: unknown;
+    onChange: (state: unknown, complete: boolean, score: number) => void;
+  }>;
   assetsPath: string;
-  savedAnswers: any;
-  handleChildChange: (qId: string, state: any, complete: boolean, score: number) => void;
+  savedAnswers: Record<string, unknown> | null | undefined;
+  handleChildChange: (qId: string, state: unknown, complete: boolean, score: number) => void;
 }
 
 const WorksheetQuestionRow: React.FC<WorksheetQuestionRowProps> = ({
@@ -53,12 +68,12 @@ const WorksheetQuestionRow: React.FC<WorksheetQuestionRowProps> = ({
   savedAnswers,
   handleChildChange,
 }) => {
-  const handleWidgetChange = useCallback((state: any, complete: boolean, score: number) => {
+  const handleWidgetChange = useCallback((state: unknown, complete: boolean, score: number) => {
     handleChildChange(q.id, state, complete, score);
   }, [q.id, handleChildChange]);
 
   const adaptedConfig = useMemo(() => {
-    const base: any = {
+    const base: Record<string, unknown> = {
       id: q.id,
       title: q.question || `${q.type} task`,
       type: q.type,
@@ -146,23 +161,73 @@ const WorksheetQuestionRow: React.FC<WorksheetQuestionRowProps> = ({
 
 export default function AssignmentPlayer({
   assignmentId,
-  exercise,
+  exercise: initialExercise,
+  exerciseJson,
   assetsPath,
-  savedAnswers,
+  savedAnswers: initialSavedAnswers,
+  savedAnswersJson,
   role,
   attemptNumber = 1,
   multiplier = 1.0,
   priorAttemptCount = 0,
+  dueDate,
 }: AssignmentPlayerProps) {
   const router = useRouter();
 
+  const exercise = useMemo(() => {
+    if (exerciseJson) {
+      try {
+        return JSON.parse(exerciseJson);
+      } catch (e) {
+        console.error("Failed to parse exerciseJson:", e);
+      }
+    }
+    return initialExercise!;
+  }, [initialExercise, exerciseJson]);
+
+  const savedAnswers = useMemo(() => {
+    if (savedAnswersJson) {
+      try {
+        return JSON.parse(savedAnswersJson);
+      } catch (e) {
+        console.error("Failed to parse savedAnswersJson:", e);
+      }
+    }
+    return initialSavedAnswers;
+  }, [initialSavedAnswers, savedAnswersJson]);
+
+  const isPastDue = useMemo(() => {
+    if (!dueDate) return false;
+    return new Date() > new Date(dueDate);
+  }, [dueDate]);
+
   // Widget state variables
-  const [widgetState, setWidgetState] = useState<any>(savedAnswers || (exercise.type === "worksheet" ? {} : null));
+  const [widgetState, setWidgetState] = useState<Record<string, unknown> | null>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem(`draft_${assignmentId}`);
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {
+          // ignore parse errors
+        }
+      }
+    }
+    return savedAnswers || (exercise.type === "worksheet" ? {} : null);
+  });
   const [isComplete, setIsComplete] = useState(false);
   const [score, setScore] = useState(0);
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [childCompletions, setChildCompletions] = useState<Record<string, boolean>>({});
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [childScores, setChildScores] = useState<Record<string, number>>({});
+
+  React.useEffect(() => {
+    if (typeof window !== "undefined" && role === "STUDENT" && widgetState) {
+      localStorage.setItem(`draft_${assignmentId}`, JSON.stringify(widgetState));
+    }
+  }, [widgetState, assignmentId, role]);
 
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -176,22 +241,23 @@ export default function AssignmentPlayer({
     ? WIDGET_REGISTRY[exercise.type as keyof typeof WIDGET_REGISTRY]
     : null;
 
-  const handleWidgetChange = useCallback((state: any, complete: boolean, currentScore: number) => {
-    setWidgetState(state);
+  const handleWidgetChange = useCallback((state: unknown, complete: boolean, currentScore: number) => {
+    setWidgetState(state as Record<string, unknown> | null);
     setIsComplete(complete);
     setScore(currentScore);
   }, []);
 
-  const handleChildChange = useCallback((qId: string, childState: any, childComplete: boolean, childScore: number) => {
-    setWidgetState((prev: any) => ({ ...(prev || {}), [qId]: childState }));
+  const handleChildChange = useCallback((qId: string, childState: unknown, childComplete: boolean, childScore: number) => {
+    setWidgetState((prev: Record<string, unknown> | null) => ({ ...(prev || {}), [qId]: childState }));
 
     setChildCompletions((prev) => {
       const next = { ...prev, [qId]: childComplete };
       if (exercise.type === "worksheet") {
-        const allComplete = exercise.questions.every((q: any) => {
+        const questions = (exercise as Record<string, unknown>).questions as WorksheetQuestionData[] | undefined;
+        const allComplete = questions?.every((q) => {
           if (q.type === "media" || q.type === "instruction") return true;
           return next[q.id];
-        });
+        }) ?? false;
         setIsComplete(allComplete);
       }
       return next;
@@ -200,10 +266,11 @@ export default function AssignmentPlayer({
     setChildScores((prev) => {
       const next = { ...prev, [qId]: childScore };
       if (exercise.type === "worksheet") {
+        const questions = (exercise as Record<string, unknown>).questions as WorksheetQuestionData[] | undefined;
         let totalMax = 0;
         let totalEarned = 0;
-        exercise.questions.forEach((q: any) => {
-          const maxPts = getTaskMaxPoints(q);
+        questions?.forEach((q) => {
+          const maxPts = getTaskMaxPoints(q as unknown as WorksheetQuestionData);
           const childPct = next[q.id] ?? 0;
           totalMax += maxPts;
           totalEarned += (childPct / 100) * maxPts;
@@ -229,14 +296,17 @@ export default function AssignmentPlayer({
       if (res?.error) {
         setError(res.error);
       } else {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem(`draft_${assignmentId}`);
+        }
         setSubmitted(true);
-        setSubmitScore(score);
+        setSubmitScore(res?.score ?? score);
         setSubmitEffectiveScore(res?.effectiveScore ?? score * multiplier);
         setSubmitAttemptNumber(res?.attemptNumber ?? attemptNumber);
         setSubmitMultiplier(res?.multiplier ?? multiplier);
         router.refresh();
       }
-    } catch (err) {
+    } catch {
       setError("An error occurred during submission.");
     } finally {
       setLoading(false);
@@ -319,7 +389,12 @@ export default function AssignmentPlayer({
           <ArrowLeft className="w-4 h-4" />
           Dashboard
         </Link>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          {role === "STUDENT" && (
+            <span className="text-[10px] text-neutral-400 dark:text-neutral-500 font-mono tracking-wider">
+              ✓ Autosaved draft
+            </span>
+          )}
           {role === "TEACHER" ? (
             <span className="text-xs font-semibold uppercase tracking-widest font-mono bg-blue-50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-900 px-2 py-0.5 rounded">
               Teacher Preview Mode
@@ -332,8 +407,7 @@ export default function AssignmentPlayer({
         </div>
       </div>
 
-      {/* Title block */}
-      <div className="space-y-1">
+      {/* Title bl      <div className="space-y-1">
         <h1 className="text-2xl font-extrabold tracking-tight text-neutral-900 dark:text-neutral-150">
           {exercise.title}
         </h1>
@@ -342,84 +416,104 @@ export default function AssignmentPlayer({
         </span>
       </div>
 
-      {/* Widget Container */}
-      {exercise.type === "worksheet" ? (
-        <div className="space-y-8">
-          {exercise.questions.map((q: any, index: number) => {
-            const ChildWidget = WIDGET_REGISTRY[q.type as keyof typeof WIDGET_REGISTRY];
-            if (!ChildWidget) return null;
-
-            return (
-              <WorksheetQuestionRow
-                key={q.id}
-                q={q}
-                index={index}
-                ChildWidget={ChildWidget}
-                assetsPath={assetsPath}
-                savedAnswers={savedAnswers}
-                handleChildChange={handleChildChange}
-              />
-            );
-          })}
-        </div>
-      ) : exercise.type === "image-hotspot-quiz" ? (
-        <div className="p-6 border border-neutral-300 dark:border-neutral-800 rounded bg-white dark:bg-neutral-900 shadow-sm">
-          {WIDGET_REGISTRY["image-hotspot-quiz"] ? (
-            React.createElement(WIDGET_REGISTRY["image-hotspot-quiz"], {
-              config: exercise,
-              assetsPath,
-              savedState: savedAnswers,
-              onChange: handleWidgetChange,
-            })
-          ) : (
-            <div className="text-center py-12 border rounded bg-red-50 dark:bg-red-950/10 border-red-350 text-red-700">
-              Hotspot Quiz widget not registered.
-            </div>
-          )}
-        </div>
-      ) : exercise.type === "interactive-reading" ? (
-        <div className="p-6 border border-neutral-350 dark:border-neutral-800 rounded bg-white dark:bg-neutral-900 shadow-sm">
-          {WIDGET_REGISTRY["interactive-reading"] ? (
-            React.createElement(WIDGET_REGISTRY["interactive-reading"], {
-              config: exercise,
-              assetsPath,
-              savedState: savedAnswers,
-              onChange: handleWidgetChange,
-            })
-          ) : (
-            <div className="text-center py-12 border rounded bg-red-50 dark:bg-red-950/10 border-red-350 text-red-700">
-              Interactive Reading widget not registered.
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="p-6 border border-neutral-300 dark:border-neutral-800 rounded bg-white dark:bg-neutral-900 shadow-sm">
-          {Widget ? (
-            <Widget
-              config={exercise}
-              assetsPath={assetsPath}
-              savedState={savedAnswers}
-              onChange={handleWidgetChange}
-            />
-          ) : (
-            <div className="text-center py-12 border rounded bg-red-50 dark:bg-red-950/10 border-red-350 text-red-700">
-              Widget type not registered.
-            </div>
-          )}
+      {isPastDue && role === "STUDENT" && (
+        <div className="flex items-center gap-2 p-4 bg-red-50 dark:bg-red-955/20 text-red-750 dark:text-red-350 border border-red-200 dark:border-red-900 rounded font-mono text-xs font-bold leading-normal">
+          <AlertTriangle className="w-5 h-5 shrink-0 text-red-500" />
+          <span>This assignment is locked because the due date ({new Date(dueDate!).toLocaleDateString("en-GB")}) has passed. You cannot modify your answers or submit attempts.</span>
         </div>
       )}
 
+      {/* Widget Container */}
+      <div className={isPastDue && role === "STUDENT" ? "pointer-events-none opacity-70" : ""}>
+        {exercise.type === "worksheet" ? (
+          <div className="space-y-8">
+            {(exercise.questions as WorksheetQuestionData[]).map((q, index: number) => {
+              const ChildWidget = WIDGET_REGISTRY[q.type as keyof typeof WIDGET_REGISTRY];
+              if (!ChildWidget) return null;
+
+              return (
+                <WidgetErrorBoundary key={q.id}>
+                  <WorksheetQuestionRow
+                    q={q}
+                    index={index}
+                    ChildWidget={ChildWidget}
+                    assetsPath={assetsPath}
+                    savedAnswers={savedAnswers}
+                    handleChildChange={handleChildChange}
+                  />
+                </WidgetErrorBoundary>
+              );
+            })}
+          </div>
+        ) : exercise.type === "image-hotspot-quiz" ? (
+          <div className="p-6 border border-neutral-300 dark:border-neutral-800 rounded bg-white dark:bg-neutral-900 shadow-sm">
+            <WidgetErrorBoundary>
+              {WIDGET_REGISTRY["image-hotspot-quiz"] ? (
+                React.createElement(WIDGET_REGISTRY["image-hotspot-quiz"], {
+                  config: exercise,
+                  assetsPath,
+                  savedState: savedAnswers,
+                  onChange: handleWidgetChange,
+                })
+              ) : (
+                <div className="text-center py-12 border rounded bg-red-50 dark:bg-red-955/10 border-red-350 text-red-700">
+                  Hotspot Quiz widget not registered.
+                </div>
+              )}
+            </WidgetErrorBoundary>
+          </div>
+        ) : exercise.type === "interactive-reading" ? (
+          <div className="p-6 border border-neutral-350 dark:border-neutral-800 rounded bg-white dark:bg-neutral-900 shadow-sm">
+            <WidgetErrorBoundary>
+              {WIDGET_REGISTRY["interactive-reading"] ? (
+                React.createElement(WIDGET_REGISTRY["interactive-reading"], {
+                  config: exercise,
+                  assetsPath,
+                  savedState: savedAnswers,
+                  onChange: handleWidgetChange,
+                })
+              ) : (
+                <div className="text-center py-12 border rounded bg-red-50 dark:bg-red-955/10 border-red-350 text-red-700">
+                  Interactive Reading widget not registered.
+                </div>
+              )}
+            </WidgetErrorBoundary>
+          </div>
+        ) : (
+          <div className="p-6 border border-neutral-300 dark:border-neutral-800 rounded bg-white dark:bg-neutral-900 shadow-sm">
+            <WidgetErrorBoundary>
+              {Widget ? (
+                <Widget
+                  config={exercise}
+                  assetsPath={assetsPath}
+                  savedState={savedAnswers}
+                  onChange={handleWidgetChange}
+                />
+              ) : (
+                <div className="text-center py-12 border rounded bg-red-50 dark:bg-red-955/10 border-red-350 text-red-700">
+                  Widget type not registered.
+                </div>
+              )}
+            </WidgetErrorBoundary>
+          </div>
+        )}
+      </div>
+
       {/* Error state */}
       {error && (
-        <div className="p-3 bg-red-50 dark:bg-red-950/20 border border-red-300 dark:border-red-900 rounded text-xs text-red-700 dark:text-red-300">
+        <div className="p-3 bg-red-50 dark:bg-red-955/20 border border-red-300 dark:border-red-900 rounded text-xs text-red-700 dark:text-red-350">
           {error}
         </div>
       )}
 
       {/* Submission Footer bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 border border-neutral-300 dark:border-neutral-800 rounded bg-neutral-50 dark:bg-neutral-950/40">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 border border-neutral-300 dark:border-neutral-800 rounded bg-neutral-50 dark:bg-neutral-955/40">
         <div className="flex flex-col gap-1">
-          {isComplete ? (
+          {isPastDue && role === "STUDENT" ? (
+            <span className="text-xs text-red-650 dark:text-red-400 flex items-center gap-1 font-mono font-bold">
+              <AlertTriangle className="w-4 h-4 text-red-500" /> Submission locked
+            </span>
+          ) : isComplete ? (
             <span className="text-xs text-neutral-600 dark:text-neutral-400 flex items-center gap-1 font-mono">
               <Check className="w-4 h-4 text-green-500" /> Ready to submit
             </span>
@@ -428,7 +522,7 @@ export default function AssignmentPlayer({
               <AlertTriangle className="w-4 h-4 text-amber-500" /> Progress: Incomplete
             </span>
           )}
-          {role === "STUDENT" && priorAttemptCount > 0 && (
+          {role === "STUDENT" && priorAttemptCount > 0 && !isPastDue && (
             <span className="text-[10px] font-mono text-amber-600 dark:text-amber-400">
               Attempt #{attemptNumber}: score multiplied by ×{Math.round(multiplier * 100)}%
             </span>
@@ -437,10 +531,10 @@ export default function AssignmentPlayer({
 
         <button
           onClick={handleSubmit}
-          disabled={loading}
+          disabled={loading || (isPastDue && role === "STUDENT")}
           className="bg-black text-white dark:bg-white dark:text-black font-semibold font-mono text-xs px-6 py-3 rounded uppercase tracking-wider hover:opacity-90 transition disabled:opacity-50 cursor-pointer shadow"
         >
-          {loading ? "Saving..." : role === "TEACHER" ? "Done Previewing" : "Submit Assignment"}
+          {loading ? "Saving..." : role === "TEACHER" ? "Done Previewing" : isPastDue && role === "STUDENT" ? "Locked" : "Submit Assignment"}
         </button>
       </div>
     </div>

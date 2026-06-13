@@ -35,8 +35,8 @@ export default function LoginPage() {
       } else {
         router.push("/student");
       }
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Login failed");
     } finally {
       setLoading(false);
     }
@@ -97,6 +97,17 @@ export default function LoginPage() {
               className="w-full text-sm border border-neutral-300 dark:border-neutral-700 rounded px-3 py-2 bg-transparent outline-none focus:border-black dark:focus:border-white"
               placeholder="Enter your password"
             />
+          </div>
+
+          <div className="text-right">
+            <details className="cursor-pointer text-[10px] text-neutral-450 hover:text-black dark:hover:text-white transition font-mono uppercase font-semibold">
+              <summary className="select-none text-right">Forgot password?</summary>
+              <div className="mt-1.5 p-3 bg-neutral-50 dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-800 rounded text-left font-sans normal-case text-xs text-neutral-600 dark:text-neutral-450 leading-relaxed max-w-sm">
+                <strong>Pupils:</strong> Please ask your teacher to reset your password from the classroom gradebook matrix.
+                <br /><br />
+                <strong>Teachers:</strong> Please contact the system administrator to update your credentials.
+              </div>
+            </details>
           </div>
 
           <button

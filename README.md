@@ -11,6 +11,7 @@ _Built for the MORE! 1st-grade AHS/MS curriculum_
 [![Prisma](https://img.shields.io/badge/Prisma-7-2d3748?logo=prisma)](https://www.prisma.io/)
 [![SQLite](https://img.shields.io/badge/SQLite-3-003b57?logo=sqlite)](https://www.sqlite.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-4-06b6d4?logo=tailwindcss)](https://tailwindcss.com/)
+[![Vitest](https://img.shields.io/badge/Vitest-3-729b1b?logo=vitest)](https://vitest.dev/)
 
 </div>
 
@@ -18,60 +19,124 @@ _Built for the MORE! 1st-grade AHS/MS curriculum_
 
 ## Overview
 
-Learn is a self-hosted web application for creating, assigning, and completing interactive language exercises. It supports 14 exercise types — from multiple choice and gap-fills to image hotspot quizzes and interactive reading — and handles the full workflow from content authoring to student submission and teacher review.
+Learn is a self-hosted web application for creating, assigning, completing, and reviewing interactive language exercises. It supports 14 exercise types—ranging from multiple choice and gap-fills to image hotspot quizzes, interactive reading, and media-rich open questions—and handles the full workflow from content authoring to student submission, gradebook analytics, and manual teacher grading override.
 
-Designed around the **MORE!** textbook series for Austrian 1st-grade English classes, but applicable to any language teaching context.
+Designed around the **MORE!** textbook series for Austrian 1st-grade English classes, but easily extensible to any language teaching context.
 
-## Features
+---
 
-### For Teachers
+## Core Features
 
-- **Worksheet Creator** — Build mixed exercises (MC, gap-fill, drag-drop, categorization, matching, ordering, open question, media embed, instruction card) in a single worksheet
-- **Special exercise modes** — Image Hotspot Quiz, Interactive Reading (branching stories), Vocabulary Practice
-- **Course management** — Organize exercises into units, drag-and-drop reordering
-- **Classroom management** — Create classrooms with join codes, assign exercises or entire courses
-- **Submission review** — View student answers, scores, and attempt history
-- **Rich media** — Upload images, audio, and video directly into exercises
-- **Preview mode** — See exactly what students will see
+### 👩‍🏫 For Teachers
 
-### For Students
+- **Worksheet Creator** — Build mixed-modality exercises in a single worksheet (e.g. multiple-choice, gap-fill, drag-and-drop, categorization, matching, ordering, open questions, media embeds, instruction cards).
+- **Master Course Organizer** — Arrange exercises into units and courses with drag-and-drop reordering and assign them to classrooms in bulk.
+- **Roster & Class Gradebook Matrix** — View a unified grid of student performance per assignment, drill down into student profiles to inspect attempts, and reset student passwords directly.
+- **Bulk Import/Export** — Add students in bulk using CSV/JSON formatted lists, and export the entire classroom gradebook to CSV for external school records.
+- **Grading & Scoring Reviews** — Review student answers, view submission timelines, grade student open responses (media or free text), and overwrite automated scores.
+- **Content Sync** — Synchronize exercises defined as JSON or Markdown on disk directly into the database. Handles soft-deletes smoothly.
 
-- **Interactive widgets** — Drag-and-drop, click-to-answer, hotspot exploration, audio playback
-- **Multiple attempts** — Retry with decreasing score multipliers (100% → 75% → 50% → 25%)
-- **Progress dashboard** — See completion status, scores, and due dates at a glance
-- **Audio support** — Listen to prompts and conversations within exercises
+### 🧑‍🎓 For Students
 
-### Exercise Types
+- **Interactive Player** — Responsive, dark-mode friendly workspace for solving drag-and-drop, clickable choice, categorization, and hotspot-based exercises.
+- **Autocorrect Protection** — iPad-ready forms with autocorrect, suggestions, and spellcheck disabled by default to prevent unwanted keyboard assistance during assessments.
+- **Rich Media Submissions** — Record audio directly in-browser via the `MediaRecorder` API or upload pictures as open-question submissions.
+- **Attempt Multipliers** — Reward mastery by letting students retry exercises with decreasing score multipliers (100% &rarr; 75% &rarr; 50% &rarr; 25% max-score caps).
+- **Progress Dashboard** — View completed work, check outstanding assignments, and trace due dates.
 
-| Type | Description |
-|------|-------------|
-| Multiple Choice | Classic MC with optional media per question |
-| Gap Fill | Fill in blanks with text input or dropdown |
-| Drag & Drop | Drag words into blanks within a sentence |
-| Categorization | Sort items into categories |
-| Clickable Choice | Assign statements to choice buttons |
-| Matching | Match left-column items to right-column items |
-| Open Question | Free-text answer with keyword scoring |
-| Ordering | Arrange words into the correct order |
-| Media Embed | Display image, audio, or video (no scoring) |
-| Instruction Card | Display instructions (no scoring) |
-| Image Hotspot Quiz | Find and click hotspots on an image |
-| Interactive Reading | Branching choose-your-own-adventure stories |
-| Vocabulary Practice | Word–translation flashcard drills |
-| Explore Image Map | Clickable scenes with audio and scene transitions |
+---
 
-## Tech Stack
+## 🧱 Exercise & Widget Types
 
-| Layer | Technology |
-|-------|-----------|
-| Framework | Next.js 16 (App Router, Server Components, Server Actions) |
-| UI | React 19, Tailwind CSS 4 |
-| Database | SQLite via Prisma 7 |
-| Auth | Encrypted session cookies (AES-256-GCM) |
-| Validation | Zod |
-| Storage | Filesystem (JSON + Markdown) with DB sync |
+| Type | Interactive Widget Features | Grading Mechanism |
+| :--- | :--- | :--- |
+| **Multiple Choice** | Option lists with support for question media (audio/image) | Automated (correct option match) |
+| **Gap Fill** | Text fields or inline dropdown lists inside sentences | Automated (exact match) |
+| **Drag & Drop** | Drag items into corresponding placeholders in a sentence | Automated (exact position match) |
+| **Categorization** | Drag-and-drop items into colored categorization bins | Automated (exact category match) |
+| **Clickable Choice** | Toggle statement labels assigned to choices | Automated (exact state matches) |
+| **Matching** | Match left-column cards to right-column items | Automated (correct key pairs) |
+| **Open Question** | Text input with support for voice recording and image uploads | Advanced Rubric / Teacher Manual override |
+| **Ordering** | Rearrange a randomized set of words into the correct sentence | Automated (exact order match) |
+| **Media Embed** | Display images, play audio files, or show embedded video | Non-graded (Informational) |
+| **Instruction Card**| Render formatted instructional text for worksheets | Non-graded (Informational) |
+| **Image Hotspot Quiz**| Find and tap hidden regions/items on a background image | Automated (tap inside boundary box) |
+| **Interactive Reading**| Branching "choose-your-own-adventure" story choices | Automated (completion path logic) |
+| **Vocabulary Practice**| Interactive flashcard drills for word-translation matching | Automated (spelling or match checks) |
+| **Explore Image Map** | Interactive image map with audio hotspots and scene transitions | Non-graded (Exploratory) |
 
-## Getting Started
+### 📝 Advanced Open Question Evaluation
+
+The `OpenQuestion` widget supports a rich evaluation rubric configured in the worksheet creator:
+1. **Required Keywords**: Keywords that *must* appear in the response, with optional scoring weights (`keyword##weight`).
+2. **Bonus Keywords**: Keywords that add extra score points if included (each bonus weight translates to `weight * 15` points, capped at 100%).
+3. **Forbidden Keywords**: Trigger words that immediately void the score to 0% if detected.
+4. **Spelling Tolerance**:
+   - `strict`: Case-insensitive exact substring matching.
+   - `lenient`: Match words with a Levenshtein distance of $\le 1$ to allow minor spelling mistakes.
+   - `off`: Substring matching disabled (defaulting to manual grading).
+5. **Media Override Flow**: If a student submits a response containing *only* audio or an image, automated keyword scoring is bypassed, and the server marks the submission as pending teacher review to avoid automatic fail grades.
+
+---
+
+## 🛡️ Security & Hardening Architecture
+
+The application has been hardened to prevent tampering, unauthorized access, and resource abuse:
+
+1. **Server-Authoritative Scoring**: The application never trusts client-computed scores. The server re-evaluates all answers against the disk configuration upon submission. Attempt multipliers are strictly tracked and applied on the server.
+2. **Cryptographic Join Codes**: Classroom join codes are generated using cryptographically secure PRNGs (`crypto.randomBytes`) rather than predictable pseudorandom generators.
+3. **Asset Serving Isolation**: API endpoints for exercises assets (`/api/exercises/[id]/assets/[...path]`) enforce active session checks, sanitize path parts to prevent directory traversal attacks (blocking `..` and relative slashes), and block configuration file reads (`index.json` or `index.md`).
+4. **Upload Restrictions**: Submission and exercise uploads enforce strict extension allowlists (blocking SVG files to prevent XSS), limit maximum file sizes (20MB), and utilize secure UUIDs (`crypto.randomUUID`) to write unique target filenames.
+5. **Brute-Force Rate Limiting**: The login endpoint `/api/auth/login` uses an in-memory rate-limiter keyed by IP and username, blocking authentication attempts for 5 minutes after 5 consecutive failures.
+6. **Transactional Integrity**: Critical database modifications—including bulk student roster imports, course assignment operations, and drag-and-drop course reorders—are fully wrapped in Prisma database transactions (`$transaction`) to guarantee atomic writes.
+
+---
+
+## 🛠️ Tech Stack
+
+- **Framework**: Next.js 16 (App Router, Server Actions, Server Components)
+- **UI & Layout**: React 19, Tailwind CSS 4, Lucide React icons
+- **Database**: SQLite via Prisma 7
+- **Authentication**: Encrypted session cookies (AES-256-GCM)
+- **Validation**: Zod Schemas
+- **Test Runner**: Vitest 3
+
+---
+
+## 📦 Project Structure
+
+```
+├── prisma/
+│   ├── schema.prisma          # Database models (User, Classroom, Student, Assignment, etc.)
+│   └── seed.ts                # Seeding script for development environments
+├── content/
+│   └── exercises/             # JSON/Markdown exercise definitions and media assets
+├── src/
+│   ├── app/
+│   │   ├── actions.ts         # Delegating wrapper for server actions
+│   │   ├── api/
+│   │   │   ├── auth/          # Login, logout, register API endpoints
+│   │   │   ├── exercises/     # Secure assets serving & teacher upload routes
+│   │   │   └── submissions/   # Student media upload endpoint
+│   │   ├── teacher/           # Teacher dashboard, creator client, classroom gradebook
+│   │   ├── student/           # Student assignment player & dashboards
+│   │   └── layout.tsx         # Root container
+│   ├── components/
+│   │   ├── Navbar.tsx         # Unified global navigation
+│   │   └── widgets/           # 14 player widgets and builder helper scripts
+│   └── lib/
+│       ├── actions/           # Hardened server actions (classroom, course, exercise, submission)
+│       ├── exercises.ts       # Zod exercise definitions, cache, and disk I/O helpers
+│       ├── rateLimit.ts       # Brute-force credentials rate-limiter
+│       ├── session.ts         # Cookie encryption and session authorization utilities
+│       ├── submissionScoring.ts # Server-side answers evaluation and grading logic
+│       └── points.ts          # Core points calculation logic
+└── vitest.config.ts           # Vitest unit test suite configuration
+```
+
+---
+
+## 🚀 Getting Started
 
 ### Prerequisites
 
@@ -80,106 +145,93 @@ Designed around the **MORE!** textbook series for Austrian 1st-grade English cla
 
 ### Installation
 
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/damessner/learn_.git
+   cd learn_
+   ```
+
+2. **Install dependencies**:
+   ```bash
+   npm install
+   ```
+
+3. **Set up the Database**:
+   ```bash
+   npx prisma db push
+   npx prisma db seed
+   ```
+
+4. **Configuration (`.env`)**:
+   Create a `.env` file in the root directory. SQLite is configured by default:
+   ```env
+   DATABASE_URL="file:./dev.db"
+   SESSION_SECRET="your_secure_32_character_session_secret_key"
+   
+   # Optional: Gemini API Configuration
+   GEMINI_API_KEY="AIzaSy..."
+   GEMINI_MODEL="gemini-3.5-flash-latest"
+   ```
+
+5. **Start Development Server**:
+   ```bash
+   npm run dev
+   ```
+   Open [http://localhost:3000](http://localhost:3000) and register a teacher account.
+
+---
+
+## 🧪 Testing
+
+The repository includes a comprehensive unit testing suite using Vitest that verifies rate limiting, join codes, points multipliers, and server-authoritative scoring.
+
+Run the test suite once:
 ```bash
-# Clone the repository
-git clone https://github.com/damessner/learn_.git
-cd learn_
-
-# Install dependencies
-npm install
-
-# Set up the database
-npx prisma db push
-npx prisma db seed
-
-# Create a .env file (SQLite is the default)
-echo 'DATABASE_URL="file:./dev.db"' > .env
-
-# Start the development server
-npm run dev
+npm run test
 ```
 
-Open **http://localhost:3000** and register a teacher account to get started.
-
-### Creating Exercises
-
-Exercises are stored as JSON or Markdown files in `content/exercises/<id>/`:
-
-```
-content/exercises/
-  u1-spelling-02/
-    index.json          # Exercise definition
-    assets/
-      audio.wav         # Media files
-  verbs-gapfill/
-    index.md            # Markdown with frontmatter
+Run tests in watch/interactive mode:
+```bash
+npm run test:watch
 ```
 
-You can create exercises via the web UI (**/teacher/create**) or by writing files directly and syncing with the **Sync** button on the teacher dashboard.
+---
 
-## Project Structure
+## 📄 Configuration Formats
 
-```
-src/
-  app/
-    actions.ts              # Server actions (auth, CRUD, assignments)
-    api/auth/               # Login, register, logout API routes
-    api/admin/sync/         # Manual DB sync endpoint
-    api/exercises/[id]/assets/  # Media file serving
-    teacher/                # Teacher dashboard, creator, preview
-    student/                # Student dashboard
-    assignments/[id]/       # Assignment player
-    submissions/[id]/       # Submission review
-  components/
-    Navbar.tsx
-    widgets/                # 14 exercise widget components
-      types.ts              # TypeScript interfaces for all configs
-      index.ts              # Widget registry
-  lib/
-    exercises.ts            # Zod schemas, disk I/O, validation
-    scoring.ts              # Attempt multiplier logic
-    session.ts              # Encrypted session management
-    db.ts                   # Prisma client
-prisma/
-  schema.prisma             # Database schema
-  seed.ts                   # Demo data
-  migrations/               # Schema migrations
-content/
-  exercises/                # Exercise content (JSON/MD + assets)
-```
+### Exercise JSON (`index.json`)
 
-## Configuration
-
-### Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DATABASE_URL` | `file:./dev.db` | SQLite connection string |
-| `SESSION_SECRET` | — | AES-256-GCM key (auto-generated if unset) |
-
-### Exercise File Format
-
-Each exercise is a JSON file (`index.json`) or Markdown file with frontmatter (`index.md`):
+Exercises are validated via Zod schemas inside `src/lib/exercises.ts`. An example of a worksheet containing multiple-choice and open questions:
 
 ```json
 {
-  "id": "my-quiz",
-  "title": "Unit 1 Quiz",
-  "description": "Alphabet and spelling",
+  "id": "u1-spelling-practice",
+  "title": "Unit 1 Spelling Practice",
+  "description": "Practice spelling and vocabulary words from Unit 1",
   "type": "worksheet",
+  "tags": ["spelling", "unit-1"],
   "questions": [
     {
       "id": "q1",
       "type": "multiple-choice",
-      "question": "How do you spell your name?",
-      "options": ["E-M-M-A", "E-M-A", "E-M-M-A-A"],
-      "correctOptionIndex": 0
+      "question": "What is the spelling of 'apple'?",
+      "options": ["aple", "apple", "applee"],
+      "correctOptionIndex": 1
+    },
+    {
+      "id": "q2",
+      "type": "open-question",
+      "question": "Write a short sentence using the word 'spelling'.",
+      "required": ["spelling##2.0"],
+      "bonus": ["grammar##1.0", "sentence##1.0"],
+      "forbidden": ["badword"],
+      "spellingTolerance": "lenient",
+      "allowAudio": true,
+      "allowImage": true
     }
   ]
 }
 ```
-
-See `src/lib/exercises.ts` for the full Zod schema of all exercise types.
 
 ## License
 

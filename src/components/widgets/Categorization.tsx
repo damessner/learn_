@@ -193,7 +193,7 @@ export const Categorization: React.FC<WidgetProps<CategorizationConfig>> = ({
                     draggable
                     onDragStart={(e) => handleDragStart(e, item.id)}
                     onClick={() => handleSelectItem(item.id)}
-                    className={`p-3 rounded border shadow-sm cursor-grab select-none transition max-w-[150px] flex flex-col items-center text-center ${
+                    className={`touch-draggable p-3 rounded border shadow-sm cursor-grab select-none transition max-w-[150px] flex flex-col items-center text-center ${
                       isSelected
                         ? "border-black dark:border-white bg-neutral-900 text-white dark:bg-white dark:text-black font-semibold"
                         : "border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-800"

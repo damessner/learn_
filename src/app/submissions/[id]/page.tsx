@@ -71,9 +71,9 @@ export default async function SubmissionReviewPage({
     );
   }
 
-  let savedAnswers: any = {};
+  let savedAnswers: Record<string, unknown> = {};
   try {
-    savedAnswers = JSON.parse(submission.answersJson);
+    savedAnswers = JSON.parse(submission.answersJson) as Record<string, unknown>;
   } catch (e) {
     console.error("Failed to parse submission answers:", e);
   }
@@ -86,8 +86,8 @@ export default async function SubmissionReviewPage({
       <Navbar />
       <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-8">
         <SubmissionReviewPlayer
-          exercise={exercise}
-          savedAnswers={savedAnswers}
+          exerciseJson={JSON.stringify(exercise)}
+          savedAnswersJson={JSON.stringify(savedAnswers)}
           assetsPath={assetsPath}
           studentName={submission.student.username}
           completedAt={submission.completedAt.toISOString()}
@@ -95,6 +95,11 @@ export default async function SubmissionReviewPage({
           effectiveScore={submission.effectiveScore}
           attemptNumber={submission.attemptNumber}
           backUrl={backUrl}
+          isTeacher={isTeacher}
+          submissionId={submissionId}
+          teacherScore={submission.teacherScore ?? undefined}
+          feedback={submission.feedback ?? undefined}
+          reviewedAt={submission.reviewedAt ? submission.reviewedAt.toISOString() : undefined}
         />
       </main>
     </>

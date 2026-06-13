@@ -18,7 +18,7 @@ export const GapFill: React.FC<WidgetProps<GapFillConfig>> = ({
 }) => {
   // Parse text into segment strings and gap definitions
   const { parts, gaps } = useMemo(() => {
-    const regex = /<<(.*?)>>/g;
+    const regex = /<<(.*?)>>|\[(.*?)\]/g;
     const partsList: string[] = [];
     const gapsList: ParsedGap[] = [];
     let lastIndex = 0;
@@ -28,11 +28,11 @@ export const GapFill: React.FC<WidgetProps<GapFillConfig>> = ({
     while ((match = regex.exec(config.text)) !== null) {
       partsList.push(config.text.substring(lastIndex, match.index));
 
-      const rawContent = match[1];
-      // Split on ## — first item is the correct answer, rest are distractors
-      const parts = rawContent.split("##");
+      const rawContent = match[1] || match[2] || "";
+      // Split on ## or | — first item is the correct answer, rest are distractors
+      const parts = rawContent.split(/##|\|/);
 
-      if (parts.length > 1) {
+      if (parts.length > 1 && parts[0].trim() !== "") {
         // Dropdown selection
         const correctAnswer = parts[0];
         // Deterministic shuffle using the gap index as seed so order is stable
@@ -54,7 +54,7 @@ export const GapFill: React.FC<WidgetProps<GapFillConfig>> = ({
         // Plain text input
         gapsList.push({
           index: gapIndex,
-          correctAnswer: rawContent,
+          correctAnswer: parts[0] || "",
           isDropdown: false,
           options: [],
         });
@@ -150,6 +150,10 @@ export const GapFill: React.FC<WidgetProps<GapFillConfig>> = ({
                       placeholder={isReadOnly ? "" : "write..."}
                       value={answers[gap.index] || ""}
                       onChange={(e) => handleChange(gap.index, e.target.value)}
+                      autoComplete="off"
+                      autoCorrect="off"
+                      autoCapitalize="none"
+                      spellCheck="false"
                       className={`text-sm px-2.5 py-1 border-b outline-none transition w-32 ${
                         isReadOnly
                           ? (answers[gap.index] || "").trim().toLowerCase() === gap.correctAnswer.toLowerCase()

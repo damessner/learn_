@@ -44,8 +44,8 @@ export default function RegisterPage() {
       } else {
         router.push("/student");
       }
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Registration failed");
     } finally {
       setLoading(false);
     }
@@ -134,8 +134,10 @@ export default function RegisterPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full text-sm border border-neutral-300 dark:border-neutral-700 rounded px-3 py-2 bg-transparent outline-none focus:border-black dark:focus:border-white"
-              placeholder="Choose a password"
+              placeholder="Choose a password (min 6 characters)"
+              minLength={6}
             />
+            <p className="text-[10px] text-neutral-400 mt-0.5">At least 6 characters</p>
           </div>
 
           {role === "STUDENT" && (

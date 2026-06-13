@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useTransition } from "react";
-import { createCourse } from "@/app/actions";
+import { createCourse } from "@/lib/actions/course";
 import { Plus, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 

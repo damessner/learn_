@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { WidgetProps, InteractiveReadingConfig } from "./types";
-import { Check, ArrowRight, Play, Award, HelpCircle } from "lucide-react";
+import { Check, ArrowRight, Award } from "lucide-react";
 
 export const InteractiveReading: React.FC<WidgetProps<InteractiveReadingConfig>> = ({
   config,
@@ -51,7 +51,7 @@ export const InteractiveReading: React.FC<WidgetProps<InteractiveReadingConfig>>
   }, [config.pages]);
 
   // Questions on current page
-  const pageQuestions = page?.questions || [];
+  const pageQuestions = useMemo(() => page?.questions || [], [page?.questions]);
 
   // Determine if current page is unlocked (all questions on it are solved)
   const isPageUnlocked = useMemo(() => {
@@ -61,7 +61,7 @@ export const InteractiveReading: React.FC<WidgetProps<InteractiveReadingConfig>>
   }, [pageQuestions, solvedQuestions, currentPageId]);
 
   // Handle single question answer check
-  const handleCheckQuestion = (q: any, studentAnswer: string) => {
+  const handleCheckQuestion = (q: InteractiveReadingConfig["pages"][string]["questions"][number], studentAnswer: string) => {
     if (isReadOnly) return;
 
     let correct = false;

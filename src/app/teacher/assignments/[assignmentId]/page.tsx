@@ -5,69 +5,9 @@ import { getExerciseFromDisk } from "@/lib/exercises";
 import { redirect, notFound } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
 import Link from "next/link";
-import { ArrowLeft, BookOpen, User, Check, X, Award, ExternalLink, Calendar } from "lucide-react";
-
-// Helper function to get max points per task
-function getTaskMaxPoints(q: any): number {
-  if (q.type === "media" || q.type === "instruction") return 0;
-  if (q.type === "multiple-choice") return 1;
-  if (q.type === "gap-fill" || q.type === "drag-drop") {
-    const gaps = (q.text || "").match(/<<(.*?)>>/g) || [];
-    return gaps.length > 0 ? gaps.length : 1;
-  }
-  if (q.type === "categorization") return (q.items || []).length || 1;
-  if (q.type === "clickable-choice") return (q.statements || []).length || 1;
-  if (q.type === "matching") return (q.pairs || []).length || 1;
-  if (q.type === "open-question") return 1;
-  if (q.type === "ordering") return 1;
-  return 1;
-}
-
-// Helper function to get max points for entire exercise
-function getExerciseMaxPoints(exercise: any): number {
-  if (exercise.type === "worksheet") {
-    let totalMax = 0;
-    (exercise.questions || []).forEach((q: any) => {
-      totalMax += getTaskMaxPoints(q);
-    });
-    return totalMax;
-  }
-  if (exercise.type === "image-hotspot-quiz") {
-    return (exercise.tasks || []).length || 1;
-  }
-  if (exercise.type === "interactive-reading") {
-    let totalQuestions = 0;
-    Object.values(exercise.pages || {}).forEach((page: any) => {
-      totalQuestions += (page.questions || []).length;
-    });
-    return totalQuestions || 1;
-  }
-  if (exercise.type === "explore-image-map") {
-    return 1;
-  }
-  if (exercise.type === "multiple-choice") {
-    return (exercise.questions || []).length || 1;
-  }
-  if (exercise.type === "gap-fill" || exercise.type === "drag-drop") {
-    const gaps = (exercise.text || "").match(/<<(.*?)>>/g) || [];
-    return gaps.length > 0 ? gaps.length : 1;
-  }
-  if (exercise.type === "categorization") {
-    return (exercise.items || []).length || 1;
-  }
-  if (exercise.type === "clickable-choice") {
-    return (exercise.statements || []).length || 1;
-  }
-  if (exercise.type === "matching") {
-    return (exercise.pairs || []).length || 1;
-  }
-  if (exercise.type === "vocabulary") {
-    return (exercise.vocabList || []).length || 1;
-  }
-  if (exercise.type === "open-question") return 1;
-  if (exercise.type === "ordering") return 1;
-  return 1;
-}
+import { ArrowLeft, BookOpen, User, Check, X, ExternalLink, Calendar } from "lucide-react";
+import UnassignButton from "./UnassignButton";
+import { getExerciseMaxPoints } from "@/lib/points";
 
 export default async function AssignmentSubmissionsPage({
   params,
@@ -183,23 +123,27 @@ export default async function AssignmentSubmissionsPage({
               )}
             </div>
 
-            <div className="flex items-center gap-6 divide-x divide-neutral-200 dark:divide-neutral-800 bg-neutral-50 dark:bg-neutral-950/40 p-4 rounded border">
-              <div className="px-2 text-center">
-                <span className="text-[9px] text-neutral-500 font-bold uppercase block tracking-wider font-mono">
-                  Pupils Completed
-                </span>
-                <span className="text-xl font-bold font-mono text-neutral-900 dark:text-neutral-100">
-                  {completedCount} / {totalStudents}
-                </span>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full md:w-auto">
+              <div className="flex items-center gap-6 divide-x divide-neutral-200 dark:divide-neutral-800 bg-neutral-50 dark:bg-neutral-950/40 p-4 rounded border">
+                <div className="px-2 text-center">
+                  <span className="text-[9px] text-neutral-500 font-bold uppercase block tracking-wider font-mono">
+                    Pupils Completed
+                  </span>
+                  <span className="text-xl font-bold font-mono text-neutral-900 dark:text-neutral-100">
+                    {completedCount} / {totalStudents}
+                  </span>
+                </div>
+                <div className="px-4 text-center">
+                  <span className="text-[9px] text-neutral-500 font-bold uppercase block tracking-wider font-mono">
+                    Max points
+                  </span>
+                  <span className="text-xl font-bold font-mono text-neutral-900 dark:text-neutral-100">
+                    {maxPoints} pts
+                  </span>
+                </div>
               </div>
-              <div className="px-4 text-center">
-                <span className="text-[9px] text-neutral-500 font-bold uppercase block tracking-wider font-mono">
-                  Max points
-                </span>
-                <span className="text-xl font-bold font-mono text-neutral-900 dark:text-neutral-100">
-                  {maxPoints} pts
-                </span>
-              </div>
+              
+              <UnassignButton assignmentId={assignment.id} className="self-end sm:self-center" />
             </div>
           </div>
         </div>

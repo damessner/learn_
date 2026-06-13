@@ -6,6 +6,41 @@ import { Navbar } from "@/components/Navbar";
 import Link from "next/link";
 import { Play, AlertCircle, BookOpen, Users, RotateCcw, Trophy, FolderOpen } from "lucide-react";
 import { getExerciseTypeLabel } from "@/lib/exerciseLabels";
+import JoinClassroomForm from "./JoinClassroomForm";
+
+function renderDueDateBadge(dueDate: Date | null, isCompleted: boolean) {
+  if (isCompleted || !dueDate) return null;
+
+  const due = new Date(dueDate);
+  const now = new Date();
+  
+  // Set times to midnight for date-only comparison
+  const dueMidnight = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+  const nowMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  
+  const timeDiff = dueMidnight.getTime() - nowMidnight.getTime();
+  const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
+
+  if (timeDiff < 0) {
+    return (
+      <span className="text-[9px] font-bold uppercase tracking-wider font-mono px-2 py-0.5 rounded bg-red-50 text-red-700 dark:bg-red-950/20 dark:text-red-400 border border-red-200/50 dark:border-red-900/50">
+        Overdue
+      </span>
+    );
+  } else if (daysDiff <= 1) {
+    return (
+      <span className="text-[9px] font-bold uppercase tracking-wider font-mono px-2 py-0.5 rounded bg-amber-50 text-amber-700 dark:bg-amber-950/20 dark:text-amber-400 border border-amber-200/50 dark:border-amber-900/50 animate-pulse">
+        Due Soon
+      </span>
+    );
+  } else {
+    return (
+      <span className="text-[9px] font-bold uppercase tracking-wider font-mono px-2 py-0.5 rounded bg-blue-50 text-blue-700 dark:bg-blue-950/20 dark:text-blue-400 border border-blue-200/50 dark:border-blue-900/50">
+        Due in {daysDiff} day{daysDiff !== 1 ? "s" : ""}
+      </span>
+    );
+  }
+}
 
 export default async function StudentDashboard() {
   const session = await getSession();
@@ -52,6 +87,61 @@ export default async function StudentDashboard() {
     },
   });
 
+  // Calculate student in-app notifications
+  const notifications: { id: string; type: "DUE_SOON" | "NEW"; message: string; link: string }[] = [];
+
+  classroomsJoined.forEach((cs) => {
+    // Check standalone assignments
+    cs.classroom.assignments.forEach((as) => {
+      const isCompleted = as.submissions.length > 0;
+      if (!isCompleted) {
+        // 1. Due soon check (due in less than 24 hours)
+        if (as.dueDate) {
+          const due = new Date(as.dueDate);
+          const now = new Date();
+          const hoursLeft = (due.getTime() - now.getTime()) / (1000 * 3600);
+          if (hoursLeft > 0 && hoursLeft <= 24) {
+            notifications.push({
+              id: `due-${as.id}`,
+              type: "DUE_SOON",
+              message: `"${as.exercise.title}" is due in less than 24 hours!`,
+              link: `/assignments/${as.id}`,
+            });
+          }
+        }
+        // 2. New assignment check (assigned in past 48 hours)
+        const ageInHours = (new Date().getTime() - new Date(as.createdAt).getTime()) / (1000 * 3600);
+        if (ageInHours <= 48) {
+          notifications.push({
+            id: `new-${as.id}`,
+            type: "NEW",
+            message: `New assignment in ${cs.classroom.name}: "${as.exercise.title}"`,
+            link: `/assignments/${as.id}`,
+          });
+        }
+      }
+    });
+
+    // Check course assignments
+    cs.classroom.courseAssignments.forEach((ca) => {
+      ca.assignments.forEach((as) => {
+        const isCompleted = as.submissions.length > 0;
+        if (!isCompleted) {
+          // New assignment check (assigned in past 48 hours)
+          const ageInHours = (new Date().getTime() - new Date(as.createdAt).getTime()) / (1000 * 3600);
+          if (ageInHours <= 48) {
+            notifications.push({
+              id: `new-${as.id}`,
+              type: "NEW",
+              message: `New assignment in course "${ca.course.title}": "${as.exercise.title}"`,
+              link: `/assignments/${as.id}`,
+            });
+          }
+        }
+      });
+    });
+  });
+
   return (
     <>
       <Navbar />
@@ -66,12 +156,44 @@ export default async function StudentDashboard() {
           </p>
         </div>
 
+        {/* Notifications Alert Center */}
+        {notifications.length > 0 && (
+          <div className="border border-neutral-300 dark:border-neutral-800 rounded bg-neutral-50 dark:bg-neutral-900/30 p-5 space-y-3">
+            <h2 className="text-xs font-bold font-mono uppercase tracking-wider text-neutral-550 flex items-center gap-2">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+              </span>
+              Inbox Alerts ({notifications.length})
+            </h2>
+            <div className="space-y-2">
+              {notifications.map((n) => (
+                <Link
+                  key={n.id}
+                  href={n.link}
+                  className="flex items-center justify-between p-3 rounded bg-white dark:bg-neutral-900 border border-neutral-250 dark:border-neutral-800 hover:border-neutral-350 dark:hover:border-neutral-700 transition"
+                >
+                  <span className="text-xs font-semibold text-neutral-850 dark:text-neutral-250">
+                    {n.message}
+                  </span>
+                  <span className="text-[10px] font-mono uppercase font-bold text-neutral-450 hover:text-black dark:hover:text-white flex items-center gap-1 shrink-0 ml-4">
+                    Open Task →
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Join Classroom Form */}
+        <JoinClassroomForm />
+
         {/* Classrooms & Assignments */}
         {classroomsJoined.length === 0 ? (
           <div className="text-center py-12 border border-dashed rounded text-neutral-500 space-y-4">
             <p>You have not joined any classrooms yet.</p>
             <p className="text-xs">
-              Please register a new student account using a classroom Join Code provided by your teacher.
+              Enter a join code above or register a new student account using a classroom Join Code provided by your teacher.
             </p>
           </div>
         ) : (
@@ -157,10 +279,35 @@ export default async function StudentDashboard() {
                                           Due: {new Date(assignment.dueDate).toLocaleDateString("en-GB")}
                                         </span>
                                       )}
-                                      {isCompleted && attemptCount > 1 && (
-                                        <span className="font-mono text-amber-600 dark:text-amber-400">
-                                          {attemptCount} attempts
-                                        </span>
+                                      {renderDueDateBadge(assignment.dueDate, isCompleted)}
+                                      {isCompleted && attemptCount > 0 && (
+                                        <details className="text-xs text-neutral-500 mt-2 select-none w-full">
+                                          <summary className="cursor-pointer hover:text-black dark:hover:text-white transition font-mono font-semibold flex items-center gap-1">
+                                            History ({attemptCount} attempt{attemptCount !== 1 ? "s" : ""})
+                                          </summary>
+                                          <ul className="mt-1.5 space-y-1.5 pl-3 border-l border-neutral-200 dark:border-neutral-800">
+                                            {submissions.map((sub, sIdx) => {
+                                              const subNum = attemptCount - sIdx;
+                                              const subScore = sub.teacherScore !== null ? sub.teacherScore : sub.effectiveScore;
+                                              return (
+                                                <li key={sub.id} className="flex items-center justify-between text-[11px] font-mono py-0.5">
+                                                  <span>
+                                                    Attempt #{subNum} · {new Date(sub.completedAt).toLocaleDateString("en-GB")}
+                                                  </span>
+                                                  <div className="flex items-center gap-2">
+                                                    <span className="font-bold">{subScore}%</span>
+                                                    <Link
+                                                      href={`/submissions/${sub.id}`}
+                                                      className="text-neutral-450 hover:text-black dark:hover:text-white underline"
+                                                    >
+                                                      Review
+                                                    </Link>
+                                                  </div>
+                                                </li>
+                                              );
+                                            })}
+                                          </ul>
+                                        </details>
                                       )}
                                     </div>
                                   </div>
@@ -256,10 +403,35 @@ export default async function StudentDashboard() {
                                       Due: {new Date(assignment.dueDate).toLocaleDateString("en-GB")}
                                     </span>
                                   )}
-                                  {isCompleted && attemptCount > 1 && (
-                                    <span className="font-mono text-amber-600 dark:text-amber-400">
-                                      {attemptCount} attempts
-                                    </span>
+                                  {renderDueDateBadge(assignment.dueDate, isCompleted)}
+                                  {isCompleted && attemptCount > 0 && (
+                                    <details className="text-xs text-neutral-500 mt-2 select-none w-full">
+                                      <summary className="cursor-pointer hover:text-black dark:hover:text-white transition font-mono font-semibold flex items-center gap-1">
+                                        History ({attemptCount} attempt{attemptCount !== 1 ? "s" : ""})
+                                      </summary>
+                                      <ul className="mt-1.5 space-y-1.5 pl-3 border-l border-neutral-200 dark:border-neutral-800">
+                                        {submissions.map((sub, sIdx) => {
+                                          const subNum = attemptCount - sIdx;
+                                          const subScore = sub.teacherScore !== null ? sub.teacherScore : sub.effectiveScore;
+                                          return (
+                                            <li key={sub.id} className="flex items-center justify-between text-[11px] font-mono py-0.5">
+                                              <span>
+                                                Attempt #{subNum} · {new Date(sub.completedAt).toLocaleDateString("en-GB")}
+                                              </span>
+                                              <div className="flex items-center gap-2">
+                                                <span className="font-bold">{subScore}%</span>
+                                                <Link
+                                                  href={`/submissions/${sub.id}`}
+                                                  className="text-neutral-455 hover:text-black dark:hover:text-white underline"
+                                                >
+                                                  Review
+                                                </Link>
+                                              </div>
+                                            </li>
+                                          );
+                                        })}
+                                      </ul>
+                                    </details>
                                   )}
                                 </div>
                               </div>

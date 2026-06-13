@@ -2,6 +2,13 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { setSession } from "@/lib/session";
+import {
+  checkRateLimit,
+  recordFailedAttempt,
+  clearRateLimit,
+  buildRateLimitKey,
+} from "@/lib/rateLimit";
+import { headers } from "next/headers";
 
 export async function POST(request: Request) {
   try {
@@ -14,11 +21,29 @@ export async function POST(request: Request) {
       );
     }
 
+    // Rate limiting: build key from username and best-effort IP
+    const headersList = await headers();
+    const ip = headersList.get("x-forwarded-for")?.split(",")[0]?.trim()
+      || headersList.get("x-real-ip")
+      || "unknown";
+    const rateLimitKey = buildRateLimitKey(username, ip);
+
+    // Check if this key is currently blocked
+    const { blocked } = checkRateLimit(rateLimitKey);
+    if (blocked) {
+      return NextResponse.json(
+        { error: "Invalid username or password" },
+        { status: 400 }
+      );
+    }
+
     const user = await prisma.user.findUnique({
       where: { username },
     });
 
     if (!user) {
+      // Record failure before returning
+      recordFailedAttempt(rateLimitKey);
       return NextResponse.json(
         { error: "Invalid username or password" },
         { status: 400 }
@@ -28,11 +53,16 @@ export async function POST(request: Request) {
     const isMatch = await bcrypt.compare(password, user.passwordHash);
 
     if (!isMatch) {
+      // Record failure before returning
+      recordFailedAttempt(rateLimitKey);
       return NextResponse.json(
         { error: "Invalid username or password" },
         { status: 400 }
       );
     }
+
+    // Successful login: clear rate limit for this key
+    clearRateLimit(rateLimitKey);
 
     // Establish session
     await setSession({

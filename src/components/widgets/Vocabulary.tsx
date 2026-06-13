@@ -25,7 +25,7 @@ export const Vocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
   onChange,
   isReadOnly = false,
 }) => {
-  const vocabList = config.vocabList || [];
+  const vocabList = useMemo(() => config.vocabList || [], [config.vocabList]);
 
   // Stable onChange ref to avoid infinite loops
   const onChangeRef = useRef(onChange);
@@ -50,8 +50,14 @@ export const Vocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
   // Flip state for Level 0 (Flashcard)
   const [flipped, setFlipped] = useState(false);
 
-  // Active word index
-  const [activeIdx, setActiveIdx] = useState<number>(0);
+  // Active word index - starts at first unmastered word if loading saved state
+  const [activeIdx, setActiveIdx] = useState<number>(() => {
+    if (savedState?.levels) {
+      const firstUnmastered = vocabList.findIndex((_, idx) => (savedState.levels[idx] ?? 0) < 3);
+      return firstUnmastered >= 0 ? firstUnmastered : 0;
+    }
+    return 0;
+  });
 
   // Feedback state: "idle" | "correct" | "incorrect"
   const [feedback, setFeedback] = useState<"idle" | "correct" | "incorrect">("idle");
@@ -67,16 +73,17 @@ export const Vocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
     return indices;
   }, [levels, vocabList]);
 
-  // Adjust active index if current word becomes mastered
+  // Track previous activeIdx to reset per-word state when word changes
+  const prevActiveIdx = useRef(activeIdx);
   useEffect(() => {
-    if (unmasteredIndices.length > 0 && !unmasteredIndices.includes(activeIdx)) {
-      setActiveIdx(unmasteredIndices[0]);
+    if (activeIdx !== prevActiveIdx.current) {
+      prevActiveIdx.current = activeIdx;
       setFeedback("idle");
       setFlipped(false);
       setSelectedOptionIdx(null);
       setSpellingInput("");
     }
-  }, [unmasteredIndices, activeIdx]);
+  }, [activeIdx]);
 
   // Deterministic MC options using the word index as seed — no Math.random() to avoid hydration mismatch
   const mcOptions = useMemo(() => {
@@ -258,6 +265,11 @@ export const Vocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
   const handleSpellingNext = () => {
     if (feedback === "correct") {
       setLevels((prev) => ({ ...prev, [activeIdx]: 3 }));
+      // Advance to next unmastered word
+      const nextUnmastered = vocabList.findIndex((_, idx) => idx !== activeIdx && (levels[idx] ?? 0) < 3);
+      if (nextUnmastered >= 0) {
+        setActiveIdx(nextUnmastered);
+      }
     } else {
       setLevels((prev) => ({ ...prev, [activeIdx]: 1 }));
     }
@@ -513,6 +525,7 @@ export const Vocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
               <input
                 type="text"
                 autoFocus
+                autoComplete="off"
                 autoCapitalize="none"
                 autoCorrect="off"
                 spellCheck={false}

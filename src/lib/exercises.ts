@@ -25,6 +25,7 @@ const BaseExerciseSchema = z.object({
     "interactive-reading",
     "vocabulary"
   ]),
+  tags: z.union([z.string(), z.array(z.string())]).optional().default(""),
 });
 
 // Zod schemas for validation
@@ -148,7 +149,13 @@ export const InstructionSchema = BaseExerciseSchema.extend({
 export const OpenQuestionSchema = BaseExerciseSchema.extend({
   type: z.literal("open-question"),
   question: z.string(),
-  keywords: z.array(z.string()),
+  keywords: z.array(z.string()).optional(),
+  required: z.array(z.string()).optional(),
+  bonus: z.array(z.string()).optional(),
+  forbidden: z.array(z.string()).optional(),
+  spellingTolerance: z.enum(["strict", "lenient", "off"]).optional(),
+  allowAudio: z.boolean().optional(),
+  allowImage: z.boolean().optional(),
 });
 
 export const OrderingSchema = BaseExerciseSchema.extend({
@@ -266,6 +273,10 @@ export const WorksheetQuestionSchema = z.object({
   ).optional(),
   // Open question specific
   keywords: z.array(z.string()).optional(),
+  required: z.array(z.string()).optional(),
+  bonus: z.array(z.string()).optional(),
+  forbidden: z.array(z.string()).optional(),
+  spellingTolerance: z.enum(["strict", "lenient", "off"]).optional(),
   // Ordering specific
   elements: z.array(z.string()).optional(),
 });
@@ -297,6 +308,10 @@ export type ExerciseData = z.infer<typeof ExerciseSchema>;
 
 const EXERCISES_DIR = path.join(process.cwd(), "content", "exercises");
 
+// Simple in-memory cache for exercise reads from disk
+const exerciseCache = new Map<string, { data: ExerciseData; ts: number }>();
+const CACHE_TTL_MS = 5_000; // 5 seconds
+
 /**
  * Ensures the exercises directory exists on disk
  */
@@ -309,7 +324,7 @@ export function ensureExercisesDirExists() {
 /**
  * Parses frontmatter from a markdown string
  */
-function parseMarkdown(content: string): { frontmatter: any; body: string } {
+function parseMarkdown(content: string): { frontmatter: Record<string, unknown>; body: string } {
   const frontmatterRegex = /^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/;
   const match = content.match(frontmatterRegex);
 
@@ -319,7 +334,7 @@ function parseMarkdown(content: string): { frontmatter: any; body: string } {
 
   const yamlBlock = match[1];
   const body = match[2];
-  const frontmatter: any = {};
+  const frontmatter: Record<string, unknown> = {};
 
   yamlBlock.split("\n").forEach((line) => {
     const parts = line.split(":");
@@ -349,17 +364,26 @@ export function getExerciseFromDisk(id: string): ExerciseData | null {
   const jsonPath = path.join(dirPath, "index.json");
   const mdPath = path.join(dirPath, "index.md");
 
+  const cached = exerciseCache.get(id);
+  if (cached && Date.now() - cached.ts < CACHE_TTL_MS) {
+    return cached.data;
+  }
+
   try {
     if (fs.existsSync(jsonPath)) {
       const raw = fs.readFileSync(jsonPath, "utf-8");
       const parsed = JSON.parse(raw);
       // Ensure id matches folder name
       parsed.id = id;
+      if (parsed.type === "tiptoi") {
+        parsed.type = "explore-image-map";
+      }
       const result = ExerciseSchema.safeParse(parsed);
       if (!result.success) {
         console.error(`Validation error in exercise ${id}:`, result.error.format());
         return null;
       }
+      exerciseCache.set(id, { data: result.data, ts: Date.now() });
       return result.data;
     } else if (fs.existsSync(mdPath)) {
       const raw = fs.readFileSync(mdPath, "utf-8");
@@ -368,6 +392,9 @@ export function getExerciseFromDisk(id: string): ExerciseData | null {
       frontmatter.id = id;
       frontmatter.text = body.trim();
       
+      if (frontmatter.type === "tiptoi") {
+        frontmatter.type = "explore-image-map";
+      }
       // Markdown exercises are typically gap-fill or drag-drop
       if (!frontmatter.type) frontmatter.type = "gap-fill";
 
@@ -376,6 +403,7 @@ export function getExerciseFromDisk(id: string): ExerciseData | null {
         console.error(`Validation error in markdown exercise ${id}:`, result.error.format());
         return null;
       }
+      exerciseCache.set(id, { data: result.data, ts: Date.now() });
       return result.data;
     }
   } catch (error) {
@@ -395,6 +423,7 @@ export function getAllExercisesFromDisk(): ExerciseData[] {
     const exercises: ExerciseData[] = [];
 
     for (const folder of folders) {
+      if (folder.startsWith(".")) continue;
       const folderPath = path.join(EXERCISES_DIR, folder);
       if (fs.statSync(folderPath).isDirectory()) {
         const exercise = getExerciseFromDisk(folder);
@@ -424,6 +453,10 @@ export async function syncExercisesToDb(): Promise<{ syncedCount: number; delete
   // Note: courseId and order are DB-managed metadata, not stored on disk.
   // On update, we preserve them; on create, they default to null/0.
   for (const exercise of diskExercises) {
+    const tagsStr = Array.isArray(exercise.tags)
+      ? exercise.tags.join(",")
+      : exercise.tags || "";
+
     await prisma.exercise.upsert({
       where: { id: exercise.id },
       update: {
@@ -431,6 +464,8 @@ export async function syncExercisesToDb(): Promise<{ syncedCount: number; delete
         description: exercise.description,
         type: exercise.type,
         updatedAt: new Date(),
+        pendingDeletion: false, // restore if it was previously soft-deleted
+        tags: tagsStr,
         // courseId and order are preserved — not overwritten from disk
       },
       create: {
@@ -438,18 +473,23 @@ export async function syncExercisesToDb(): Promise<{ syncedCount: number; delete
         title: exercise.title,
         description: exercise.description,
         type: exercise.type,
+        pendingDeletion: false,
+        tags: tagsStr,
         // courseId defaults to null, order defaults to 0
       },
     });
     syncedCount++;
   }
 
-  // Delete exercises in DB that no longer exist on disk
-  const deleteResult = await prisma.exercise.deleteMany({
+  // Soft-delete exercises in DB that no longer exist on disk
+  const deleteResult = await prisma.exercise.updateMany({
     where: {
       id: {
         notIn: diskIds,
       },
+    },
+    data: {
+      pendingDeletion: true,
     },
   });
 
@@ -458,3 +498,4 @@ export async function syncExercisesToDb(): Promise<{ syncedCount: number; delete
     deletedCount: deleteResult.count,
   };
 }
+

@@ -2,17 +2,18 @@
 
 import React, { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { addExerciseToCourse } from "@/app/actions";
+import { addExerciseToCourse } from "@/lib/actions/course";
 import { FolderOpen, FileText, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { getExerciseTypeLabel } from "@/lib/exerciseLabels";
 import CreateCourseForm from "./CreateCourseForm";
 import DeleteCourseButton from "./DeleteCourseButton";
 import DeleteExerciseButton from "./DeleteExerciseButton";
+import DuplicateExerciseButton from "./DuplicateExerciseButton";
 
 export default function DragDropWrapper({
   courses,
-  standaloneExercises,
+  allExercises,
 }: {
   courses: {
     id: string;
@@ -26,13 +27,15 @@ export default function DragDropWrapper({
       order: number;
     }[];
   }[];
-  standaloneExercises: {
+  allExercises: {
     id: string;
     title: string;
     type: string;
+    courseId: string | null;
   }[];
 }) {
   const router = useRouter();
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isPending, startTransition] = useTransition();
   const [droppingToCourse, setDroppingToCourse] = useState<string | null>(null);
   const [dragOverCourse, setDragOverCourse] = useState<string | null>(null);
@@ -58,7 +61,8 @@ export default function DragDropWrapper({
     setDragOverCourse(courseId);
   };
 
-  const handleDragLeave = (e: React.DragEvent<HTMLElement>, courseId: string) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const handleDragLeave = (e: React.DragEvent<HTMLElement>, _courseId: string) => {
     const relatedTarget = e.relatedTarget as Node;
     if (!e.currentTarget.contains(relatedTarget)) {
       setDragOverCourse(null);
@@ -183,6 +187,10 @@ export default function DragDropWrapper({
                               >
                                 Edit
                               </Link>
+                              <DuplicateExerciseButton
+                                exerciseId={ex.id}
+                                exerciseTitle={ex.title}
+                              />
                               <DeleteExerciseButton
                                 exerciseId={ex.id}
                                 exerciseTitle={ex.title}
@@ -200,18 +208,16 @@ export default function DragDropWrapper({
         )}
       </div>
 
-      {/* Standalone Worksheets */}
+      {/* All Worksheets Library */}
       <div className="space-y-4">
         <h2 className="text-xl font-bold font-mono uppercase tracking-wide border-b pb-2 flex items-center gap-2">
           <FileText className="w-5 h-5 text-neutral-500" />
-          Standalone Worksheets ({standaloneExercises.length})
+          All Worksheets ({allExercises.length})
         </h2>
 
-        {standaloneExercises.length === 0 ? (
+        {allExercises.length === 0 ? (
           <div className="text-center py-12 border border-dashed rounded text-neutral-500">
-            {courses.length > 0
-              ? "All worksheets are organized into courses."
-              : 'No worksheets created yet. Click "+ Create Worksheet" to build one.'}
+            No worksheets created yet. Click &ldquo;+ Create Worksheet&rdquo; to build one.
           </div>
         ) : (
           <div className="border border-neutral-300 dark:border-neutral-800 rounded overflow-hidden bg-white dark:bg-neutral-900 shadow-sm">
@@ -220,55 +226,68 @@ export default function DragDropWrapper({
                 <thead className="text-xs font-mono uppercase bg-neutral-50 dark:bg-neutral-955 border-b border-neutral-300 dark:border-neutral-800 text-neutral-500">
                   <tr>
                     <th className="px-6 py-3 font-semibold">Title</th>
-                    <th className="px-6 py-3 font-semibold">
-                      Exercise ID / Key
-                    </th>
+                    <th className="px-6 py-3 font-semibold">Exercise ID / Key</th>
                     <th className="px-6 py-3 font-semibold">Type</th>
-                    <th className="px-6 py-3 font-semibold text-right">
-                      Actions
-                    </th>
+                    <th className="px-6 py-3 font-semibold">Course</th>
+                    <th className="px-6 py-3 font-semibold text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
-                  {standaloneExercises.map((ex) => (
-                    <tr
-                      key={ex.id}
-                      draggable="true"
-                      onDragStart={(e) => handleDragStart(e, ex.id)}
-                      onDragEnd={handleDragEnd}
-                      className="hover:bg-neutral-50/50 dark:hover:bg-neutral-950/20 font-mono text-xs cursor-grab transition-opacity"
-                    >
-                      <td className="px-6 py-4 font-semibold text-neutral-900 dark:text-neutral-100 font-sans text-sm">
-                        {ex.title}
-                      </td>
-                      <td className="px-6 py-4 text-neutral-600 dark:text-neutral-450">
-                        <code>{ex.id}</code>
-                      </td>
-                      <td className="px-6 py-4 text-neutral-500">
-                        <span className="text-xs font-mono uppercase bg-neutral-100 dark:bg-neutral-800 px-1.5 py-0.5 rounded">
-                          {getExerciseTypeLabel(ex.type)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-right space-x-2">
-                        <Link
-                          href={`/teacher/preview/${ex.id}`}
-                          className="inline-flex items-center gap-1 border border-neutral-350 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 px-2.5 py-1 rounded transition text-neutral-700 dark:text-neutral-300 font-sans font-semibold text-xs"
-                        >
-                          Preview
-                        </Link>
-                        <Link
-                          href={`/teacher/edit/${ex.id}`}
-                          className="inline-flex items-center gap-1 border border-neutral-350 dark:border-neutral-700 hover:bg-neutral-150 dark:hover:bg-neutral-850 px-2.5 py-1 bg-neutral-50 dark:bg-neutral-950 rounded transition text-neutral-850 dark:text-neutral-250 font-sans font-semibold text-xs"
-                        >
-                          Edit
-                        </Link>
-                        <DeleteExerciseButton
-                          exerciseId={ex.id}
-                          exerciseTitle={ex.title}
-                        />
-                      </td>
-                    </tr>
-                  ))}
+                  {allExercises.map((ex) => {
+                    const course = courses.find((c) => c.id === ex.courseId);
+                    return (
+                      <tr
+                        key={ex.id}
+                        draggable="true"
+                        onDragStart={(e) => handleDragStart(e, ex.id)}
+                        onDragEnd={handleDragEnd}
+                        className="hover:bg-neutral-50/50 dark:hover:bg-neutral-950/20 font-mono text-xs cursor-grab transition-opacity"
+                      >
+                        <td className="px-6 py-4 font-semibold text-neutral-900 dark:text-neutral-100 font-sans text-sm">
+                          {ex.title}
+                        </td>
+                        <td className="px-6 py-4 text-neutral-600 dark:text-neutral-450">
+                          <code>{ex.id}</code>
+                        </td>
+                        <td className="px-6 py-4 text-neutral-500">
+                          <span className="text-xs font-mono uppercase bg-neutral-100 dark:bg-neutral-800 px-1.5 py-0.5 rounded">
+                            {getExerciseTypeLabel(ex.type)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-neutral-600 dark:text-neutral-400">
+                          {course ? (
+                            <span className="font-semibold text-blue-600 dark:text-blue-400">
+                              {course.title}
+                            </span>
+                          ) : (
+                            <span className="text-neutral-400 italic">None (Standalone)</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-right space-x-2 whitespace-nowrap">
+                          <Link
+                            href={`/teacher/preview/${ex.id}`}
+                            className="inline-flex items-center gap-1 border border-neutral-350 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 px-2.5 py-1 rounded transition text-neutral-700 dark:text-neutral-300 font-sans font-semibold text-xs"
+                          >
+                            Preview
+                          </Link>
+                          <Link
+                            href={`/teacher/edit/${ex.id}`}
+                            className="inline-flex items-center gap-1 border border-neutral-350 dark:border-neutral-700 hover:bg-neutral-150 dark:hover:bg-neutral-850 px-2.5 py-1 bg-neutral-50 dark:bg-neutral-955 rounded transition text-neutral-850 dark:text-neutral-250 font-sans font-semibold text-xs"
+                          >
+                            Edit
+                          </Link>
+                          <DuplicateExerciseButton
+                            exerciseId={ex.id}
+                            exerciseTitle={ex.title}
+                          />
+                          <DeleteExerciseButton
+                            exerciseId={ex.id}
+                            exerciseTitle={ex.title}
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

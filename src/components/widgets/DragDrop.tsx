@@ -16,7 +16,7 @@ export const DragDrop: React.FC<WidgetProps<DragDropConfig>> = ({
 }) => {
   // Parse text into segment strings and gap definitions
   const { parts, gaps } = useMemo(() => {
-    const regex = /<<(.*?)>>/g;
+    const regex = /<<(.*?)>>|\[(.*?)\]/g;
     const partsList: string[] = [];
     const gapsList: ParsedGap[] = [];
     let lastIndex = 0;
@@ -25,8 +25,9 @@ export const DragDrop: React.FC<WidgetProps<DragDropConfig>> = ({
 
     while ((match = regex.exec(config.text)) !== null) {
       partsList.push(config.text.substring(lastIndex, match.index));
+      const rawContent = match[1] || match[2] || "";
       // Support optional ##-delimited options; first part is always the correct answer
-      const correctAnswer = match[1].split("##")[0];
+      const correctAnswer = rawContent.split(/##|\|/)[0];
       gapsList.push({ index: gapIndex, correctAnswer });
       gapIndex++;
       lastIndex = regex.lastIndex;
@@ -103,7 +104,6 @@ export const DragDrop: React.FC<WidgetProps<DragDropConfig>> = ({
     
     setPlacements((prev) => {
       const next = { ...prev };
-      const previousWord = next[gapIndex];
 
       // Place new word in gap
       next[gapIndex] = word;
@@ -214,7 +214,7 @@ export const DragDrop: React.FC<WidgetProps<DragDropConfig>> = ({
                     draggable
                     onDragStart={(e) => handleDragStart(e, word)}
                     onClick={() => handleSelectWord(word)}
-                    className={`px-3 py-1 rounded text-sm border cursor-grab select-none transition ${
+                    className={`touch-draggable px-3.5 py-1.5 rounded text-sm border cursor-grab select-none transition ${
                       isSelected
                         ? "border-black dark:border-white bg-black text-white dark:bg-white dark:text-black font-semibold"
                         : "border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800"

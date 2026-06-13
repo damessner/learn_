@@ -1,221 +1,138 @@
-# Implementation Plan: Course/Folder System for Worksheets
+# Implementation Plan: Repo-Wide Lint Debt Remediation
 
-## Overview
+## Refined Prompt
 
-Add a **Course** concept so teachers can organize worksheets into folders (courses/units). Worksheets can be standalone or belong to a course. Teachers can assign an entire course at once. Students see courses as units with progress tracking.
-
----
-
-## 1. Database Schema Changes
-
-**File:** `prisma/schema.prisma`
-
-Add a `Course` model and link exercises to courses:
-
-```prisma
-model Course {
-  id          String     @id @default(uuid())
-  title       String
-  description String     @default("")
-  order       Int        @default(0)       // for sorting on dashboard
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-
-  // Relations
-  exercises   Exercise[]
-  assignments CourseAssignment[]
-}
-
-model Exercise {
-  id          String    @id
-  title       String
-  description String
-  type        String
-  courseId    String?
-  order       Int       @default(0)       // position within course
-  updatedAt   DateTime  @default(now())
-
-  // Relations
-  course      Course?      @relation(fields: [courseId], references: [id], onDelete: SetNull)
-  assignments Assignment[]
-}
-
-model CourseAssignment {
-  id          String   @id @default(uuid())
-  classroomId String
-  courseId    String
-  dueDate     DateTime?
-  createdAt   DateTime @default(now())
-
-  // Relations
-  classroom   Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
-  course      Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  assignments Assignment[]  // the individual exercise assignments created for this course
-}
-```
-
-Update `Assignment` to optionally link back to a `CourseAssignment`:
-
-```prisma
-model Assignment {
-  id                String            @id @default(uuid())
-  classroomId      String
-  exerciseId       String
-  dueDate           DateTime?
-  createdAt         DateTime          @default(now())
-  courseAssignmentId String?         // null = standalone, set = part of course assignment
-
-  // Relations
-  classroom         Classroom         @relation(fields: [classroomId], references: [id], onDelete: Cascade)
-  exercise          Exercise          @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
-  submissions      Submission[]
-  courseAssignment  CourseAssignment? @relation(fields: [courseAssignmentId], references: [id], onDelete: SetNull)
-}
-```
-
-Update `Classroom` to include `CourseAssignment`:
-
-```prisma
-model Classroom {
-  // ... existing fields ...
-  courseAssignments CourseAssignment[]
-}
-```
+Fix substantial pre-existing repository-wide lint debt and bring the codebase to a clean state where lint/test/build pass.
 
 ---
 
-## 2. Server Actions
+## Clarification Applied
 
-**File:** `src/app/actions.ts`
+Assuming your request means:
 
-Add these new actions:
-
-| Action | Purpose |
-|--------|---------|
-| `createCourse(title, description)` | Create a new course |
-| `updateCourse(id, title, description)` | Edit course metadata |
-| `deleteCourse(id)` | Delete course (sets exercises' courseId to null, removes from DB) |
-| `addExerciseToCourse(exerciseId, courseId)` | Add a worksheet to a course |
-| `removeExerciseFromCourse(exerciseId)` | Remove a worksheet from its course (sets courseId to null) |
-| `reorderCourseExercises(courseId, exerciseIds[])` | Set order of worksheets within a course |
-| `assignCourse(classroomId, courseId, dueDate?)` | Assign all course exercises to a classroom (creates CourseAssignment + individual Assignments) |
-| `deleteExercise(exerciseId)` | Delete an exercise: removes its folder from `content/exercises/`, deletes from DB, cascades to assignments/submissions |
-
-Update `createWorksheet` to accept an optional `courseId` parameter.
-
-### Delete Exercise (`deleteExercise`)
-
-- Deletes the exercise folder from `content/exercises/{exerciseId}/` via `fs.rmSync`
-- Deletes the exercise row from DB (Prisma cascade handles related Assignments → Submissions)
-- Revalidates `/teacher` path
-- Returns `{ success: true }` or `{ error: string }`
-
-### Delete Course (`deleteCourse`)
-
-- Sets `courseId` to `null` on all exercises that belong to the course (they become standalone)
-- Deletes the course row from DB
-- Does **not** delete the exercises themselves — they just become ungrouped
-- Revalidates `/teacher` path
+1. Fix **both lint errors and warnings** (full clean run).
+2. Keep existing lint rules unchanged.
+3. Refactors across many files are allowed where needed to satisfy rules safely.
 
 ---
 
-## 3. Exercise Sync Update
+## Current Baseline (fresh run)
 
-**File:** `src/lib/exercises.ts`
-
-- Update `syncExercisesToDb()` to preserve `courseId` and `order` fields during upsert (don't overwrite them from disk — they're DB-managed)
-- The `courseId` and `order` fields are **not** stored in the filesystem `index.json` — they're purely DB metadata
-
----
-
-## 4. Teacher Dashboard Redesign
-
-**File:** `src/app/teacher/page.tsx`
-
-Restructure the "Created Exercises" section:
-
-- **Courses** shown as expandable folder cards, each listing its worksheets
-- **Standalone worksheets** shown in a separate flat list
-- Each course card has: title, description, worksheet count, Edit/Delete/Assign buttons
-- Each worksheet row (inside a course or standalone) has: Preview, Edit, **Delete** buttons
-- Each course card has a **Delete** button (with confirmation)
-- Add a "+ Create Course" button next to "+ Create Worksheet"
-
-New components:
-- `CourseCard` — expandable card showing course info + its worksheets
-- `DeleteExerciseButton` — client component: confirmation dialog → calls `deleteExercise`
-- `DeleteCourseButton` — client component: confirmation dialog → calls `deleteCourse`
+- `npm run lint` reports **125 problems**:
+  - **67 errors**
+  - **58 warnings**
+- Dominant categories:
+  - `@typescript-eslint/no-explicit-any` (largest)
+  - `@typescript-eslint/no-unused-vars`
+  - `react/jsx-key`
+  - `react-hooks/*` correctness/perf rules
+  - `react/no-unescaped-entities`
+  - `@next/next/no-img-element`
 
 ---
 
-## 5. Course Management Pages
+## Remediation Strategy (staged)
 
-New files:
+## Phase 1 — Correctness-first lint blockers
 
-| File | Purpose |
-|------|---------|
-| `src/app/teacher/courses/page.tsx` | Course list + create form (or inline on dashboard) |
-| `src/app/teacher/courses/[courseId]/page.tsx` | Course detail: reorder worksheets, add/remove worksheets, edit course info |
+### 1.1 Fix render immutability violation
+- `file:///home/damessner/opencode/learn/src/app/teacher/classrooms/[id]/students/[studentId]/page.tsx`
 
----
+### 1.2 Fix setState-in-effect violation and related dependency warnings
+- `file:///home/damessner/opencode/learn/src/components/widgets/Vocabulary.tsx`
+- `file:///home/damessner/opencode/learn/src/components/widgets/InteractiveReading.tsx`
 
-## 6. WorksheetCreator Update
-
-**File:** `src/app/teacher/create/WorksheetCreator.tsx`
-
-Add a **Course** dropdown (optional) when creating a new worksheet:
-- Fetches courses from DB
-- If a course is selected, the worksheet is added to that course
-- If no course selected, worksheet is standalone
+### 1.3 Fix missing JSX keys
+- `file:///home/damessner/opencode/learn/src/components/widgets/ExploreImageMap.tsx`
+- `file:///home/damessner/opencode/learn/src/components/widgets/ImageHotspotQuiz.tsx`
+- `file:///home/damessner/opencode/learn/src/app/teacher/create/components/ImageHotspotQuizBuilder.tsx`
 
 ---
 
-## 7. Assign Exercise Form Update
+## Phase 2 — Type-safety sweep (`no-explicit-any`)
 
-**File:** `src/app/teacher/page.tsx` (or extracted component)
+High-density targets first:
 
-Update `AssignExerciseForm` to support:
-- Assign individual worksheet (existing behavior)
-- Assign entire course (new: creates CourseAssignment + N Assignments)
+- `file:///home/damessner/opencode/learn/src/app/teacher/create/WorksheetCreator.tsx`
+- `file:///home/damessner/opencode/learn/src/app/assignments/[id]/AssignmentPlayer.tsx`
+- `file:///home/damessner/opencode/learn/src/app/submissions/[id]/SubmissionReviewPlayer.tsx`
 
----
+Then supporting files:
 
-## 8. Student Dashboard Update
+- `file:///home/damessner/opencode/learn/src/lib/points.ts`
+- `file:///home/damessner/opencode/learn/src/lib/exercises.ts`
+- `file:///home/damessner/opencode/learn/src/components/widgets/types.ts`
+- `file:///home/damessner/opencode/learn/src/components/widgets/index.ts`
+- `file:///home/damessner/opencode/learn/src/components/widgets/OpenQuestion.tsx`
+- `file:///home/damessner/opencode/learn/src/components/widgets/ExploreImageMap.tsx`
+- `file:///home/damessner/opencode/learn/src/components/widgets/InteractiveReading.tsx`
+- `file:///home/damessner/opencode/learn/src/app/teacher/create/components/InteractiveReadingBuilder.tsx`
+- `file:///home/damessner/opencode/learn/src/app/teacher/create/components/WorksheetQuestionsBuilder.tsx`
+- `file:///home/damessner/opencode/learn/src/app/submissions/[id]/page.tsx`
+- `file:///home/damessner/opencode/learn/src/app/login/page.tsx`
+- `file:///home/damessner/opencode/learn/src/app/register/page.tsx`
 
-**File:** `src/app/student/page.tsx`
+Approach:
 
-Group assignments by course:
-- **Course assignments** shown as expandable units with progress (e.g., "2/3 completed")
-- Each course shows its worksheets as steps
-- **Standalone assignments** shown as before
-- Progress indicator: completed count / total count per course
-
----
-
-## 9. Files to Create/Modify Summary
-
-| File | Action |
-|------|--------|
-| `prisma/schema.prisma` | Add Course, CourseAssignment models; update Exercise, Assignment, Classroom |
-| `src/app/actions.ts` | Add course CRUD actions, deleteExercise, assignCourse, update createWorksheet |
-| `src/lib/exercises.ts` | Update syncExercisesToDb to preserve courseId/order |
-| `src/app/teacher/page.tsx` | Redesign: courses as folders, standalone worksheets separate, delete buttons |
-| `src/app/teacher/create/WorksheetCreator.tsx` | Add course selector dropdown |
-| `src/app/teacher/courses/[courseId]/page.tsx` | New: course detail/management page |
-| `src/app/teacher/DeleteExerciseButton.tsx` | New: client component for delete confirmation |
-| `src/app/teacher/DeleteCourseButton.tsx` | New: client component for delete confirmation |
-| `src/app/student/page.tsx` | Group assignments by course with progress |
-| `src/lib/exerciseLabels.ts` | No change needed |
+- Replace `any` with concrete interfaces/unions for config/state where possible.
+- Use `unknown` + narrowing for dynamic payloads.
+- For unavoidable generic maps, use `Record<string, unknown>` and local typed guards.
 
 ---
 
-## 10. Migration Steps
+## Phase 3 — Unused vars/imports cleanup
 
-1. Update `prisma/schema.prisma`
-2. Run `npx prisma db push` (or `prisma migrate dev`)
-3. Update `prisma/seed.ts` if needed
-4. Implement server actions
-5. Update sync logic
-6. Build teacher UI (dashboard + course management)
-7. Build student UI (course-grouped view)
-8. Test end-to-end
+Primary files:
+
+- `file:///home/damessner/opencode/learn/src/app/teacher/create/WorksheetCreator.tsx`
+- `file:///home/damessner/opencode/learn/src/app/assignments/[id]/AssignmentPlayer.tsx`
+- `file:///home/damessner/opencode/learn/src/app/teacher/classrooms/[id]/page.tsx`
+- `file:///home/damessner/opencode/learn/src/app/teacher/AssignExerciseForm.tsx`
+- `file:///home/damessner/opencode/learn/src/app/submissions/[id]/SubmissionReviewPlayer.tsx`
+
+And remaining warning files from lint output.
+
+Approach:
+
+- Remove dead imports/state.
+- Rename unused catch params to omitted form (`catch {}`) where appropriate.
+- Keep behavior unchanged.
+
+---
+
+## Phase 4 — Markup and framework-specific cleanup
+
+### 4.1 Escape unescaped entities
+- `file:///home/damessner/opencode/learn/src/app/submissions/[id]/SubmissionReviewPlayer.tsx`
+- `file:///home/damessner/opencode/learn/src/app/teacher/create/WorksheetCreator.tsx`
+
+### 4.2 Replace `<img>` with `next/image` where lint requires
+- `file:///home/damessner/opencode/learn/src/components/widgets/OpenQuestion.tsx`
+
+---
+
+## Phase 5 — Verification and stabilization
+
+Run in order:
+
+1. `npm run lint`
+2. `npm run test`
+3. `npm run build`
+
+If new issues appear from stricter typing, perform targeted fixes and rerun all three.
+
+---
+
+## Expected Outcome
+
+- `npm run lint` → **0 errors, 0 warnings**
+- `npm run test` → pass
+- `npm run build` → pass
+
+---
+
+## Risk Notes
+
+1. Broad `any` removal can surface latent type design gaps in widget configs.
+2. `next/image` migration in dynamic content areas may need explicit width/height handling.
+3. Large-file refactors (especially `WorksheetCreator.tsx`) will be done incrementally to minimize regressions.

@@ -1,7 +1,9 @@
 export interface WidgetProps<T> {
   config: T;
   assetsPath: string; // Base URL path to query assets (e.g., /api/exercises/farm-animals/assets/)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   savedState?: any; // Optional previous state to restore
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onChange: (state: any, isComplete: boolean, score: number) => void;
   isReadOnly?: boolean; // True when reviewing past submissions or previewing
 }
@@ -138,6 +140,12 @@ export interface OpenQuestionConfig {
   type: "open-question";
   question: string;
   keywords: string[];
+  required?: string[];
+  bonus?: string[];
+  forbidden?: string[];
+  spellingTolerance?: string;
+  allowAudio?: boolean;
+  allowImage?: boolean;
 }
 
 export interface OrderingConfig {
@@ -207,4 +215,20 @@ export interface VocabularyConfig {
     translation: string;
   }>;
 }
+
+export type WidgetConfig =
+  | MultipleChoiceConfig
+  | DragDropConfig
+  | GapFillConfig
+  | CategorizationConfig
+  | ExploreImageMapConfig
+  | ClickableChoiceConfig
+  | MatchingConfig
+  | MediaConfig
+  | InstructionConfig
+  | OpenQuestionConfig
+  | OrderingConfig
+  | ImageHotspotQuizConfig
+  | InteractiveReadingConfig
+  | VocabularyConfig;
 

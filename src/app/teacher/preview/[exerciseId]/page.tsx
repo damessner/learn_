@@ -30,7 +30,7 @@ export default async function TeacherPreviewPage({
       <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-8">
         <AssignmentPlayer
           assignmentId="preview"
-          exercise={exercise}
+          exerciseJson={JSON.stringify(exercise)}
           assetsPath={assetsPath}
           role="TEACHER"
         />

@@ -235,7 +235,6 @@ export const ImageHotspotQuiz: React.FC<WidgetProps<ImageHotspotQuizConfig>> = (
 
               const isSolved = completedTaskIds.includes(matchedTask.id);
               const shapeProps = {
-                key: hs.id,
                 className: `transition duration-150 ${
                   isSolved
                     ? "fill-green-500/20 stroke-green-500/50"
@@ -245,11 +244,11 @@ export const ImageHotspotQuiz: React.FC<WidgetProps<ImageHotspotQuizConfig>> = (
 
               if (hs.shape === "circle" && hs.coords.length >= 3) {
                 const [cx, cy, r] = hs.coords;
-                return <circle cx={cx} cy={cy} r={r} {...shapeProps} />;
+                return <circle key={hs.id} cx={cx} cy={cy} r={r} {...shapeProps} />;
               }
               if (hs.shape === "rect" && hs.coords.length >= 4) {
                 const [rx, ry, rw, rh] = hs.coords;
-                return <rect x={rx} y={ry} width={rw} height={rh} {...shapeProps} />;
+                return <rect key={hs.id} x={rx} y={ry} width={rw} height={rh} {...shapeProps} />;
               }
               return null;
             })}

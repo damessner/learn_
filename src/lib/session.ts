@@ -1,12 +1,12 @@
 import crypto from "crypto";
 import { cookies } from "next/headers";
+import { SESSION_SECRET } from "./env";
 
 const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 12;
 
-const SECRET = process.env.SESSION_SECRET || "learn-platform-session-secret-key-32-bytes";
-// Generate a 32-byte key from our secret
-const key = crypto.scryptSync(SECRET, "learn-platform-salt", 32);
+// Derive a 32-byte key from the validated secret
+const key = crypto.scryptSync(SESSION_SECRET, "learn-platform-salt", 32);
 
 export interface SessionData {
   userId: string;
@@ -35,7 +35,7 @@ function decrypt(encryptedText: string): string | null {
     let decrypted = decipher.update(encrypted, "hex", "utf8");
     decrypted += decipher.final("utf8");
     return decrypted;
-  } catch (error) {
+  } catch {
     return null;
   }
 }

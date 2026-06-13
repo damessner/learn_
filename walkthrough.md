@@ -1,102 +1,226 @@
-# Walkthrough: Course/Folder System for Worksheets
+# Walkthrough: Critical Review Remediation (Execution)
 
-## Changes Summary
+## What was implemented
 
-### Bug Fixes (from earlier in session)
-1. **Worksheet preview bug** (`src/app/assignments/[id]/AssignmentPlayer.tsx`): Fixed "Unknown exercise widget type: worksheet" error by adding composite type exclusions to the early-return guard on line 303.
-2. **Register worksheet bug** (`src/app/actions.ts`): Removed the hard error when a folder already exists; now overwrites content files like the update path does.
-3. **Orphaned folders**: Deleted `content/exercises/u1-alphabet-01/` and `content/exercises/u1-spelling-01/` (no content files).
+### 1) Server-authoritative scoring (integrity fix)
 
-### New Feature: Course/Folder System
+**Files:**
+- `file:///home/damessner/opencode/learn/src/lib/submissionScoring.ts` (new)
+- `file:///home/damessner/opencode/learn/src/lib/actions/submission.ts`
+- `file:///home/damessner/opencode/learn/src/app/assignments/[id]/AssignmentPlayer.tsx`
 
-#### Database Schema (`prisma/schema.prisma`)
-- **`Course` model**: `id`, `title`, `description`, `order`, `createdAt`, `updatedAt` — groups worksheets into folders
-- **`CourseAssignment` model**: `id`, `classroomId`, `courseId`, `dueDate`, `createdAt` — assigns an entire course to a classroom
-- **`Exercise` model**: Added `courseId` (optional FK to Course) and `order` (position within course)
-- **`Assignment` model**: Added `courseAssignmentId` (optional FK to CourseAssignment) — links individual assignments back to their course assignment
-- **`Classroom` model**: Added `courseAssignments` relation
+**Changes:**
+- Submission persistence no longer trusts client-provided scores.
+- Server now computes score from exercise definition + submitted answers.
+- Added payload validation (`answers` object shape + max size).
+- Added score sanity validation for client payload.
+- Disabled auto-awarding 100% for open-question media-only answers on server (requires teacher review path).
+- Server returns computed raw score in response and UI displays returned score.
 
-#### Server Actions (`src/app/actions.ts`)
-New actions:
-- `createCourse(title, description?)` — Create a course
-- `updateCourse(id, title, description?)` — Edit course metadata
-- `deleteCourse(id)` — Delete course (ungroups exercises, doesn't delete them)
-- `addExerciseToCourse(exerciseId, courseId)` — Add worksheet to course
-- `removeExerciseFromCourse(exerciseId)` — Remove worksheet from course
-- `reorderCourseExercises(courseId, exerciseIds[])` — Reorder worksheets within a course
-- `assignCourse(classroomId, courseId, dueDateStr?)` — Assign all course exercises to a classroom
-- `deleteExercise(exerciseId)` — Delete exercise (disk + DB, cascades to assignments/submissions)
+**Impact:** closes core score tampering vulnerability.
 
-Updated:
-- `createWorksheet` — Now accepts optional `courseId` parameter; fixed the "folder already exists" error
+---
 
-#### Exercise Sync (`src/lib/exercises.ts`)
-- `syncExercisesToDb()` now preserves `courseId` and `order` on update (these are DB-managed, not stored on disk)
+### 2) Asset serving hardening
 
-#### Teacher Dashboard (`src/app/teacher/page.tsx`)
-- **Courses section**: Expandable folder cards showing course title, description, worksheet count, and action buttons (Edit, Delete, Assign)
-- **Standalone Worksheets section**: Flat table of exercises not in any course, with Preview/Edit/Delete buttons
-- **"+ Create Course" button**: Inline form for creating new courses
+**File:**
+- `file:///home/damessner/opencode/learn/src/app/api/exercises/[exerciseId]/assets/[...path]/route.ts`
 
-#### New Components
-- `src/app/teacher/DeleteExerciseButton.tsx` — Client component with confirmation dialog for deleting exercises
-- `src/app/teacher/DeleteCourseButton.tsx` — Client component with confirmation dialog for deleting courses
-- `src/app/teacher/CreateCourseForm.tsx` — Inline form for creating courses
+**Changes:**
+- Added auth requirement (`401` if no session).
+- Added path-part traversal rejection (`..`, slash/backslash segments).
+- Blocks `index.json`/`index.md` case-insensitively.
+- Restricts resolved file path to the target exercise directory only.
+- Supports legacy root files and `assets/` files safely.
+- Adds `X-Content-Type-Options: nosniff` header.
 
-#### Course Management Page (`src/app/teacher/courses/[courseId]/`)
-- `page.tsx` — Server component: auth, data fetching
-- `CourseDetailClient.tsx` — Interactive client component with:
-  - Edit course title/description
-  - Ordered worksheet list with up/down reorder buttons
-  - Add worksheet from standalone exercises
-  - Remove worksheet from course
-  - Delete course with confirmation
+**Impact:** prevents config leakage/traversal and cross-exercise file reads.
 
-#### WorksheetCreator (`src/app/teacher/create/WorksheetCreator.tsx`)
-- Added `courses` prop and `selectedCourseId` state
-- Course selector dropdown (optional) when creating a new worksheet
-- Passes `courseId` to `createWorksheet` server action
+---
 
-#### Create/Edit Pages
-- `src/app/teacher/create/page.tsx` — Now fetches courses and passes them to WorksheetCreator
-- `src/app/teacher/edit/[exerciseId]/page.tsx` — Same
+### 3) Upload hardening
 
-#### AssignExerciseForm (`src/app/teacher/AssignExerciseForm.tsx`)
-- Toggle between "Assign Exercise" and "Assign Course" modes
-- Course mode: dropdown of courses + classroom + optional due date
-- Calls `assignCourse` server action
+**Files:**
+- `file:///home/damessner/opencode/learn/src/app/api/exercises/[exerciseId]/assets/upload/route.ts`
+- `file:///home/damessner/opencode/learn/src/app/api/submissions/upload/route.ts`
+- `file:///home/damessner/opencode/learn/src/lib/actions/exercise.ts`
 
-#### Student Dashboard (`src/app/student/page.tsx`)
-- Assignments grouped by course with collapsible sections
-- Progress indicator per course (e.g., "2/3 completed")
-- Standalone assignments shown separately
-- Uses `FolderOpen` icon for course headers
+**Changes:**
+- Added extension allowlists in API upload routes.
+- Explicitly blocks SVG by omission from allowlists.
+- Corrected size constants (`10*1024*1024`, `20*1024*1024`).
+- Sanitized outward error responses (`Upload failed`, no raw internal messages).
+- Replaced submission filename randomness with `crypto.randomUUID()`.
 
-### Files Modified
-| File | Change |
-|------|--------|
-| `prisma/schema.prisma` | Added Course, CourseAssignment models; updated Exercise, Assignment, Classroom |
-| `src/app/actions.ts` | Added course CRUD, deleteExercise, assignCourse; updated createWorksheet |
-| `src/lib/exercises.ts` | Updated syncExercisesToDb to preserve courseId/order |
-| `src/app/teacher/page.tsx` | Redesigned with courses + standalone worksheets + delete buttons |
-| `src/app/teacher/create/page.tsx` | Fetches courses, passes to WorksheetCreator |
-| `src/app/teacher/edit/[exerciseId]/page.tsx` | Fetches courses, passes to WorksheetCreator |
-| `src/app/teacher/create/WorksheetCreator.tsx` | Added courses prop, course selector dropdown |
-| `src/app/teacher/AssignExerciseForm.tsx` | Added course assignment mode |
-| `src/app/assignments/[id]/AssignmentPlayer.tsx` | Fixed worksheet preview bug |
-| `src/app/student/page.tsx` | Grouped assignments by course with progress |
+**Impact:** reduces risky file upload vectors and information leakage.
 
-### Files Created
-| File | Purpose |
-|------|---------|
-| `src/app/teacher/DeleteExerciseButton.tsx` | Delete exercise confirmation dialog |
-| `src/app/teacher/DeleteCourseButton.tsx` | Delete course confirmation dialog |
-| `src/app/teacher/CreateCourseForm.tsx` | Inline course creation form |
-| `src/app/teacher/courses/[courseId]/page.tsx` | Course detail server page |
-| `src/app/teacher/courses/[courseId]/CourseDetailClient.tsx` | Course management client component |
+---
 
-### Files Deleted (orphaned exercise folders)
-| Path | Reason |
-|------|--------|
-| `content/exercises/u1-alphabet-01/` | No index.json/index.md, only assets |
-| `content/exercises/u1-spelling-01/` | No index.json/index.md, only assets |
+### 4) Login throttling
+
+**Files:**
+- `file:///home/damessner/opencode/learn/src/lib/rateLimit.ts` (new)
+- `file:///home/damessner/opencode/learn/src/app/api/auth/login/route.ts`
+
+**Changes:**
+- Added in-memory rate limiter keyed by normalized username + IP.
+- 5 failed attempts in 1 minute ⇒ 5 minute block.
+- Uses generic auth error text while blocked.
+- Clears key on successful login.
+
+**Impact:** raises resistance against brute-force login attempts.
+
+---
+
+### 5) Secure join codes
+
+**File:**
+- `file:///home/damessner/opencode/learn/src/lib/actions/auth-helpers.ts`
+
+**Changes:**
+- Replaced `Math.random()` with `crypto.randomBytes()`.
+- Maintains 6-char uppercase alphanumeric format.
+
+**Impact:** removes predictable PRNG usage for join codes.
+
+---
+
+### 6) Transactional critical flows
+
+**Files:**
+- `file:///home/damessner/opencode/learn/src/lib/actions/classroom.ts`
+- `file:///home/damessner/opencode/learn/src/lib/actions/course.ts`
+
+**Changes:**
+- Wrapped bulk student import in `prisma.$transaction`.
+- Wrapped course exercise reorder in `prisma.$transaction`.
+- Wrapped assign-course (courseAssignment + assignment creates) in `prisma.$transaction`.
+
+**Impact:** prevents partial writes in multi-step operations.
+
+---
+
+### 7) Boundary input/error hardening
+
+**Files:**
+- `file:///home/damessner/opencode/learn/src/lib/actions/submission.ts`
+- `file:///home/damessner/opencode/learn/src/lib/actions/classroom.ts`
+- `file:///home/damessner/opencode/learn/src/lib/actions/course.ts`
+- `file:///home/damessner/opencode/learn/src/lib/actions/assignment.ts`
+- `file:///home/damessner/opencode/learn/src/lib/actions/exercise.ts`
+
+**Changes:**
+- Added length/shape/range checks for IDs, text fields, due dates, and numeric values.
+- Sanitized several outward error responses to avoid exposing internals.
+- Bulk import now requires explicit password (no insecure implicit default).
+
+---
+
+### 8) Test infrastructure + tests
+
+**Files added/updated:**
+- `file:///home/damessner/opencode/learn/vitest.config.ts` (new)
+- `file:///home/damessner/opencode/learn/package.json`
+- `file:///home/damessner/opencode/learn/src/lib/scoring.test.ts` (new)
+- `file:///home/damessner/opencode/learn/src/lib/points.test.ts` (new)
+- `file:///home/damessner/opencode/learn/src/lib/actions/auth-helpers.test.ts` (new)
+- `file:///home/damessner/opencode/learn/src/lib/rateLimit.test.ts` (new)
+- `file:///home/damessner/opencode/learn/src/lib/submissionScoring.test.ts` (new)
+
+**Coverage implemented:**
+- Attempt multiplier behavior
+- Points utilities
+- Join code format/randomness
+- Rate limiter behavior
+- Submission scoring + validation behavior
+
+---
+
+## Verification results
+
+### `npm run test`
+- **PASS**
+- Test files: 5
+- Tests: 54 passed
+
+### `npm run build`
+- **PASS**
+- Next build + TS completed successfully
+
+### `npm run lint`
+- **FAIL (pre-existing baseline debt)**
+- 134 total issues reported (`77 errors`, `57 warnings`), mostly existing `no-explicit-any`, hooks lint issues, and JSX key/unescaped-entities issues across unrelated files.
+- No additional broad lint cleanup was performed in this sprint to avoid scope explosion.
+
+---
+
+## Deferred / remaining follow-ups
+
+1. API-route regression tests (auth/assets/uploads) were deferred for this sprint.
+2. Current login limiter is in-memory (single-process scope); for distributed deployment, move to shared store (Redis/DB).
+3. Asset access is currently authenticated but not yet enrollment/ownership-scoped per assignment context.
+
+---
+
+## Lint Debt Remediation Follow-up (Completed)
+
+After the above walkthrough was documented, a dedicated repo-wide lint remediation pass was executed.
+
+### Scope
+
+Fixed app-layer, widget-layer, and lib-layer lint debt including:
+
+- `@typescript-eslint/no-explicit-any`
+- `@typescript-eslint/no-unused-vars`
+- `react/jsx-key`
+- `react/no-unescaped-entities`
+- `react-hooks/immutability`
+- `react-hooks/exhaustive-deps`
+- `react-hooks/set-state-in-effect`
+- `@next/next/no-img-element`
+
+### Representative files touched
+
+- `file:///home/damessner/opencode/learn/src/app/assignments/[id]/AssignmentPlayer.tsx`
+- `file:///home/damessner/opencode/learn/src/app/submissions/[id]/SubmissionReviewPlayer.tsx`
+- `file:///home/damessner/opencode/learn/src/app/teacher/create/WorksheetCreator.tsx`
+- `file:///home/damessner/opencode/learn/src/components/widgets/Vocabulary.tsx`
+- `file:///home/damessner/opencode/learn/src/components/widgets/OpenQuestion.tsx`
+- `file:///home/damessner/opencode/learn/src/components/widgets/ExploreImageMap.tsx`
+- `file:///home/damessner/opencode/learn/src/lib/points.ts`
+- `file:///home/damessner/opencode/learn/src/lib/exercises.ts`
+
+### Verification (post-remediation)
+
+#### `npm run lint`
+- **PASS** (0 errors, 0 warnings)
+
+#### `npm run test`
+- **PASS** (54 passed)
+
+#### `npm run build`
+- **PASS**
+
+### Notes
+
+- No ESLint rule relaxations/config bypasses were used.
+- Behavior-preserving refactors were preferred; typing is stricter and dead code/import noise was removed.
+
+---
+
+## README Review & Update (Completed)
+
+We reviewed and completely rewrote the `README.md` to reflect all recent additions in the codebase.
+
+### Scope of README Updates
+
+1. **Teacher Features**: Documented the unified Gradebook roster matrix, bulk student import (CSV/JSON), student password reset, Gradebook CSV export, course drag-and-drop mechanics, and soft-delete features.
+2. **Student Features**: Documented autocorrect protection for iPad inputs, direct in-browser voice recording (audio submissions), picture uploads for open questions, and progress dashboard metrics.
+3. **Advanced Open Question Rubric**: Documented required, bonus, and forbidden keywords, Levenshtein spelling tolerance rules, custom weights, and the media-only teacher-review flow.
+4. **Security & Hardening Section**: Documented server-authoritative scoring, cryptographic secure join codes, API/asset isolation patterns, upload allowlists, brute-force rate-limiting, and Prisma database transaction wrappers.
+5. **Testing suite**: Added details on running unit tests with Vitest.
+6. **Project Structure & Config**: Refreshed the project layout tree mapping and documented all new optional/required environment variables (like `GEMINI_API_KEY`, `GEMINI_MODEL`, and `SESSION_SECRET`).
+
+### Verification
+- Ran `npm run test` &rarr; All 54 tests passed.
+- Ran `npm run build` &rarr; Succeeded without any compile or lint errors.

@@ -22,6 +22,7 @@ export default async function CourseDetailPage({
     where: { id: courseId },
     include: {
       exercises: {
+        where: { pendingDeletion: false },
         orderBy: { order: "asc" },
       },
     },
@@ -32,7 +33,7 @@ export default async function CourseDetailPage({
   }
 
   const standaloneExercises = await prisma.exercise.findMany({
-    where: { courseId: null },
+    where: { courseId: null, pendingDeletion: false },
     orderBy: { title: "asc" },
   });
 

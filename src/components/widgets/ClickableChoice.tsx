@@ -55,7 +55,7 @@ export const ClickableChoice: React.FC<WidgetProps<ClickableChoiceConfig>> = ({
       )}
 
       <div className="space-y-6 divide-y divide-neutral-200 dark:divide-neutral-800">
-        {config.statements.map((stmt, idx) => {
+        {config.statements.map((stmt) => {
           const selected = selections[stmt.id];
 
           return (

@@ -15,7 +15,7 @@ import {
   removeExerciseFromCourse,
   reorderCourseExercises,
   deleteCourse,
-} from "@/app/actions";
+} from "@/lib/actions/course";
 import { getExerciseTypeLabel } from "@/lib/exerciseLabels";
 
 interface Course {

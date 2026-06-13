@@ -153,7 +153,7 @@ export const ExploreImageMap: React.FC<WidgetProps<ExploreImageMapConfig>> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentChallengeIdx, quizActive]);
 
-  const handleHotspotClick = (hotspot: any) => {
+  const handleHotspotClick = (hotspot: ExploreImageMapConfig["scenes"][string]["hotspots"][number]) => {
     // Normal exploratory interaction
     if (!quizActive || isReadOnly) {
       if (hotspot.popupText) {
@@ -315,7 +315,6 @@ export const ExploreImageMap: React.FC<WidgetProps<ExploreImageMapConfig>> = ({
             if (!hasCoords) return null;
 
             const shapeProps = {
-              key: hotspot.id,
               onClick: () => handleHotspotClick(hotspot),
               className: `cursor-pointer pointer-events-auto transition duration-150 ${
                 isReadOnly || (!quizActive && hotspot.action.type === "change-scene")
@@ -327,17 +326,18 @@ export const ExploreImageMap: React.FC<WidgetProps<ExploreImageMapConfig>> = ({
 
             if (hotspot.shape === "circle" && hotspot.coords.length >= 3) {
               const [cx, cy, r] = hotspot.coords;
-              return <circle cx={cx} cy={cy} r={r} {...shapeProps} />;
+              return <circle key={hotspot.id} cx={cx} cy={cy} r={r} {...shapeProps} />;
             }
 
             if (hotspot.shape === "rect" && hotspot.coords.length >= 4) {
               const [x, y, w, h] = hotspot.coords;
-              return <rect x={x} y={y} width={w} height={h} {...shapeProps} />;
+              return <rect key={hotspot.id} x={x} y={y} width={w} height={h} {...shapeProps} />;
             }
 
             if (hotspot.shape === "polygon" && hotspot.coords.length >= 6) {
               return (
                 <polygon
+                  key={hotspot.id}
                   points={getPolygonPoints(hotspot.coords)}
                   {...shapeProps}
                 />

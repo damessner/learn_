@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { createClassroom } from "@/app/actions";
+import { createClassroom } from "@/lib/actions/classroom";
 import { Plus } from "lucide-react";
 
 export default function CreateClassroomForm() {
@@ -23,7 +23,7 @@ export default function CreateClassroomForm() {
       } else {
         setName("");
       }
-    } catch (err) {
+    } catch {
       setError("Failed to create classroom.");
     } finally {
       setLoading(false);
