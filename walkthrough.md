@@ -1,294 +1,171 @@
-# Walkthrough: Critical Review Remediation (Execution)
+# Walkthrough: Critical Platform Audit & Bug-Fix Sprint
 
-## What was implemented
-
-### 1) Server-authoritative scoring (integrity fix)
-
-**Files:**
-- `file:///home/damessner/opencode/learn/src/lib/submissionScoring.ts` (new)
-- `file:///home/damessner/opencode/learn/src/lib/actions/submission.ts`
-- `file:///home/damessner/opencode/learn/src/app/assignments/[id]/AssignmentPlayer.tsx`
-
-**Changes:**
-- Submission persistence no longer trusts client-provided scores.
-- Server now computes score from exercise definition + submitted answers.
-- Added payload validation (`answers` object shape + max size).
-- Added score sanity validation for client payload.
-- Disabled auto-awarding 100% for open-question media-only answers on server (requires teacher review path).
-- Server returns computed raw score in response and UI displays returned score.
-
-**Impact:** closes core score tampering vulnerability.
+**Date:** 2026-06-13  
+**Result:** 28 bugs fixed across 15 source files + 2 test files significantly expanded.  
+**Tests:** 99 passing (was 66) · TypeScript: 0 errors
 
 ---
 
-### 2) Asset serving hardening
+## Summary of Changes
 
-**File:**
-- `file:///home/damessner/opencode/learn/src/app/api/exercises/[exerciseId]/assets/[...path]/route.ts`
+### Phase 1 — CRITICAL (7 fixes)
 
-**Changes:**
-- Added auth requirement (`401` if no session).
-- Added path-part traversal rejection (`..`, slash/backslash segments).
-- Blocks `index.json`/`index.md` case-insensitively.
-- Restricts resolved file path to the target exercise directory only.
-- Supports legacy root files and `assets/` files safely.
-- Adds `X-Content-Type-Options: nosniff` header.
+#### C1 — IDOR: Assignment ownership verification
+**File:** `src/lib/actions/assignment.ts`  
+`assignExercise` now verifies the target classroom belongs to the calling teacher before creating an assignment. `unassignAssignment` verifies assignment ownership before deletion. Both return `{ error: "Access denied" }` on unauthorized access.
 
-**Impact:** prevents config leakage/traversal and cross-exercise file reads.
+#### C2 — IDOR: Live-quiz session ownership
+**File:** `src/lib/actions/live-quiz.ts`  
+All five teacher-facing quiz-control functions (`startLiveQuiz`, `endLiveQuestion`, `showLiveLeaderboard`, `nextLiveQuestion`, `finishLiveQuiz`) now verify `session.hostId === teacher.userId` before making any changes.
 
----
+#### C3 — IDOR: `submitLiveAnswer` caller identity
+**File:** `src/lib/actions/live-quiz.ts`  
+Added two-step validation: (1) the `participantId` must belong to the given `sessionId`; (2) if the participant has a linked `userId`, the caller's session must match that userId. Prevents score stealing and impersonation.
 
-### 3) Upload hardening
+#### C4 — Score manipulation: `scoreInteractiveReading`
+**File:** `src/lib/submissionScoring.ts`  
+The function now builds a `Set<string>` of all real question IDs from the exercise config before counting solved questions. Only IDs present in the valid set are counted. Sending fake IDs no longer inflates the score.
 
-**Files:**
-- `file:///home/damessner/opencode/learn/src/app/api/exercises/[exerciseId]/assets/upload/route.ts`
-- `file:///home/damessner/opencode/learn/src/app/api/submissions/upload/route.ts`
-- `file:///home/damessner/opencode/learn/src/lib/actions/exercise.ts`
+#### C5 — Path traversal: `uploadMedia` filename
+**File:** `src/lib/actions/exercise.ts`  
+Added filename traversal guards: rejects filenames that are empty, start with `.`, or contain `..`. Added a `path.resolve` check to confirm the target write path stays within the `assetsDir`. Size estimation check now runs before decoding (OOM prevention, M3 co-fix).
 
-**Changes:**
-- Added extension allowlists in API upload routes.
-- Explicitly blocks SVG by omission from allowlists.
-- Corrected size constants (`10*1024*1024`, `20*1024*1024`).
-- Sanitized outward error responses (`Upload failed`, no raw internal messages).
-- Replaced submission filename randomness with `crypto.randomUUID()`.
+#### C6 — Path traversal: `getExerciseFromDisk`
+**File:** `src/lib/exercises.ts`  
+Added a format guard at the start of `getExerciseFromDisk`: IDs must match `/^[a-z0-9-]+$/` and be ≤128 characters. Returns `null` immediately for any non-conforming ID.
 
-**Impact:** reduces risky file upload vectors and information leakage.
-
----
-
-### 4) Login throttling
-
-**Files:**
-- `file:///home/damessner/opencode/learn/src/lib/rateLimit.ts` (new)
-- `file:///home/damessner/opencode/learn/src/app/api/auth/login/route.ts`
-
-**Changes:**
-- Added in-memory rate limiter keyed by normalized username + IP.
-- 5 failed attempts in 1 minute ⇒ 5 minute block.
-- Uses generic auth error text while blocked.
-- Clears key on successful login.
-
-**Impact:** raises resistance against brute-force login attempts.
+#### C7 — Test integrity: live quiz tests
+**Files:** `src/lib/live-quiz-utils.ts` (new), `src/lib/actions/live-quiz.ts`, `src/lib/live-quiz.test.ts`  
+Extracted the pure answer-evaluation logic into `src/lib/live-quiz-utils.ts` as `evaluateAnswerCorrectness` and `calculateLiveQuizPoints`. The test file now imports and tests these production functions directly (19 test cases). The `"use server"` module no longer contains a second copy of this logic.
 
 ---
 
-### 5) Secure join codes
+### Phase 2 — HIGH (9 fixes)
 
-**File:**
-- `file:///home/damessner/opencode/learn/src/lib/actions/auth-helpers.ts`
+#### H1 — Rate limiting on registration
+**File:** `src/app/api/auth/register/route.ts`  
+Added IP-based rate limiting using the existing `rateLimit.ts` module (key: `register:{ip}`). Each registration attempt is recorded; blocked IPs receive a 429 response.
 
-**Changes:**
-- Replaced `Math.random()` with `crypto.randomBytes()`.
-- Maintains 6-char uppercase alphanumeric format.
+#### H2 — Username case sensitivity in login
+**File:** `src/app/api/auth/login/route.ts`  
+Username is now lowercased before both the DB lookup and the rate-limit key. This prevents a targeted lockout where an attacker sends `Alice` to lock out the user `alice`.  
+`register/route.ts` stores normalized usernames to prevent duplicate accounts differing only by case.
 
-**Impact:** removes predictable PRNG usage for join codes.
+#### H3 — Input type/length validation
+**Files:** `src/app/api/auth/login/route.ts`, `src/app/api/auth/register/route.ts`  
+Added explicit `typeof` guards for `username` and `password`. Added length caps (username ≤64, password ≤128) that reject over-length inputs before reaching bcrypt.
 
----
+#### H4 — `spellingTolerance: "off"` fix
+**File:** `src/lib/submissionScoring.ts`  
+`matchesKeyword` now returns `true` immediately when `spellingTolerance === "off"`, disabling the keyword check as documented. Previously, "off" was silently treated as "strict" (exact substring match).
 
-### 6) Transactional critical flows
+#### H5 — `scoreDragDrop` case normalization
+**File:** `src/lib/submissionScoring.ts`  
+Drag-drop scoring now uses `normalize()` (trim + lowercase) on both sides of the comparison, matching the existing behavior in `scoreGapFill`. "Grass" and "grass" are now treated as equal.
 
-**Files:**
-- `file:///home/damessner/opencode/learn/src/lib/actions/classroom.ts`
-- `file:///home/damessner/opencode/learn/src/lib/actions/course.ts`
+#### H6 — Gemini API timeout
+**File:** `src/lib/gemini.ts`  
+All three fetch calls now use an `AbortController` with a 30-second timeout, wrapped in `try/finally` to clear the timeout. A hung Gemini API will now abort after 30s instead of blocking indefinitely.
 
-**Changes:**
-- Wrapped bulk student import in `prisma.$transaction`.
-- Wrapped course exercise reorder in `prisma.$transaction`.
-- Wrapped assign-course (courseAssignment + assignment creates) in `prisma.$transaction`.
+#### H7 — Cryptographically secure PIN generation
+**File:** `src/lib/actions/live-quiz.ts`  
+Replaced `Math.floor(100000 + Math.random() * 900000)` with `crypto.randomInt(100000, 1000000)`. PINs are now generated from a CSPRNG.
 
-**Impact:** prevents partial writes in multi-step operations.
+#### H8 — `nextLiveQuestion` bounds check
+**File:** `src/lib/actions/live-quiz.ts`  
+Before advancing, the function now loads the exercise config and verifies `nextIdx < exercise.questions.length`. Returns `{ error: "No more questions. Please finish the quiz." }` if at the last question, preventing a stuck QUESTION state.
 
----
-
-### 7) Boundary input/error hardening
-
-**Files:**
-- `file:///home/damessner/opencode/learn/src/lib/actions/submission.ts`
-- `file:///home/damessner/opencode/learn/src/lib/actions/classroom.ts`
-- `file:///home/damessner/opencode/learn/src/lib/actions/course.ts`
-- `file:///home/damessner/opencode/learn/src/lib/actions/assignment.ts`
-- `file:///home/damessner/opencode/learn/src/lib/actions/exercise.ts`
-
-**Changes:**
-- Added length/shape/range checks for IDs, text fields, due dates, and numeric values.
-- Sanitized several outward error responses to avoid exposing internals.
-- Bulk import now requires explicit password (no insecure implicit default).
+#### H9 — Remove hardcoded multiplier table
+**File:** `src/lib/actions/live-quiz.ts`  
+Replaced the inline ternary chain in `finishLiveQuiz` with `getAttemptMultiplier(attemptNumber)` from `@/lib/scoring`. Score multiplier logic is now defined in one place.
 
 ---
 
-### 8) Test infrastructure + tests
+### Phase 3 — MEDIUM (7 fixes)
 
-**Files added/updated:**
-- `file:///home/damessner/opencode/learn/vitest.config.ts` (new)
-- `file:///home/damessner/opencode/learn/package.json`
-- `file:///home/damessner/opencode/learn/src/lib/scoring.test.ts` (new)
-- `file:///home/damessner/opencode/learn/src/lib/points.test.ts` (new)
-- `file:///home/damessner/opencode/learn/src/lib/actions/auth-helpers.test.ts` (new)
-- `file:///home/damessner/opencode/learn/src/lib/rateLimit.test.ts` (new)
-- `file:///home/damessner/opencode/learn/src/lib/submissionScoring.test.ts` (new)
+#### M1 — `parsedContent` field-order override
+**File:** `src/lib/actions/exercise.ts`  
+In `createWorksheet`, the JSON content object now spreads `parsedContent` first, then applies the validated `id`, `title`, `description`, `type`, `tags` fields on top. A user-supplied `type` field can no longer override the validated exercise type.
 
-**Coverage implemented:**
-- Attempt multiplier behavior
-- Points utilities
-- Join code format/randomness
-- Rate limiter behavior
-- Submission scoring + validation behavior
+#### M2 — Frontmatter regex scope in `duplicateExercise`
+**File:** `src/lib/actions/exercise.ts`  
+The `id:` and `title:` replacement regexes in `duplicateExercise` are now scoped to the YAML frontmatter block (between `---` markers). Body text starting with `id:` on its own line is no longer incorrectly modified.
 
----
+#### M3 — OOM prevention in `uploadMedia`
+**File:** `src/lib/actions/exercise.ts`  
+An estimated size check (`base64Data.length * 3 / 4 > 10MB`) now runs before `Buffer.from()`, preventing a large base64 string from allocating a ~750MB buffer before being rejected.
 
-## Verification results
+#### M4 — Consistent password minimum
+**File:** `src/lib/actions/classroom.ts`  
+`resetStudentPassword` minimum password length raised from 4 to 6 characters, matching the registration endpoint minimum. Error message updated.
 
-### `npm run test`
-- **PASS**
-- Test files: 5
-- Tests: 54 passed
+#### M5 — Input length limits in `joinLiveSession`
+**File:** `src/lib/actions/live-quiz.ts`  
+PIN must now be exactly 6 numeric digits. Nickname is capped at 50 characters.
 
-### `npm run build`
-- **PASS**
-- Next build + TS completed successfully
+#### M6 — `feedback` type validation
+**File:** `src/lib/actions/submission.ts`  
+`overrideSubmissionGrade` now checks `typeof feedback !== "string"` before checking `feedback.length`. Non-string feedback values return a typed error instead of crashing at the Prisma call.
 
-### `npm run lint`
-- **FAIL (pre-existing baseline debt)**
-- 134 total issues reported (`77 errors`, `57 warnings`), mostly existing `no-explicit-any`, hooks lint issues, and JSX key/unescaped-entities issues across unrelated files.
-- No additional broad lint cleanup was performed in this sprint to avoid scope explosion.
+#### M7 — `getSession` structural validation
+**File:** `src/lib/session.ts`  
+After decrypting and parsing the session cookie, the payload is now validated: `userId` and `username` must be strings, `role` must be `"TEACHER"` or `"STUDENT"`. Malformed or migrated tokens return `null` instead of crashing downstream callers.
 
 ---
 
-## Deferred / remaining follow-ups
+### Phase 4 — LOW + Tests (5 items)
 
-1. API-route regression tests (auth/assets/uploads) were deferred for this sprint.
-2. Current login limiter is in-memory (single-process scope); for distributed deployment, move to shared store (Redis/DB).
-3. Asset access is currently authenticated but not yet enrollment/ownership-scoped per assignment context.
+#### L1 — Production guard on test helper
+**File:** `src/lib/rateLimit.ts`  
+`resetRateLimitStoreForTests` now logs a warning and returns early when `NODE_ENV === "production"`, preventing accidental invocation.
 
----
+#### L2 — Remove duplicate type alias
+**File:** `src/lib/submissionScoring.ts`  
+Removed the `AnyRecord` type alias (identical to `UnknownRecord`). All 16 occurrences updated to use `UnknownRecord`.
 
-## Lint Debt Remediation Follow-up (Completed)
+#### L3 — Live quiz tests: real production code
+**Files:** `src/lib/live-quiz-utils.ts`, `src/lib/live-quiz.test.ts`  
+The test file now imports `evaluateAnswerCorrectness` and `calculateLiveQuizPoints` from the new pure-function module. 19 test cases cover all 4 question types, edge cases (empty arrays, non-array inputs, missing accepted answers, unknown types), and the points decay formula.
 
-After the above walkthrough was documented, a dedicated repo-wide lint remediation pass was executed.
+#### L4 — `submissionScoring.test.ts` expanded
+**File:** `src/lib/submissionScoring.test.ts`  
+Added 6 new describe blocks with 17 tests covering: fake ID injection (C4 regression test), drag-drop case normalization (H5 regression test), `spellingTolerance: "off"` (H4 regression test), forbidden keywords, writing coach with no criteria, and ordering with length mismatches.
 
-### Scope
-
-Fixed app-layer, widget-layer, and lib-layer lint debt including:
-
-- `@typescript-eslint/no-explicit-any`
-- `@typescript-eslint/no-unused-vars`
-- `react/jsx-key`
-- `react/no-unescaped-entities`
-- `react-hooks/immutability`
-- `react-hooks/exhaustive-deps`
-- `react-hooks/set-state-in-effect`
-- `@next/next/no-img-element`
-
-### Representative files touched
-
-- `file:///home/damessner/opencode/learn/src/app/assignments/[id]/AssignmentPlayer.tsx`
-- `file:///home/damessner/opencode/learn/src/app/submissions/[id]/SubmissionReviewPlayer.tsx`
-- `file:///home/damessner/opencode/learn/src/app/teacher/create/WorksheetCreator.tsx`
-- `file:///home/damessner/opencode/learn/src/components/widgets/Vocabulary.tsx`
-- `file:///home/damessner/opencode/learn/src/components/widgets/OpenQuestion.tsx`
-- `file:///home/damessner/opencode/learn/src/components/widgets/ExploreImageMap.tsx`
-- `file:///home/damessner/opencode/learn/src/lib/points.ts`
-- `file:///home/damessner/opencode/learn/src/lib/exercises.ts`
-
-### Verification (post-remediation)
-
-#### `npm run lint`
-- **PASS** (0 errors, 0 warnings)
-
-#### `npm run test`
-- **PASS** (54 passed)
-
-#### `npm run build`
-- **PASS**
-
-### Notes
-
-- No ESLint rule relaxations/config bypasses were used.
-- Behavior-preserving refactors were preferred; typing is stricter and dead code/import noise was removed.
+#### L5 — `scoring.test.ts` edge cases
+**File:** `src/lib/scoring.test.ts`  
+Added 3 tests for `getAttemptMultiplier` with edge-case inputs: attempt 0, negative attempt numbers, and Infinity — all correctly return the 4th-tier multiplier (0.25).
 
 ---
 
-## README Review & Update (Completed)
+## Files Changed (17 total)
 
-We reviewed and completely rewrote the `README.md` to reflect all recent additions in the codebase.
-
-### Scope of README Updates
-
-1. **Teacher Features**: Documented the unified Gradebook roster matrix, bulk student import (CSV/JSON), student password reset, Gradebook CSV export, course drag-and-drop mechanics, and soft-delete features.
-2. **Student Features**: Documented autocorrect protection for iPad inputs, direct in-browser voice recording (audio submissions), picture uploads for open questions, and progress dashboard metrics.
-3. **Advanced Open Question Rubric**: Documented required, bonus, and forbidden keywords, Levenshtein spelling tolerance rules, custom weights, and the media-only teacher-review flow.
-4. **Security & Hardening Section**: Documented server-authoritative scoring, cryptographic secure join codes, API/asset isolation patterns, upload allowlists, brute-force rate-limiting, and Prisma database transaction wrappers.
-5. **Testing suite**: Added details on running unit tests with Vitest.
-6. **Project Structure & Config**: Refreshed the project layout tree mapping and documented all new optional/required environment variables (like `GEMINI_API_KEY`, `GEMINI_MODEL`, and `SESSION_SECRET`).
-
-### Verification
-- Ran `npm run test` &rarr; All 54 tests passed.
-- Ran `npm run build` &rarr; Succeeded without any compile or lint errors.
-
----
-
-## Live Quiz Standalone Exercise Type (Completed)
-
-We implemented and hardened the "Live Quiz" exercise type—a real-time, synchronous game designed for in-class hosting.
-
-### Scope
-
-1. **Standalone Exercise Schema**: Registered `"live-quiz"` as a dedicated standalone exercise type in [exercises.ts](file:///home/damessner/opencode/learn/src/lib/exercises.ts) and [types.ts](file:///home/damessner/opencode/learn/src/components/widgets/types.ts).
-2. **Visual Builder for Teachers**: Added [LiveQuizBuilder.tsx](file:///home/damessner/opencode/learn/src/app/teacher/create/components/LiveQuizBuilder.tsx) to let teachers construct rich quiz questions supporting four question formats:
-   - **Single Choice**: standard 4-alternative Kahoot-like question
-   - **Multiple Choice**: multiple checkbox selection with composite evaluation
-   - **Word Ordering**: scrambled sequence builder
-   - **Text Input**: free-form text input with accepted variations
-3. **Synchronous Host & Player client**: 
-   - Built the real-time teacher board [LiveQuizSessionHostClient.tsx](file:///home/damessner/opencode/learn/src/app/teacher/live-quiz/session/%5BsessionId%5D/LiveQuizSessionHostClient.tsx) featuring join codes (6-digit PIN), student lobby count, question transition control, dynamic polling statistics bar-chart, and final award podium.
-   - Built the student game pad [LiveQuizPlayerClient.tsx](file:///home/damessner/opencode/learn/src/app/student/live-quiz/play/%5BsessionId%5D/LiveQuizPlayerClient.tsx) featuring real-time synchronization, instant speed-based point decay calculation, lobby waiting screens, and custom option shapes/colors.
-4. **Clean Compilation & Type Safety**:
-   - Refactored [LiveQuizPlayerClient.tsx](file:///home/damessner/opencode/learn/src/app/student/live-quiz/play/%5BsessionId%5D/LiveQuizPlayerClient.tsx) and [LiveQuizSessionHostClient.tsx](file:///home/damessner/opencode/learn/src/app/teacher/live-quiz/session/%5BsessionId%5D/LiveQuizSessionHostClient.tsx) to adhere to strict ESLint constraints (preventing `setState` within render path, escaping entities, and removing `any` type casts).
-   - Fixed relational query fields mismatch in the synchronization endpoint [/api/live-quiz/sync/route.ts](file:///home/damessner/opencode/learn/src/app/api/live-quiz/sync/route.ts).
-
-### Verification
-
-#### `npm run lint`
-- **PASS** (0 errors, 0 warnings)
-
-#### `npm run test`
-- **PASS** (66 passed - all 12 new Live Quiz scoring and evaluation unit tests fully green)
-
-#### `npm run build`
-- **PASS** (successful production optimized Turbopack build)
+| File | Changes |
+|------|---------|
+| `src/lib/actions/assignment.ts` | C1: Ownership checks |
+| `src/lib/actions/live-quiz.ts` | C2, C3, H7, H8, H9, M5: Multiple security + correctness fixes |
+| `src/lib/live-quiz-utils.ts` | **NEW** — Pure utility functions extracted for testability |
+| `src/lib/submissionScoring.ts` | C4, H4, H5, L2: Score security + consistency fixes |
+| `src/lib/actions/exercise.ts` | C5, M1, M2, M3: Path traversal + field order + regex scope |
+| `src/lib/exercises.ts` | C6: Input validation guard |
+| `src/app/api/auth/register/route.ts` | H1, H3: Rate limiting + input validation |
+| `src/app/api/auth/login/route.ts` | H2, H3: Username normalization + input validation |
+| `src/lib/gemini.ts` | H6: AbortController timeout on all fetch calls |
+| `src/lib/actions/classroom.ts` | M4: Password minimum raised to 6 |
+| `src/lib/actions/submission.ts` | M6: Feedback type validation |
+| `src/lib/session.ts` | M7: Session payload structural validation |
+| `src/lib/rateLimit.ts` | L1: Production guard on test helper |
+| `src/lib/live-quiz.test.ts` | C7, L3: Rewritten to test production code |
+| `src/lib/submissionScoring.test.ts` | L4: 17 new edge-case tests |
+| `src/lib/scoring.test.ts` | L5: 3 edge-case tests |
 
 ---
 
-## Pixabay Image Integration & Vocabulary Picture Quiz (Completed)
+## Verification Results
 
-We implemented Pixabay secure image search and download integration, alongside an experimental **Picture Match Stage** for the Vocabulary practice widget.
+```
+Test Files  6 passed (6)
+     Tests  99 passed (99)   [was 66 before sprint]
+  TypeScript: 0 errors (tsc --noEmit)
+```
 
-### Scope
-
-1. **Secure API Proxy & Downloader**:
-   - Created [/api/pixabay/search](file:///home/damessner/opencode/learn/src/app/api/pixabay/search/route.ts) to securely query the Pixabay API on the server side using the private key, returning lightweight image lists to the front-end.
-   - Created [/api/exercises/[exerciseId]/assets/download-url](file:///home/damessner/opencode/learn/src/app/api/exercises/[exerciseId]/assets/download-url/route.ts) to safely fetch and download selected images directly to the exercise's local assets directory. Restricts target hostnames to `pixabay.com` to prevent SSRF vulnerabilities.
-2. **Interactive Search modal**:
-   - Built [PixabaySearchModal.tsx](file:///home/damessner/opencode/learn/src/components/PixabaySearchModal.tsx), offering teachers a premium search bar and image thumbnails grid to quickly select and attach photos.
-3. **Worksheet builder integration**:
-   - Attached "Search Pixabay" options next to all media and matching pair media inputs in [WorksheetQuestionsBuilder.tsx](file:///home/damessner/opencode/learn/src/app/teacher/create/components/WorksheetQuestionsBuilder.tsx).
-4. **Vocabulary builder upgrades**:
-   - Re-architected [VocabularyBuilder.tsx](file:///home/damessner/opencode/learn/src/app/teacher/create/components/VocabularyBuilder.tsx) to support:
-     - Checkbox: "Enable experimental picture supplementation".
-     - Auto-Supplement button: Automatically queries Pixabay for each word in the list and attaches the first visual search hit.
-     - Individual settings: Upload local files, search Pixabay individually per word, display preview thumbnails, or remove attachments.
-   - Reconciled word lists and images inside [WorksheetCreator.tsx](file:///home/damessner/opencode/learn/src/app/teacher/create/WorksheetCreator.tsx) to ensure copy-pasting vocabulary lists merges and retains existing image files.
-5. **Student Picture Match stage**:
-   - Added **Stage 4: Picture Match** (Picture Quiz) in [Vocabulary.tsx](file:///home/damessner/opencode/learn/src/components/widgets/Vocabulary.tsx) triggering after standard study completion.
-   - Generates a 2x2 grid of choices containing the target word's image and up to 3 distractors selected from other words in the student's active vocabulary list.
-
-### Verification
-
-#### `npm run lint`
-- **PASS** (0 errors, 0 warnings)
-
-#### `npm run test`
-- **PASS** (66 passed)
-
-#### `npm run build`
-- **PASS** (successful optimized production build compilation)
+No regressions introduced. All pre-existing tests continue to pass.

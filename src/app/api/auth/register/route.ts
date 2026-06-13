@@ -2,10 +2,24 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { setSession } from "@/lib/session";
+import { checkRateLimit, recordFailedAttempt, buildRateLimitKey } from "@/lib/rateLimit";
+import { headers } from "next/headers";
 
 export async function POST(request: Request) {
   try {
     const { username, password, role, joinCode } = await request.json();
+
+    // Validate input types
+    if (typeof username !== "string" || typeof password !== "string" || typeof role !== "string") {
+      return NextResponse.json({ error: "Invalid input types" }, { status: 400 });
+    }
+    if (username.length > 64) {
+      return NextResponse.json({ error: "Username must be 64 characters or fewer" }, { status: 400 });
+    }
+    if (password.length > 128) {
+      return NextResponse.json({ error: "Password must be 128 characters or fewer" }, { status: 400 });
+    }
+    const normalizedUsername = username.trim().toLowerCase();
 
     if (!username || !password || !role) {
       return NextResponse.json(
@@ -28,9 +42,25 @@ export async function POST(request: Request) {
       );
     }
 
+    // IP-based rate limiting for registration
+    const headersList = await headers();
+    const ip =
+      headersList.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      headersList.get("x-real-ip") ||
+      "unknown";
+    const registerRateLimitKey = `register:${ip}`;
+    const { blocked: regBlocked } = checkRateLimit(registerRateLimitKey);
+    if (regBlocked) {
+      return NextResponse.json(
+        { error: "Too many registration attempts. Please try again later." },
+        { status: 429 }
+      );
+    }
+    recordFailedAttempt(registerRateLimitKey); // count each registration attempt
+
     // Check if username is taken
     const existingUser = await prisma.user.findUnique({
-      where: { username },
+      where: { username: normalizedUsername },
     });
 
     if (existingUser) {
@@ -71,7 +101,7 @@ export async function POST(request: Request) {
     const user = await prisma.$transaction(async (tx) => {
       const newUser = await tx.user.create({
         data: {
-          username,
+          username: normalizedUsername,
           passwordHash,
           role,
         },

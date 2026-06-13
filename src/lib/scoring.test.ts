@@ -24,3 +24,17 @@ describe("getAttemptMultiplier", () => {
     expect(getAttemptMultiplier(100)).toBe(0.25);
   });
 });
+
+describe("getAttemptMultiplier — edge cases (L5)", () => {
+  it("returns 0.25 for attempt 0 (edge case)", () => {
+    expect(getAttemptMultiplier(0)).toBe(0.25);
+  });
+
+  it("returns 0.25 for negative attempt numbers", () => {
+    expect(getAttemptMultiplier(-1)).toBe(0.25);
+  });
+
+  it("returns 1.0 for attempt 1 (verify not affected by edge case handling)", () => {
+    expect(getAttemptMultiplier(1)).toBe(1.0);
+  });
+});

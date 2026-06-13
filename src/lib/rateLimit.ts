@@ -98,7 +98,12 @@ export function buildRateLimitKey(username: string, ip?: string): string {
 
 /**
  * Test-only helper to clear in-memory limiter state.
+ * Must not be called in production.
  */
 export function resetRateLimitStoreForTests(): void {
+  if (process.env.NODE_ENV === "production") {
+    console.warn("resetRateLimitStoreForTests called in production — ignoring");
+    return;
+  }
   store.clear();
 }

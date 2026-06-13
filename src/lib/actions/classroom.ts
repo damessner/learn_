@@ -45,8 +45,8 @@ export async function resetStudentPassword(studentId: string, newPasswordStr: st
   if (!studentId || typeof studentId !== "string" || studentId.length > 128) {
     return { error: "Invalid student ID" };
   }
-  if (!newPasswordStr || newPasswordStr.length < 4 || newPasswordStr.length > 128) {
-    return { error: "Password must be between 4 and 128 characters." };
+  if (!newPasswordStr || newPasswordStr.length < 6 || newPasswordStr.length > 128) {
+    return { error: "Password must be between 6 and 128 characters." };
   }
 
   try {

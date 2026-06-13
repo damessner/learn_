@@ -9,7 +9,6 @@ import type { ExerciseData } from "@/lib/exercises";
 import { getTaskMaxPoints } from "@/lib/points";
 
 type UnknownRecord = Record<string, unknown>;
-type AnyRecord = Record<string, unknown>;
 
 function clampScore(value: number): number {
   if (!Number.isFinite(value)) return 0;
@@ -77,7 +76,8 @@ function matchesKeyword(text: string, kw: string, spellingTolerance: string): bo
 
   if (!cleanKw) return false;
 
-  if (spellingTolerance === "strict" || spellingTolerance === "off" || !spellingTolerance) {
+  if (spellingTolerance === "off") return true; // keyword check disabled
+  if (spellingTolerance === "strict" || !spellingTolerance) {
     return cleanText.includes(cleanKw);
   }
 
@@ -101,7 +101,7 @@ function matchesKeyword(text: string, kw: string, spellingTolerance: string): bo
   return false;
 }
 
-function scoreMultipleChoice(config: AnyRecord, state: unknown): number {
+function scoreMultipleChoice(config: UnknownRecord, state: unknown): number {
   const questions = asArray(config.questions);
   if (questions.length === 0) return 0;
   const stateObj = asRecord(state);
@@ -118,7 +118,7 @@ function scoreMultipleChoice(config: AnyRecord, state: unknown): number {
   return clampScore((correct / questions.length) * 100);
 }
 
-function scoreGapFill(config: AnyRecord, state: unknown): number {
+function scoreGapFill(config: UnknownRecord, state: unknown): number {
   const correctAnswers = parseGapAnswers(String(config?.text || ""));
   if (correctAnswers.length === 0) return 0;
   const stateObj = asRecord(state);
@@ -133,7 +133,7 @@ function scoreGapFill(config: AnyRecord, state: unknown): number {
   return clampScore((correct / correctAnswers.length) * 100);
 }
 
-function scoreDragDrop(config: AnyRecord, state: unknown): number {
+function scoreDragDrop(config: UnknownRecord, state: unknown): number {
   const correctAnswers = parseGapAnswers(String(config?.text || ""));
   if (correctAnswers.length === 0) return 0;
   const stateObj = asRecord(state);
@@ -142,13 +142,13 @@ function scoreDragDrop(config: AnyRecord, state: unknown): number {
 
   let correct = 0;
   correctAnswers.forEach((ans, idx) => {
-    if (String(placements[idx] ?? "").trim() === ans.trim()) correct++;
+    if (normalize(String(placements[idx] ?? "")) === normalize(ans)) correct++;
   });
 
   return clampScore((correct / correctAnswers.length) * 100);
 }
 
-function scoreCategorization(config: AnyRecord, state: unknown): number {
+function scoreCategorization(config: UnknownRecord, state: unknown): number {
   const items = asArray(config.items);
   if (items.length === 0) return 0;
   const stateObj = asRecord(state);
@@ -165,7 +165,7 @@ function scoreCategorization(config: AnyRecord, state: unknown): number {
   return clampScore((correct / items.length) * 100);
 }
 
-function scoreClickableChoice(config: AnyRecord, state: unknown): number {
+function scoreClickableChoice(config: UnknownRecord, state: unknown): number {
   const statements = asArray(config.statements);
   if (statements.length === 0) return 0;
   const stateObj = asRecord(state);
@@ -182,7 +182,7 @@ function scoreClickableChoice(config: AnyRecord, state: unknown): number {
   return clampScore((correct / statements.length) * 100);
 }
 
-function scoreMatching(config: AnyRecord, state: unknown): number {
+function scoreMatching(config: UnknownRecord, state: unknown): number {
   const pairs = asArray(config.pairs);
   if (pairs.length === 0) return 0;
   const stateObj = asRecord(state);
@@ -199,7 +199,7 @@ function scoreMatching(config: AnyRecord, state: unknown): number {
   return clampScore((correct / pairs.length) * 100);
 }
 
-function scoreOrdering(config: AnyRecord, state: unknown): number {
+function scoreOrdering(config: UnknownRecord, state: unknown): number {
   const elements = asArray(config.elements);
   if (elements.length === 0) return 0;
 
@@ -216,7 +216,7 @@ function scoreOrdering(config: AnyRecord, state: unknown): number {
   return clampScore((correctPositions / elements.length) * 100);
 }
 
-function scoreOpenQuestion(config: AnyRecord, state: unknown): number {
+function scoreOpenQuestion(config: UnknownRecord, state: unknown): number {
   const stateObj = asRecord(state);
   const response = String(stateObj?.response || "");
   const audioUrl = String(stateObj?.audioUrl || "");
@@ -279,7 +279,7 @@ function scoreOpenQuestion(config: AnyRecord, state: unknown): number {
   return clampScore(Math.round(finalScore));
 }
 
-function scoreImageHotspotQuiz(config: AnyRecord, state: unknown): number {
+function scoreImageHotspotQuiz(config: UnknownRecord, state: unknown): number {
   const tasks = asArray(config.tasks);
   if (tasks.length === 0) return 0;
 
@@ -300,34 +300,40 @@ function scoreImageHotspotQuiz(config: AnyRecord, state: unknown): number {
   return clampScore((points / tasks.length) * 100);
 }
 
-function scoreInteractiveReading(config: AnyRecord, state: unknown): number {
+function scoreInteractiveReading(config: UnknownRecord, state: unknown): number {
   const pages = config?.pages && typeof config.pages === "object" ? config.pages : {};
   const stateObj = asRecord(state);
   const solvedQuestions = asRecord(stateObj?.solvedQuestions) || {};
 
+  // Build a set of all valid question IDs from the exercise config
+  const validQuestionIds = new Set<string>();
   let total = 0;
-  let points = 0;
 
-  Object.values(pages).forEach((page: unknown) => {
+  Object.values(pages as Record<string, unknown>).forEach((page: unknown) => {
     const pageObj = asRecord(page) || {};
     const questions = Array.isArray(pageObj?.questions) ? (pageObj.questions as unknown[]) : [];
     total += questions.length;
+    questions.forEach((q) => {
+      const qObj = asRecord(q);
+      if (qObj?.id) validQuestionIds.add(String(qObj.id));
+    });
   });
 
   if (total === 0) return 100;
 
+  let points = 0;
   Object.values(solvedQuestions).forEach((pageState: unknown) => {
     const pageSolved = asRecord(pageState);
     if (!pageSolved) return;
-    Object.values(pageSolved).forEach((v) => {
-      if (v === true) points++;
+    Object.entries(pageSolved).forEach(([qId, v]) => {
+      if (validQuestionIds.has(qId) && v === true) points++;
     });
   });
 
   return clampScore((points / total) * 100);
 }
 
-function scoreVocabulary(config: AnyRecord, state: unknown): number {
+function scoreVocabulary(config: UnknownRecord, state: unknown): number {
   const vocabList = asArray(config.vocabList);
   if (vocabList.length === 0) return 0;
 
@@ -341,7 +347,7 @@ function scoreVocabulary(config: AnyRecord, state: unknown): number {
   return clampScore((points / vocabList.length) * 100);
 }
 
-function scoreWritingCoach(config: AnyRecord, state: unknown): number {
+function scoreWritingCoach(config: UnknownRecord, state: unknown): number {
   const stateObj = asRecord(state);
   if (!stateObj) return 0;
 
@@ -368,7 +374,7 @@ function scoreWritingCoach(config: AnyRecord, state: unknown): number {
   return clampScore(Math.round((completedCount / exerciseCriteria.length) * 100));
 }
 
-function scoreExploreImageMap(config: AnyRecord, state: unknown): number {
+function scoreExploreImageMap(config: UnknownRecord, state: unknown): number {
   const gameMode = asRecord(config.gameMode);
   if (!gameMode || gameMode.enabled !== true) return 100;
 
@@ -392,7 +398,7 @@ function scoreExploreImageMap(config: AnyRecord, state: unknown): number {
   return clampScore((points / challenges.length) * 100);
 }
 
-function scoreLiveQuiz(config: AnyRecord, state: unknown): number {
+function scoreLiveQuiz(config: UnknownRecord, state: unknown): number {
   const questions = asArray(config.questions);
   if (questions.length === 0) return 0;
   
@@ -441,7 +447,7 @@ function scoreLiveQuiz(config: AnyRecord, state: unknown): number {
   return clampScore((correct / questions.length) * 100);
 }
 
-function scoreQuestionByType(question: AnyRecord, state: unknown): number {
+function scoreQuestionByType(question: UnknownRecord, state: unknown): number {
   switch (question.type) {
     case "multiple-choice":
       return scoreMultipleChoice({ questions: [question] }, state);
@@ -468,7 +474,7 @@ function scoreQuestionByType(question: AnyRecord, state: unknown): number {
 }
 
 export function scoreWorksheet(
-  questions: AnyRecord[],
+  questions: UnknownRecord[],
   answers: Record<string, unknown> | null | undefined
 ): number {
   const answersObj = asRecord(answers);

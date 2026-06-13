@@ -396,6 +396,8 @@ function parseMarkdown(content: string): { frontmatter: Record<string, unknown>;
  * Reads and parses an exercise folder from the filesystem
  */
 export function getExerciseFromDisk(id: string): ExerciseData | null {
+  // Validate id format to prevent path traversal
+  if (!id || !/^[a-z0-9-]+$/.test(id) || id.length > 128) return null;
   ensureExercisesDirExists();
   const dirPath = path.join(EXERCISES_DIR, id);
 

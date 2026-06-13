@@ -1,12 +1,15 @@
 "use server";
 
+import crypto from "crypto";
 import { prisma } from "@/lib/db";
 import { requireTeacher } from "./auth-helpers";
 import { getExerciseFromDisk } from "@/lib/exercises";
+import { getAttemptMultiplier } from "@/lib/scoring";
+import { evaluateAnswerCorrectness } from "@/lib/live-quiz-utils";
 
 // Generate a random 6-digit PIN
 function generatePin(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  return crypto.randomInt(100000, 1000000).toString();
 }
 
 /**
@@ -55,6 +58,13 @@ export async function createLiveSession(exerciseId: string) {
 export async function joinLiveSession(pin: string, nickname: string, userId?: string) {
   const cleanPin = pin.trim();
   const cleanNickname = nickname.trim();
+
+  if (cleanPin.length !== 6 || !/^\d+$/.test(cleanPin)) {
+    return { error: "PIN must be exactly 6 digits." };
+  }
+  if (cleanNickname.length > 50) {
+    return { error: "Nickname must be 50 characters or fewer." };
+  }
 
   if (!cleanPin || !cleanNickname) {
     return { error: "PIN and Nickname are required." };
@@ -115,7 +125,12 @@ export async function joinLiveSession(pin: string, nickname: string, userId?: st
  * Start the Live Quiz (move from Lobby to Question 1)
  */
 export async function startLiveQuiz(sessionId: string) {
-  await requireTeacher();
+  const teacher = await requireTeacher();
+
+  const session = await prisma.liveQuizSession.findUnique({ where: { id: sessionId } });
+  if (!session || session.hostId !== teacher.userId) {
+    return { error: "Access denied" };
+  }
 
   await prisma.liveQuizSession.update({
     where: { id: sessionId },
@@ -147,6 +162,23 @@ export async function submitLiveAnswer(
     return { error: "Submissions are closed for this question." };
   }
 
+  // Verify participant belongs to this session
+  const participant = await prisma.liveParticipant.findUnique({
+    where: { id: participantId },
+  });
+  if (!participant || participant.sessionId !== sessionId) {
+    return { error: "Invalid participant." };
+  }
+
+  // If participant is linked to a user, verify the caller is that user
+  if (participant.userId) {
+    const { getSession } = await import("@/lib/session");
+    const callerSession = await getSession();
+    if (!callerSession || callerSession.userId !== participant.userId) {
+      return { error: "Not authorized to submit for this participant." };
+    }
+  }
+
   // Check if participant already responded to this question
   const existingResponse = await prisma.liveResponse.findFirst({
     where: {
@@ -175,27 +207,7 @@ export async function submitLiveAnswer(
 
   try {
     const parsedAnswer = JSON.parse(answerJson);
-
-    if (question.type === "single-choice") {
-      const selected = Number(parsedAnswer);
-      isCorrect = selected === question.correctOptionIdx;
-    } else if (question.type === "multiple-choice") {
-      const selected = parsedAnswer as number[];
-      const correct = question.correctOptionIndices || [];
-      isCorrect =
-        selected.length === correct.length &&
-        selected.every((idx) => correct.includes(idx));
-    } else if (question.type === "word-ordering") {
-      const selected = parsedAnswer as string[];
-      const correct = question.words || [];
-      isCorrect =
-        selected.length === correct.length &&
-        selected.every((val, idx) => val === correct[idx]);
-    } else if (question.type === "text-input") {
-      const selected = String(parsedAnswer).trim().toLowerCase();
-      const accepted = (question.acceptedAnswers || []).map((a) => a.trim().toLowerCase());
-      isCorrect = accepted.includes(selected);
-    }
+    isCorrect = evaluateAnswerCorrectness(question, parsedAnswer);
   } catch (err) {
     console.error("Failed to parse live quiz answer:", err);
   }
@@ -239,7 +251,12 @@ export async function submitLiveAnswer(
  * End the timer for the active question (show correct answers statistics)
  */
 export async function endLiveQuestion(sessionId: string) {
-  await requireTeacher();
+  const teacher = await requireTeacher();
+
+  const sessionCheck = await prisma.liveQuizSession.findUnique({ where: { id: sessionId } });
+  if (!sessionCheck || sessionCheck.hostId !== teacher.userId) {
+    return { error: "Access denied" };
+  }
 
   await prisma.liveQuizSession.update({
     where: { id: sessionId },
@@ -255,7 +272,12 @@ export async function endLiveQuestion(sessionId: string) {
  * Show the leaderboard for the active question
  */
 export async function showLiveLeaderboard(sessionId: string) {
-  await requireTeacher();
+  const teacher = await requireTeacher();
+
+  const sessionCheck = await prisma.liveQuizSession.findUnique({ where: { id: sessionId } });
+  if (!sessionCheck || sessionCheck.hostId !== teacher.userId) {
+    return { error: "Access denied" };
+  }
 
   await prisma.liveQuizSession.update({
     where: { id: sessionId },
@@ -271,13 +293,23 @@ export async function showLiveLeaderboard(sessionId: string) {
  * Move to the next question
  */
 export async function nextLiveQuestion(sessionId: string) {
-  await requireTeacher();
+  const teacher = await requireTeacher();
 
   const session = await prisma.liveQuizSession.findUnique({
     where: { id: sessionId },
   });
 
   if (!session) throw new Error("Session not found");
+  if (session.hostId !== teacher.userId) throw new Error("Access denied");
+
+  const exercise = getExerciseFromDisk(session.exerciseId);
+  if (!exercise || exercise.type !== "live-quiz") {
+    return { error: "Exercise config not found." };
+  }
+  const nextIdx = session.currentQuestionIdx + 1;
+  if (nextIdx >= exercise.questions.length) {
+    return { error: "No more questions. Please finish the quiz." };
+  }
 
   await prisma.liveQuizSession.update({
     where: { id: sessionId },
@@ -295,7 +327,7 @@ export async function nextLiveQuestion(sessionId: string) {
  * Finish the quiz and record submissions for logged-in students
  */
 export async function finishLiveQuiz(sessionId: string, saveSubmissions: boolean, classroomId?: string) {
-  await requireTeacher();
+  const teacher = await requireTeacher();
 
   const session = await prisma.liveQuizSession.findUnique({
     where: { id: sessionId },
@@ -309,6 +341,7 @@ export async function finishLiveQuiz(sessionId: string, saveSubmissions: boolean
   });
 
   if (!session) throw new Error("Session not found");
+  if (session.hostId !== teacher.userId) throw new Error("Access denied");
 
   const exercise = getExerciseFromDisk(session.exerciseId);
   if (!exercise || exercise.type !== "live-quiz") {
@@ -362,7 +395,7 @@ export async function finishLiveQuiz(sessionId: string, saveSubmissions: boolean
 
         const attemptNumber = priorSubmissionsCount + 1;
         // score multiplier for attempts
-        const multiplier = attemptNumber === 1 ? 1.0 : attemptNumber === 2 ? 0.75 : attemptNumber === 3 ? 0.5 : 0.25;
+        const multiplier = getAttemptMultiplier(attemptNumber);
 
         await prisma.submission.create({
           data: {

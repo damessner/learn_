@@ -179,6 +179,180 @@ describe("scoreSimpleExercise", () => {
   });
 });
 
+describe("scoreInteractiveReading — security: fake IDs should not inflate score", () => {
+  const config = {
+    id: "ir-1",
+    type: "interactive-reading",
+    startPage: "p1",
+    pages: {
+      p1: {
+        text: "Page one",
+        choices: [],
+        questions: [
+          { id: "real-q1", type: "multiple-choice", prompt: "Q1?", options: ["A", "B"], correctOptionIdx: 0 },
+          { id: "real-q2", type: "multiple-choice", prompt: "Q2?", options: ["A", "B"], correctOptionIdx: 1 },
+        ],
+      },
+    },
+  };
+
+  it("returns 0 when student submits only fake question IDs", () => {
+    const answers = {
+      solvedQuestions: {
+        p1: { "fake-id-1": true, "fake-id-2": true, "fake-id-3": true },
+      },
+    };
+    expect(scoreExerciseSubmission(config as any, answers)).toBe(0);
+  });
+
+  it("returns 50 when student solves 1 of 2 real questions", () => {
+    const answers = {
+      solvedQuestions: {
+        p1: { "real-q1": true, "real-q2": false },
+      },
+    };
+    expect(scoreExerciseSubmission(config as any, answers)).toBe(50);
+  });
+
+  it("returns 100 when all real questions solved", () => {
+    const answers = {
+      solvedQuestions: {
+        p1: { "real-q1": true, "real-q2": true },
+      },
+    };
+    expect(scoreExerciseSubmission(config as any, answers)).toBe(100);
+  });
+
+  it("ignores fake IDs mixed with real IDs", () => {
+    const answers = {
+      solvedQuestions: {
+        p1: { "real-q1": true, "fake-bonus-id": true, "real-q2": false },
+      },
+    };
+    expect(scoreExerciseSubmission(config as any, answers)).toBe(50);
+  });
+
+  it("returns 100 when exercise has no questions (participation credit)", () => {
+    const emptyConfig = {
+      ...config,
+      pages: { p1: { text: "Read this", choices: [], questions: [] } },
+    };
+    expect(scoreExerciseSubmission(emptyConfig as any, {})).toBe(100);
+  });
+});
+
+describe("scoreDragDrop — case normalization (fix H5)", () => {
+  const config = {
+    id: "dd-1",
+    type: "drag-drop",
+    text: "The [Grass] is green and the [Sky] is blue",
+  };
+
+  it("accepts correct answers with matching case", () => {
+    const answers = { placements: { 0: "Grass", 1: "Sky" } };
+    expect(scoreExerciseSubmission(config as any, answers)).toBe(100);
+  });
+
+  it("accepts correct answers with different case (post-fix)", () => {
+    const answers = { placements: { 0: "grass", 1: "sky" } };
+    expect(scoreExerciseSubmission(config as any, answers)).toBe(100);
+  });
+
+  it("accepts correct answers with uppercase", () => {
+    const answers = { placements: { 0: "GRASS", 1: "SKY" } };
+    expect(scoreExerciseSubmission(config as any, answers)).toBe(100);
+  });
+
+  it("returns 0 for completely wrong answers", () => {
+    const answers = { placements: { 0: "Rain", 1: "Cloud" } };
+    expect(scoreExerciseSubmission(config as any, answers)).toBe(0);
+  });
+});
+
+describe("scoreOpenQuestion — spellingTolerance off (fix H4)", () => {
+  it("returns 100 for any non-empty response when tolerance is off", () => {
+    const config = {
+      id: "oq-2",
+      type: "open-question",
+      question: "Write something",
+      required: ["specific-keyword"],
+      spellingTolerance: "off",
+    };
+    // With tolerance "off", the keyword check is disabled — any text returns 100
+    const answers = { response: "This text does not contain the keyword at all" };
+    expect(scoreExerciseSubmission(config as any, answers)).toBe(100);
+  });
+
+  it("still returns 0 for forbidden keyword match when tolerance is off", () => {
+    const config = {
+      id: "oq-3",
+      type: "open-question",
+      question: "Write something",
+      forbidden: ["badword"],
+      spellingTolerance: "off",
+    };
+    // Forbidden check still applies, but uses matchesKeyword with "off" — which returns true
+    // for any text, so any text with the forbidden word would return 0
+    const answers = { response: "This contains badword" };
+    expect(scoreExerciseSubmission(config as any, answers)).toBe(0);
+  });
+});
+
+describe("scoreOpenQuestion — forbidden keyword", () => {
+  it("returns 0 when response contains a forbidden keyword", () => {
+    const config = {
+      id: "oq-4",
+      type: "open-question",
+      question: "Describe X",
+      required: ["correct"],
+      forbidden: ["wrong"],
+      spellingTolerance: "strict",
+    };
+    const answers = { response: "This is wrong and also correct" };
+    expect(scoreExerciseSubmission(config as any, answers)).toBe(0);
+  });
+});
+
+describe("scoreWritingCoach — edge cases", () => {
+  it("returns 100 when exercise has no criteria defined", () => {
+    const config = {
+      id: "wc-2",
+      type: "writing-coach",
+      prompt: "Write",
+      criteria: [],
+    };
+    const answers = {
+      text: "Hello world",
+      latestFeedback: { criteria: [] },
+    };
+    expect(scoreExerciseSubmission(config as any, answers)).toBe(100);
+  });
+});
+
+describe("scoreOrdering — edge cases", () => {
+  it("returns 0 when placed and shuffled lengths differ", () => {
+    const config = {
+      id: "ord-1",
+      type: "ordering",
+      question: "Order these",
+      elements: ["A", "B", "C"],
+    };
+    const answers = { placed: [0, 1], shuffled: ["A", "B", "C"] };
+    expect(scoreExerciseSubmission(config as any, answers)).toBe(0);
+  });
+
+  it("returns 0 when placed array is empty", () => {
+    const config = {
+      id: "ord-2",
+      type: "ordering",
+      question: "Order these",
+      elements: ["A", "B", "C"],
+    };
+    const answers = { placed: [], shuffled: [] };
+    expect(scoreExerciseSubmission(config as any, answers)).toBe(0);
+  });
+});
+
 describe("scoreWritingCoach", () => {
   const config = {
     id: "coach-1",

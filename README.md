@@ -94,8 +94,16 @@ The application has been hardened to prevent tampering, unauthorized access, and
 2. **Cryptographic Join Codes**: Classroom join codes are generated using cryptographically secure PRNGs (`crypto.randomBytes`) rather than predictable pseudorandom generators.
 3. **Asset Serving Isolation**: API endpoints for exercises assets (`/api/exercises/[id]/assets/[...path]`) enforce active session checks, sanitize path parts to prevent directory traversal attacks (blocking `..` and relative slashes), and block configuration file reads (`index.json` or `index.md`).
 4. **Upload Restrictions**: Submission and exercise uploads enforce strict extension allowlists (blocking SVG files to prevent XSS), limit maximum file sizes (20MB), and utilize secure UUIDs (`crypto.randomUUID`) to write unique target filenames.
-5. **Brute-Force Rate Limiting**: The login endpoint `/api/auth/login` uses an in-memory rate-limiter keyed by IP and username, blocking authentication attempts for 5 minutes after 5 consecutive failures.
+5. **Brute-Force Rate Limiting**: The login endpoint `/api/auth/login` uses an in-memory rate-limiter keyed by IP and username, blocking authentication attempts for 5 minutes after 5 consecutive failures. The registration endpoint `/api/auth/register` is independently rate-limited by IP to block automated account creation, and usernames are normalized (lowercase + trim) before lookup to prevent enumeration.
 6. **Transactional Integrity**: Critical database modifications—including bulk student roster imports, course assignment operations, and drag-and-drop course reorders—are fully wrapped in Prisma database transactions (`$transaction`) to guarantee atomic writes.
+7. **Live Quiz Cryptographic PINs**: 6-digit Live Quiz join PINs are generated with `crypto.randomInt(100000, 1000000)` and strictly validated server-side (`/^\d{6}$/`, max nickname length 50).
+8. **Live Quiz Host Authorization**: Every host action (`startLiveQuiz`, `endLiveQuestion`, `showLiveLeaderboard`, `nextLiveQuestion`, `finishLiveQuiz`) re-loads the session and rejects callers whose `userId` is not the recorded host.
+9. **Live Quiz Participant Binding**: When a participant is linked to a user account, `submitLiveAnswer` verifies that the calling session's `userId` matches the participant's `userId` before accepting an answer, preventing one student from answering on behalf of another.
+10. **Session Cookie Validation**: Decrypted session cookies are type-checked before use (`userId` and `username` must be strings, `role` must be `"TEACHER"` or `"STUDENT"`); malformed cookies are silently discarded instead of throwing.
+11. **Upload Path-Traversal Protection**: `uploadMedia` resolves the absolute target path and rejects writes that escape the `assets/` directory, blocks filenames containing `..` or starting with `.`, and pre-checks the base64-decoded size to prevent OOM.
+12. **AI Request Timeouts**: All Gemini API calls (writing-coach feedback, feedback goal improvement, cloze generation) use a 30-second `AbortController` so hung upstream requests cannot block server workers indefinitely.
+13. **Rate-Limit Production Guard**: `resetRateLimitStoreForTests` short-circuits with a warning in `production` to prevent an accidental global reset of the brute-force limiter.
+14. **Assignment Ownership**: `assignExercise` and `unassignAssignment` verify the target classroom belongs to the calling teacher before writing; an unauthorized caller receives an `Access denied` error rather than a mutation.
 
 ---
 
@@ -134,6 +142,7 @@ The application has been hardened to prevent tampering, unauthorized access, and
 │   └── lib/
 │       ├── actions/           # Hardened server actions (classroom, course, exercise, submission)
 │       ├── exercises.ts       # Zod exercise definitions, cache, and disk I/O helpers
+│       ├── live-quiz-utils.ts # Pure Live Quiz helpers (answer evaluation, speed-based points)
 │       ├── rateLimit.ts       # Brute-force credentials rate-limiter
 │       ├── session.ts         # Cookie encryption and session authorization utilities
 │       ├── submissionScoring.ts # Server-side answers evaluation and grading logic
@@ -193,7 +202,7 @@ The application has been hardened to prevent tampering, unauthorized access, and
 
 ## 🧪 Testing
 
-The repository includes a comprehensive unit testing suite using Vitest that verifies rate limiting, join codes, points multipliers, and server-authoritative scoring.
+The repository includes a comprehensive unit testing suite using Vitest that verifies rate limiting, join codes, points multipliers, server-authoritative scoring, Live Quiz answer evaluation across all four question types, drag-drop answer normalization, and interactive-reading question-ID validation.
 
 Run the test suite once:
 ```bash

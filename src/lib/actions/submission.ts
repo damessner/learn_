@@ -130,7 +130,10 @@ export async function overrideSubmissionGrade(
   if (typeof teacherScore !== "number" || isNaN(teacherScore) || teacherScore < 0 || teacherScore > 100) {
     return { error: "Score must be a number between 0 and 100" };
   }
-  if (feedback && feedback.length > 5000) {
+  if (feedback !== undefined && feedback !== null && typeof feedback !== "string") {
+    return { error: "Feedback must be a string" };
+  }
+  if (typeof feedback === "string" && feedback.length > 5000) {
     return { error: "Feedback must be 5000 characters or fewer" };
   }
 

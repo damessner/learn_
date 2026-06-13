@@ -49,7 +49,15 @@ export async function getSession(): Promise<SessionData | null> {
   if (!decrypted) return null;
 
   try {
-    return JSON.parse(decrypted) as SessionData;
+    const parsed = JSON.parse(decrypted);
+    if (
+      typeof parsed?.userId !== "string" ||
+      typeof parsed?.username !== "string" ||
+      (parsed?.role !== "TEACHER" && parsed?.role !== "STUDENT")
+    ) {
+      return null;
+    }
+    return parsed as SessionData;
   } catch {
     return null;
   }

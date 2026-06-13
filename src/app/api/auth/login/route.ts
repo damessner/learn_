@@ -14,6 +14,15 @@ export async function POST(request: Request) {
   try {
     const { username, password } = await request.json();
 
+    // Validate input types and lengths
+    if (typeof username !== "string" || typeof password !== "string") {
+      return NextResponse.json({ error: "Invalid input types" }, { status: 400 });
+    }
+    if (username.length > 64 || password.length > 128) {
+      return NextResponse.json({ error: "Input too long" }, { status: 400 });
+    }
+    const normalizedUsername = username.trim().toLowerCase();
+
     if (!username || !password) {
       return NextResponse.json(
         { error: "Username and password are required" },
@@ -26,7 +35,7 @@ export async function POST(request: Request) {
     const ip = headersList.get("x-forwarded-for")?.split(",")[0]?.trim()
       || headersList.get("x-real-ip")
       || "unknown";
-    const rateLimitKey = buildRateLimitKey(username, ip);
+    const rateLimitKey = buildRateLimitKey(normalizedUsername, ip);
 
     // Check if this key is currently blocked
     const { blocked } = checkRateLimit(rateLimitKey);
@@ -38,7 +47,7 @@ export async function POST(request: Request) {
     }
 
     const user = await prisma.user.findUnique({
-      where: { username },
+      where: { username: normalizedUsername },
     });
 
     if (!user) {

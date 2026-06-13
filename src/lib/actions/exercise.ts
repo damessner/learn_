@@ -83,12 +83,12 @@ ${content}
     } else {
       const parsedContent = JSON.parse(content);
       const jsonContent = {
+        ...parsedContent,
         id,
         title,
         description,
         type,
         tags: tags || "",
-        ...parsedContent,
       };
       fs.writeFileSync(
         path.join(exerciseDir, "index.json"),
@@ -149,15 +149,34 @@ export async function uploadMedia(exerciseId: string, filename: string, base64Da
     }
 
     const cleanFilename = filename.replace(/[^a-zA-Z0-9.-]/g, "_");
+    // Reject filenames that could traverse directories
+    if (
+      cleanFilename.length === 0 ||
+      cleanFilename.startsWith(".") ||
+      cleanFilename.includes("..") ||
+      cleanFilename === "."
+    ) {
+      return { error: "Invalid filename" };
+    }
     const assetsDir = path.join(process.cwd(), "content", "exercises", exerciseId, "assets");
+    const targetPath = path.resolve(assetsDir, cleanFilename);
+    // Ensure the resolved path stays within assetsDir
+    if (!targetPath.startsWith(path.resolve(assetsDir) + path.sep)) {
+      return { error: "Invalid filename" };
+    }
     if (!fs.existsSync(assetsDir)) {
       fs.mkdirSync(assetsDir, { recursive: true });
+    }
+    // M3: Check estimated size before decoding to avoid OOM
+    const estimatedBytes = Math.ceil((base64Data.length * 3) / 4);
+    if (estimatedBytes > 10 * 1024 * 1024) {
+      return { error: "Upload failed: File exceeds the 10MB limit." };
     }
     const buffer = Buffer.from(base64Data, "base64");
     if (buffer.length > 10 * 1024 * 1024) {
       return { error: "Upload failed: File exceeds the 10MB limit." };
     }
-    fs.writeFileSync(path.join(assetsDir, cleanFilename), buffer);
+    fs.writeFileSync(targetPath, buffer);
     return { success: true, filepath: cleanFilename };
   } catch (error: unknown) {
     console.error("Upload media error:", error);
@@ -245,9 +264,21 @@ export async function duplicateExercise(
 
     if (fs.existsSync(mdPath)) {
       let content = fs.readFileSync(mdPath, "utf-8");
-      // Replace ID and Title in frontmatter
-      content = content.replace(/^id:\s*.*$/m, `id: ${newId}`);
-      content = content.replace(/^title:\s*.*$/m, `title: ${newTitle}`);
+      // Replace ID and Title only within the frontmatter block (between the --- markers)
+      const fmMatch = content.match(/^(---\r?\n)([\s\S]*?)(\r?\n---)/);
+      if (fmMatch) {
+        const beforeFm = content.slice(0, fmMatch.index! + fmMatch[1].length);
+        const fmBlock = fmMatch[2];
+        const afterFm = content.slice(fmMatch.index! + fmMatch[0].length);
+        const updatedFm = fmBlock
+          .replace(/^id:\s*.*$/m, `id: ${newId}`)
+          .replace(/^title:\s*.*$/m, `title: ${newTitle}`);
+        content = beforeFm + updatedFm + (fmMatch[3]) + afterFm;
+      } else {
+        // Fallback: replace globally (old behavior)
+        content = content.replace(/^id:\s*.*$/m, `id: ${newId}`);
+        content = content.replace(/^title:\s*.*$/m, `title: ${newTitle}`);
+      }
       fs.writeFileSync(mdPath, content, "utf-8");
     } else if (fs.existsSync(jsonPath)) {
       const config = JSON.parse(fs.readFileSync(jsonPath, "utf-8"));
