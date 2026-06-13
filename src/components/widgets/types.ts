@@ -163,6 +163,7 @@ export interface ImageHotspotQuizConfig {
   description?: string;
   type: "image-hotspot-quiz";
   backgroundImage: string;
+  shuffleTasks?: boolean;
   hotspots: Array<{
     id: string;
     name: string;
@@ -174,6 +175,7 @@ export interface ImageHotspotQuizConfig {
     promptText: string;
     promptAudio?: string;
     targetHotspotId: string;
+    targetHotspotIds?: string[];
   }>;
 }
 

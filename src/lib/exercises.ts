@@ -168,6 +168,7 @@ export const OrderingSchema = BaseExerciseSchema.extend({
 export const ImageHotspotQuizSchema = BaseExerciseSchema.extend({
   type: z.literal("image-hotspot-quiz"),
   backgroundImage: z.string(),
+  shuffleTasks: z.boolean().optional(),
   hotspots: z.array(
     z.object({
       id: z.string(),
@@ -182,6 +183,7 @@ export const ImageHotspotQuizSchema = BaseExerciseSchema.extend({
       promptText: z.string(),
       promptAudio: z.string().optional(),
       targetHotspotId: z.string(),
+      targetHotspotIds: z.array(z.string()).optional(),
     })
   ),
 });

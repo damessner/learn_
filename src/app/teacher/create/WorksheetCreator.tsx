@@ -60,6 +60,7 @@ interface HotspotQuizTask {
   promptAudio: string;
   promptAudioStatus: string;
   targetHotspotId: string;
+  targetHotspotIds?: string[];
 }
 
 interface ReadingPageCreator {
@@ -251,6 +252,11 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
       ? "✓ Loaded"
       : ""
   );
+  const [shuffleHotspotTasks, setShuffleHotspotTasks] = useState<boolean>(
+    parsedInitialData && parsedInitialData.type === "image-hotspot-quiz"
+      ? !!parsedInitialData.shuffleTasks
+      : false
+  );
   const [hotspots, setHotspots] = useState<ImageHotspot[]>(
     parsedInitialData && parsedInitialData.type === "image-hotspot-quiz"
       ? parsedInitialData.hotspots || []
@@ -264,6 +270,7 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
           promptAudio: (t.promptAudio as string) || "",
           promptAudioStatus: t.promptAudio ? "✓ Loaded" : "",
           targetHotspotId: (t.targetHotspotId as string) || "",
+          targetHotspotIds: (t.targetHotspotIds as string[]) || (t.targetHotspotId ? [t.targetHotspotId as string] : []),
         }))
       : []
   );
@@ -389,24 +396,34 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
           throw new Error("Please add at least one prompt task to resolve.");
         }
         hotspotTasks.forEach((t, idx) => {
-          if (!t.promptText.trim()) throw new Error(`Prompt ${idx + 1}: Prompt text is required.`);
-          if (!t.targetHotspotId) throw new Error(`Prompt ${idx + 1}: Please select a target hotspot zone.`);
+          if (!t.promptText.trim() && !t.promptAudio) {
+            throw new Error(`Prompt ${idx + 1}: Please enter a question prompt or upload audio.`);
+          }
+          const hasHotspots = (t.targetHotspotIds && t.targetHotspotIds.length > 0) || t.targetHotspotId;
+          if (!hasHotspots) {
+            throw new Error(`Prompt ${idx + 1}: Please mark at least one hotspot area.`);
+          }
         });
 
         contentString = JSON.stringify({
           backgroundImage: hotspotBg,
+          shuffleTasks: shuffleHotspotTasks,
           hotspots: hotspots.map((h) => ({
             id: h.id,
             name: h.name,
             shape: h.shape,
             coords: h.coords,
           })),
-          tasks: hotspotTasks.map((t) => ({
-            id: t.id,
-            promptText: t.promptText.trim(),
-            promptAudio: t.promptAudio.trim() || undefined,
-            targetHotspotId: t.targetHotspotId,
-          })),
+          tasks: hotspotTasks.map((t) => {
+            const firstId = t.targetHotspotIds?.[0] || t.targetHotspotId || "";
+            return {
+              id: t.id,
+              promptText: t.promptText.trim(),
+              promptAudio: t.promptAudio.trim() || undefined,
+              targetHotspotId: firstId,
+              targetHotspotIds: t.targetHotspotIds || (firstId ? [firstId] : []),
+            };
+          }),
         });
       } else if (creatorMode === "interactive-reading") {
         if (readingPages.length === 0) {
@@ -881,6 +898,8 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
               setHotspots={setHotspots}
               hotspotTasks={hotspotTasks}
               setHotspotTasks={setHotspotTasks}
+              shuffleTasks={shuffleHotspotTasks}
+              setShuffleTasks={setShuffleHotspotTasks}
               handleMediaUpload={handleMediaUpload}
             />
           )}

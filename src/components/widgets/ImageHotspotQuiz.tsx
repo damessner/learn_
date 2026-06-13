@@ -4,6 +4,21 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import { WidgetProps, ImageHotspotQuizConfig } from "./types";
 import { Play, Check, X, Award } from "lucide-react";
 
+// Deterministic seeded Fisher-Yates shuffle.
+// Returns a new array that is a stable permutation of `arr` for the given seed.
+function seededShuffle<T>(arr: T[], seed: number): T[] {
+  const result = [...arr];
+  let currentSeed = seed;
+  for (let i = result.length - 1; i > 0; i--) {
+    currentSeed = (currentSeed * 1664525 + 1013904223) & 0xffffffff;
+    const j = Math.abs(currentSeed) % (i + 1);
+    const temp = result[i];
+    result[i] = result[j];
+    result[j] = temp;
+  }
+  return result;
+}
+
 export const ImageHotspotQuiz: React.FC<WidgetProps<ImageHotspotQuizConfig>> = ({
   config,
   assetsPath,
@@ -13,7 +28,17 @@ export const ImageHotspotQuiz: React.FC<WidgetProps<ImageHotspotQuizConfig>> = (
 }) => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // States
+  // Seed generated once on mount to keep shuffle stable during the play session
+  const [seed] = useState(() => Math.floor(Math.random() * 1000000));
+
+  // Compute tasks using useMemo (fully pure)
+  const tasks = useMemo(() => {
+    if (config.shuffleTasks && config.tasks) {
+      return seededShuffle(config.tasks, seed);
+    }
+    return config.tasks || [];
+  }, [config.tasks, config.shuffleTasks, seed]);
+
   const [activeTaskIdx, setActiveTaskIdx] = useState<number>(
     savedState?.activeTaskIdx ?? 0
   );
@@ -39,17 +64,16 @@ export const ImageHotspotQuiz: React.FC<WidgetProps<ImageHotspotQuizConfig>> = (
 
   // Report state changes to parent runner
   useEffect(() => {
-    const total = config.tasks.length;
+    const total = tasks.length;
     if (total === 0) return;
 
     // A task is solved if it is in completedTaskIds
     const solvedCount = completedTaskIds.length;
     const complete = solvedCount === total || isCompleted;
 
-    // Score based on first-try correctness:
-    // If solved and attempts === 0 for that task, they get a point.
+    // Score based on first-try correctness
     let points = 0;
-    config.tasks.forEach((t) => {
+    tasks.forEach((t) => {
       const isSolved = completedTaskIds.includes(t.id);
       const isFirstTry = (attempts[t.id] || 0) === 0;
       if (isSolved && isFirstTry) {
@@ -68,7 +92,7 @@ export const ImageHotspotQuiz: React.FC<WidgetProps<ImageHotspotQuizConfig>> = (
       complete,
       score
     );
-  }, [activeTaskIdx, completedTaskIds, attempts, isCompleted, config.tasks, onChange]);
+  }, [activeTaskIdx, completedTaskIds, attempts, isCompleted, tasks, onChange]);
 
   const showPopup = (text: string) => {
     setPopupText(text);
@@ -91,8 +115,8 @@ export const ImageHotspotQuiz: React.FC<WidgetProps<ImageHotspotQuizConfig>> = (
   // Get current active task
   const currentTask = useMemo(() => {
     if (isReadOnly || isCompleted) return null;
-    return config.tasks[activeTaskIdx] || null;
-  }, [config.tasks, activeTaskIdx, isReadOnly, isCompleted]);
+    return tasks[activeTaskIdx] || null;
+  }, [tasks, activeTaskIdx, isReadOnly, isCompleted]);
 
   const playPromptAudio = () => {
     if (currentTask?.promptAudio) {
@@ -135,13 +159,16 @@ export const ImageHotspotQuiz: React.FC<WidgetProps<ImageHotspotQuizConfig>> = (
       }
     }
 
-    if (hitHotspotId === currentTask.targetHotspotId) {
+    const isCorrect = hitHotspotId === currentTask.targetHotspotId || 
+      (currentTask.targetHotspotIds && currentTask.targetHotspotIds.includes(hitHotspotId || ""));
+
+    if (isCorrect) {
       // Correct!
       showPopup("Correct! 🎉");
       setCompletedTaskIds((prev) => [...prev, currentTask.id]);
 
       const nextIdx = activeTaskIdx + 1;
-      if (nextIdx < config.tasks.length) {
+      if (nextIdx < tasks.length) {
         setActiveTaskIdx(nextIdx);
       } else {
         setIsCompleted(true);
@@ -170,11 +197,11 @@ export const ImageHotspotQuiz: React.FC<WidgetProps<ImageHotspotQuizConfig>> = (
             {config.title}
           </h3>
           {config.description && (
-            <p className="text-xs text-neutral-550">{config.description}</p>
+            <p className="text-xs text-neutral-555">{config.description}</p>
           )}
         </div>
         <div className="text-xs font-mono bg-neutral-100 dark:bg-neutral-800 px-2.5 py-1 rounded text-neutral-600 dark:text-neutral-350">
-          Progress: {completedTaskIds.length} / {config.tasks.length} solved
+          Progress: {completedTaskIds.length} / {tasks.length} solved
         </div>
       </div>
 
@@ -183,14 +210,14 @@ export const ImageHotspotQuiz: React.FC<WidgetProps<ImageHotspotQuizConfig>> = (
         <div className="p-4 bg-neutral-900 text-white dark:bg-white dark:text-black rounded shadow flex items-center justify-between">
           <div className="space-y-1">
             <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-neutral-400 dark:text-neutral-500 block">
-              Task {activeTaskIdx + 1} of {config.tasks.length}
+              Task {activeTaskIdx + 1} of {tasks.length}
             </span>
             <p className="text-sm font-semibold">{currentTask.promptText}</p>
           </div>
           {currentTask.promptAudio && (
             <button
               onClick={playPromptAudio}
-              className="flex items-center gap-1 text-xs border border-neutral-750 dark:border-neutral-350 rounded px-2.5 py-1 hover:bg-neutral-800 dark:hover:bg-neutral-100 transition cursor-pointer"
+              className="flex items-center gap-1 text-xs border border-neutral-755 dark:border-neutral-350 rounded px-2.5 py-1 hover:bg-neutral-800 dark:hover:bg-neutral-100 transition cursor-pointer"
             >
               <Play className="w-3 h-3 fill-current" />
               Listen
@@ -201,10 +228,10 @@ export const ImageHotspotQuiz: React.FC<WidgetProps<ImageHotspotQuizConfig>> = (
 
       {/* Completion screen */}
       {isCompleted && !isReadOnly && (
-        <div className="p-6 border border-green-300 bg-green-50/10 dark:bg-green-950/5 rounded text-center space-y-3">
+        <div className="p-6 border border-green-300 bg-green-50/10 dark:bg-green-955/5 rounded text-center space-y-3">
           <Award className="w-8 h-8 text-green-500 mx-auto" />
           <h4 className="font-bold text-green-700 dark:text-green-350">Quiz Completed!</h4>
-          <p className="text-xs text-neutral-550">You successfully mapped all items on the picture.</p>
+          <p className="text-xs text-neutral-555">You successfully mapped all items on the picture.</p>
         </div>
       )}
 
@@ -230,7 +257,7 @@ export const ImageHotspotQuiz: React.FC<WidgetProps<ImageHotspotQuizConfig>> = (
           {/* In read-only or completed mode, draw the hotspots to visualize them */}
           {(isReadOnly || isCompleted) &&
             config.hotspots.map((hs) => {
-              const matchedTask = config.tasks.find((t) => t.targetHotspotId === hs.id);
+              const matchedTask = tasks.find((t) => t.targetHotspotId === hs.id || (t.targetHotspotIds && t.targetHotspotIds.includes(hs.id)));
               if (!matchedTask) return null;
 
               const isSolved = completedTaskIds.includes(matchedTask.id);
@@ -264,13 +291,16 @@ export const ImageHotspotQuiz: React.FC<WidgetProps<ImageHotspotQuizConfig>> = (
       {/* Review Mode details list */}
       {isReadOnly && (
         <div className="border rounded divide-y divide-neutral-200 dark:divide-neutral-800">
-          <div className="p-3 bg-neutral-50 dark:bg-neutral-950/20 font-bold text-xs uppercase font-mono tracking-wider">
+          <div className="p-3 bg-neutral-50 dark:bg-neutral-955/20 font-bold text-xs uppercase font-mono tracking-wider">
             Tasks review
           </div>
-          {config.tasks.map((task, idx) => {
+          {tasks.map((task, idx) => {
             const isSolved = completedTaskIds.includes(task.id);
             const isFirstTry = (attempts[task.id] || 0) === 0;
-            const correctHotspot = config.hotspots.find((h) => h.id === task.targetHotspotId);
+            const matchedZones = config.hotspots.filter(
+              (h) => h.id === task.targetHotspotId || (task.targetHotspotIds && task.targetHotspotIds.includes(h.id))
+            );
+            const zonesLabel = matchedZones.map((z) => z.name).join(", ");
 
             return (
               <div key={task.id} className="p-3 text-xs flex items-center justify-between gap-4">
@@ -279,7 +309,7 @@ export const ImageHotspotQuiz: React.FC<WidgetProps<ImageHotspotQuizConfig>> = (
                     Task {idx + 1}: {task.promptText}
                   </span>
                   <span className="text-[10px] text-neutral-450 italic">
-                    Correct Zone: {correctHotspot?.name || task.targetHotspotId}
+                    Correct Zones: {zonesLabel || task.targetHotspotId}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
