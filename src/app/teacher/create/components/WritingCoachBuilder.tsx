@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { Sparkles, Trash2, PlusCircle, HelpCircle } from "lucide-react";
+import { Sparkles, Trash2, PlusCircle, HelpCircle, Wand2, Loader2 } from "lucide-react";
+import { improveCriterionAction } from "@/lib/actions/ai-coach";
 import crypto from "crypto";
 
 export interface CreatorCriterion {
@@ -28,6 +29,30 @@ export function WritingCoachBuilder({
   coachCriteria,
   setCoachCriteria,
 }: WritingCoachBuilderProps) {
+
+  const [improvingIds, setImprovingIds] = React.useState<Record<string, boolean>>({});
+
+  const handleAutoImprove = async (id: string, name: string, description: string) => {
+    if (!name.trim() || !description.trim()) {
+      alert("Please provide a goal name and description first, so the AI knows what to improve.");
+      return;
+    }
+
+    setImprovingIds((prev) => ({ ...prev, [id]: true }));
+    try {
+      const res = await improveCriterionAction(name, description);
+      if (res.error) {
+        alert(res.error);
+      } else if (res.data) {
+        updateCriterion(id, "description", res.data.description);
+        updateCriterion(id, "tip", res.data.tip);
+      }
+    } catch (err: unknown) {
+      alert("Failed to improve goal: " + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      setImprovingIds((prev) => ({ ...prev, [id]: false }));
+    }
+  };
 
   const addCriterion = () => {
     setCoachCriteria((prev) => [
@@ -137,13 +162,33 @@ export function WritingCoachBuilder({
                   <span className="text-[10px] font-bold font-mono uppercase tracking-wider text-purple-550">
                     Goal #{idx + 1}
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => removeCriterion(criterion.id)}
-                    className="p-1 text-neutral-400 hover:text-red-600 transition"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      disabled={improvingIds[criterion.id] || !criterion.name.trim() || !criterion.description.trim()}
+                      onClick={() => handleAutoImprove(criterion.id, criterion.name, criterion.description)}
+                      className="inline-flex items-center gap-1 text-[10px] uppercase font-mono font-bold px-2 py-0.5 rounded border border-purple-250 dark:border-purple-900 bg-purple-50/50 hover:bg-purple-100/60 dark:bg-purple-950/20 dark:hover:bg-purple-950/40 text-purple-750 dark:text-purple-300 disabled:opacity-40 transition active:scale-95 disabled:scale-100 cursor-pointer"
+                    >
+                      {improvingIds[criterion.id] ? (
+                        <>
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                          Improving...
+                        </>
+                      ) : (
+                        <>
+                          <Wand2 className="w-3 h-3 text-purple-600" />
+                          Auto-Improve Goal
+                        </>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeCriterion(criterion.id)}
+                      className="p-1 text-neutral-450 hover:text-red-650 transition cursor-pointer"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

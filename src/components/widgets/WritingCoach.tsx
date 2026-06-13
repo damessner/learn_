@@ -259,14 +259,25 @@ export const WritingCoach: React.FC<WidgetProps<WritingCoachConfig>> = ({
       <div className="lg:col-span-5 flex flex-col space-y-4">
         {/* Criteria status widget */}
         <div className="p-5 border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 rounded-xl shadow-sm space-y-4">
-          <div className="flex items-center justify-between border-b dark:border-neutral-800/80 pb-3">
-            <h4 className="font-bold text-sm font-mono uppercase tracking-wide">
-              Learning Goals
-            </h4>
+          <div className="space-y-3 border-b dark:border-neutral-800/80 pb-3">
+            <div className="flex items-center justify-between">
+              <h4 className="font-bold text-sm font-mono uppercase tracking-wide">
+                Learning Goals
+              </h4>
+              {latestFeedback && (
+                <span className="text-[10px] font-bold font-mono px-2 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-650 dark:text-neutral-350">
+                  {completedCriteriaCount} / {totalCriteria} met
+                </span>
+              )}
+            </div>
+
             {latestFeedback && (
-              <span className="text-[10px] font-bold font-mono px-2 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-650 dark:text-neutral-350">
-                {completedCriteriaCount} / {totalCriteria} met
-              </span>
+              <div className="h-1.5 w-full bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-purple-600 dark:bg-purple-500 transition-all duration-500 rounded-full"
+                  style={{ width: `${(completedCriteriaCount / totalCriteria) * 100}%` }}
+                />
+              </div>
             )}
           </div>
 

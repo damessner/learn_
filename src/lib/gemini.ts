@@ -156,3 +156,88 @@ ${systemPrompt ? `Additional context/guidance from the teacher:\n${systemPrompt}
     throw new Error("Invalid response structure from AI Writing Coach service.");
   }
 }
+
+export interface ImprovedCriterionResponse {
+  description: string;
+  tip: string;
+}
+
+/**
+ * Uses Gemini to refine a teacher's criterion name and description
+ * into a precise AI instruction and a simple student tip.
+ */
+export async function fetchImprovedCriterion(
+  name: string,
+  description: string
+): Promise<ImprovedCriterionResponse> {
+  if (!GEMINI_API_KEY) {
+    throw new Error("AI Writing Coach is currently unavailable: GEMINI_API_KEY is not configured.");
+  }
+
+  const model = GEMINI_MODEL || "gemini-3.5-flash-latest";
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+
+  const systemInstructionText = `
+You are a pedagogical expert and English language tutor assisting a teacher in designing feedback goals for writing assignments.
+Your task is to refine a goal description into two distinct outputs:
+1. "description": A highly precise, clear grading instruction explaining exactly what mechanical or content details to check in the text.
+2. "tip": A student-friendly, encouraging tip in simple English suitable for a 10-year-old child to understand what they need to write. Keep it under 20 words.
+`;
+
+  const userPrompt = `
+Goal Name: "${name}"
+Teacher's Draft Description: "${description}"
+
+Please improve this feedback goal. Output it strictly in the required JSON format.
+`;
+
+  const requestBody = {
+    contents: [
+      {
+        role: "user",
+        parts: [{ text: userPrompt }],
+      },
+    ],
+    systemInstruction: {
+      parts: [{ text: systemInstructionText }],
+    },
+    generationConfig: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: "OBJECT",
+        properties: {
+          description: { type: "STRING" },
+          tip: { type: "STRING" },
+        },
+        required: ["description", "tip"],
+      },
+    },
+  };
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(requestBody),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "Unknown error");
+    console.error("Gemini API call failed:", response.status, errorText);
+    throw new Error(`Failed to improve criterion: HTTP ${response.status}`);
+  }
+
+  const data = await response.json();
+  const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+  if (!rawText) {
+    throw new Error("Empty response from Gemini.");
+  }
+
+  try {
+    return JSON.parse(rawText) as ImprovedCriterionResponse;
+  } catch (err) {
+    console.error("Failed to parse Gemini response text as JSON:", rawText, err);
+    throw new Error("Invalid response format from Gemini.");
+  }
+}
+

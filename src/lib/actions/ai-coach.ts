@@ -1,7 +1,7 @@
 "use server";
 
 import { getSession } from "@/lib/session";
-import { fetchWritingCoachFeedback, GeminiFeedbackResponse } from "@/lib/gemini";
+import { fetchWritingCoachFeedback, GeminiFeedbackResponse, fetchImprovedCriterion } from "@/lib/gemini";
 
 /**
  * Server action to obtain structured feedback for a student writing draft.
@@ -54,3 +54,39 @@ export async function getWritingCoachFeedback(
     };
   }
 }
+
+/**
+ * Server action for teachers to auto-improve feedback criteria details
+ * using Google Gemini.
+ */
+export async function improveCriterionAction(
+  name: string,
+  description: string
+): Promise<{ success?: boolean; data?: { description: string; tip: string }; error?: string }> {
+  const session = await getSession();
+  if (!session || session.role !== "TEACHER") {
+    return { error: "Access denied. Only teachers can auto-improve criteria." };
+  }
+
+  if (!name || name.trim() === "") {
+    return { error: "Criterion goal name is required." };
+  }
+
+  if (!description || description.trim() === "") {
+    return { error: "Criterion description or instructions is required." };
+  }
+
+  try {
+    const data = await fetchImprovedCriterion(name, description);
+    return {
+      success: true,
+      data,
+    };
+  } catch (error: unknown) {
+    console.error("AI Improve Criterion Action Error:", error);
+    return {
+      error: error instanceof Error ? error.message : "Failed to improve criterion. Please try again.",
+    };
+  }
+}
+
