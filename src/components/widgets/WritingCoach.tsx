@@ -65,6 +65,11 @@ export const WritingCoach: React.FC<WidgetProps<WritingCoachConfig>> = ({
   }, [text, feedbackHistory, latestFeedback, completedCriteriaCount, totalCriteria]);
 
   const handleGetFeedback = async () => {
+    if (feedbackHistory.length >= 3) {
+      setError("You have reached the limit of 3 feedback requests for this text.");
+      return;
+    }
+
     if (!text.trim()) {
       setError("Please write some text first before asking the coach.");
       return;
@@ -210,12 +215,21 @@ export const WritingCoach: React.FC<WidgetProps<WritingCoachConfig>> = ({
           {!isReadOnly && (
             <div className="p-4 border-t border-neutral-100 dark:border-neutral-850 bg-neutral-50/20 dark:bg-neutral-900/20 flex flex-col md:flex-row md:items-center justify-between gap-3">
               <p className="text-xs text-neutral-450 dark:text-neutral-550 leading-normal max-w-sm">
-                Ask the coach for feedback on your writing at any time. You can revise and request suggestions multiple times before submitting.
+                {feedbackHistory.length >= 3 ? (
+                  <span className="text-red-650 dark:text-red-400 font-semibold">
+                    🔒 Feedback limit reached (3/3). Please read the suggestions and submit your final text.
+                  </span>
+                ) : (
+                  <span>
+                    Ask the coach for feedback. You have used{" "}
+                    <strong>{feedbackHistory.length} of 3</strong> requests.
+                  </span>
+                )}
               </p>
               <button
                 type="button"
                 onClick={handleGetFeedback}
-                disabled={loading || !text.trim()}
+                disabled={loading || !text.trim() || feedbackHistory.length >= 3}
                 className="px-4 py-2 bg-purple-600 hover:bg-purple-700 active:scale-95 text-white text-xs font-semibold uppercase font-mono rounded-lg transition disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2 self-end shrink-0"
               >
                 {loading ? (

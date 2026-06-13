@@ -42,6 +42,7 @@ Designed around the **MORE!** textbook series for Austrian 1st-grade English cla
 - **Autocorrect Protection** — iPad-ready forms with autocorrect, suggestions, and spellcheck disabled by default to prevent unwanted keyboard assistance during assessments.
 - **Rich Media Submissions** — Record audio directly in-browser via the `MediaRecorder` API or upload pictures as open-question submissions.
 - **Attempt Multipliers** — Reward mastery by letting students retry exercises with decreasing score multipliers (100% &rarr; 75% &rarr; 50% &rarr; 25% max-score caps).
+- **AI Feedback Quota** — Ask the coach for feedback up to 3 times per text attempt. This guides students through a Socratic revision process (first draft, second draft, and third draft review) before final submission.
 - **Progress Dashboard** — View completed work, check outstanding assignments, and trace due dates.
 
 ---
