@@ -19,6 +19,7 @@ export const EXERCISE_TYPE_LABELS: Record<string, string> = {
   "interactive-reading": "Interactive Reading",
   "vocabulary": "Vocabulary Practice",
   "writing-coach": "AI Writing Coach",
+  "live-quiz": "Live Quiz",
 };
 
 export function getExerciseTypeLabel(type: string): string {

@@ -68,5 +68,8 @@ export function getExerciseMaxPoints(exercise: any): number {
   }
   if (exercise.type === "open-question") return 1;
   if (exercise.type === "ordering") return 1;
+  if (exercise.type === "live-quiz") {
+    return (exercise.questions || []).length || 1;
+  }
   return 1;
 }

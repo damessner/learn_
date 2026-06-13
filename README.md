@@ -30,6 +30,8 @@ Designed around the **MORE!** textbook series for Austrian 1st-grade English cla
 ### 👩‍🏫 For Teachers
 
 - **Worksheet Creator** — Build mixed-modality exercises in a single worksheet (e.g. multiple-choice, gap-fill, drag-and-drop, categorization, matching, ordering, open questions, media embeds, instruction cards).
+- **Pixabay Image Search Integration** — Search, preview, and download copyright-free public images directly into worksheets or vocabulary flashcards via a secure server proxy.
+- **Live Quiz Host** — Create and host Kahoot-like real-time synchronous quizzes supporting single choice, multiple choice, word ordering, and text inputs with live charts and a student leaderboard.
 - **Master Course Organizer** — Arrange exercises into units and courses with drag-and-drop reordering and assign them to classrooms in bulk.
 - **Roster & Class Gradebook Matrix** — View a unified grid of student performance per assignment, drill down into student profiles to inspect attempts, and reset student passwords directly.
 - **Bulk Import/Export** — Add students in bulk using CSV/JSON formatted lists, and export the entire classroom gradebook to CSV for external school records.
@@ -39,6 +41,8 @@ Designed around the **MORE!** textbook series for Austrian 1st-grade English cla
 ### 🧑‍🎓 For Students
 
 - **Interactive Player** — Responsive, dark-mode friendly workspace for solving drag-and-drop, clickable choice, categorization, and hotspot-based exercises.
+- **Vocabulary Picture Supplementation** — Reinforce spelling retention with an experimental **Picture Match Stage** (Stage 4) grid quiz showing target words and distractors.
+- **Live Quiz Gamepad** — Participate in real-time synchronous class games using a 6-digit PIN with speed-based scoring, live ranking feedback, and custom shape pads.
 - **Autocorrect Protection** — iPad-ready forms with autocorrect, suggestions, and spellcheck disabled by default to prevent unwanted keyboard assistance during assessments.
 - **Rich Media Submissions** — Record audio directly in-browser via the `MediaRecorder` API or upload pictures as open-question submissions.
 - **Attempt Multipliers** — Reward mastery by letting students retry exercises with decreasing score multipliers (100% &rarr; 75% &rarr; 50% &rarr; 25% max-score caps).
@@ -65,6 +69,8 @@ Designed around the **MORE!** textbook series for Austrian 1st-grade English cla
 | **Interactive Reading**| Branching "choose-your-own-adventure" story choices | Automated (completion path logic) |
 | **Vocabulary Practice**| Interactive flashcard drills for word-translation matching | Automated (spelling or match checks) |
 | **Explore Image Map** | Interactive image map with audio hotspots and scene transitions | Non-graded (Exploratory) |
+| **Live Quiz** | Synchronous multiplayer class game with single/multiple choice, text, and order inputs | Automated (speed-based scoring) |
+
 
 ### 📝 Advanced Open Question Evaluation
 
@@ -172,6 +178,9 @@ The application has been hardened to prevent tampering, unauthorized access, and
    # Optional: Gemini API Configuration
    GEMINI_API_KEY="AIzaSy..."
    GEMINI_MODEL="gemini-3.5-flash-latest"
+
+   # Optional: Pixabay API Configuration
+   PIXABAY_API_KEY="your_pixabay_api_key"
    ```
 
 5. **Start Development Server**:

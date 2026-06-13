@@ -24,7 +24,8 @@ const BaseExerciseSchema = z.object({
     "image-hotspot-quiz",
     "interactive-reading",
     "vocabulary",
-    "writing-coach"
+    "writing-coach",
+    "live-quiz"
   ]),
   tags: z.union([z.string(), z.array(z.string())]).optional().default(""),
 });
@@ -223,8 +224,10 @@ export const VocabularySchema = BaseExerciseSchema.extend({
     z.object({
       word: z.string(),
       translation: z.string(),
+      image: z.string().optional(),
     })
   ),
+  pictureSupplementation: z.boolean().optional(),
 });
 
 export const WritingCoachSchema = BaseExerciseSchema.extend({
@@ -303,6 +306,24 @@ export const WorksheetSchema = BaseExerciseSchema.extend({
   questions: z.array(WorksheetQuestionSchema),
 });
 
+export const LiveQuizSchema = BaseExerciseSchema.extend({
+  type: z.literal("live-quiz"),
+  questions: z.array(
+    z.object({
+      id: z.string(),
+      type: z.enum(["single-choice", "multiple-choice", "word-ordering", "text-input"]),
+      questionText: z.string(),
+      timeLimit: z.number().int().min(5).default(20),
+      media: z.string().optional(),
+      options: z.array(z.string()).optional(),
+      correctOptionIdx: z.number().int().optional(),
+      correctOptionIndices: z.array(z.number().int()).optional(),
+      words: z.array(z.string()).optional(),
+      acceptedAnswers: z.array(z.string()).optional(),
+    })
+  ),
+});
+
 export const ExerciseSchema = z.discriminatedUnion("type", [
   MultipleChoiceSchema,
   DragDropSchema,
@@ -320,6 +341,7 @@ export const ExerciseSchema = z.discriminatedUnion("type", [
   InteractiveReadingSchema,
   VocabularySchema,
   WritingCoachSchema,
+  LiveQuizSchema,
 ]);
 
 export type ExerciseData = z.infer<typeof ExerciseSchema>;

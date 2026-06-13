@@ -11,6 +11,7 @@ import { ImageHotspotQuizBuilder } from "./components/ImageHotspotQuizBuilder";
 import { InteractiveReadingBuilder } from "./components/InteractiveReadingBuilder";
 import { VocabularyBuilder } from "./components/VocabularyBuilder";
 import { WritingCoachBuilder, CreatorCriterion } from "./components/WritingCoachBuilder";
+import { LiveQuizBuilder, LiveQuizQuestion } from "./components/LiveQuizBuilder";
 
 interface CreatorQuestion {
   id: string;
@@ -92,7 +93,7 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
   const parsedInitialData = initialDataJson ? JSON.parse(initialDataJson) : initialData;
 
   // Mode: "worksheet" (standard mixed) or "image-hotspot-quiz" or "interactive-reading"
-  const [creatorMode, setCreatorMode] = useState<"worksheet" | "image-hotspot-quiz" | "interactive-reading" | "vocabulary" | "writing-coach">(
+  const [creatorMode, setCreatorMode] = useState<"worksheet" | "image-hotspot-quiz" | "interactive-reading" | "vocabulary" | "writing-coach" | "live-quiz">(
     parsedInitialData
       ? (parsedInitialData.type === "image-hotspot-quiz"
           ? "image-hotspot-quiz"
@@ -102,8 +103,10 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
           ? "vocabulary"
           : parsedInitialData.type === "writing-coach"
           ? "writing-coach"
+          : parsedInitialData.type === "live-quiz"
+          ? "live-quiz"
           : "worksheet")
-      : (typeParam === "image-hotspot-quiz" || typeParam === "interactive-reading" || typeParam === "vocabulary" || typeParam === "writing-coach"
+      : (typeParam === "image-hotspot-quiz" || typeParam === "interactive-reading" || typeParam === "vocabulary" || typeParam === "writing-coach" || typeParam === "live-quiz"
           ? typeParam
           : "worksheet")
   );
@@ -132,6 +135,49 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
     return "";
   });
 
+  const [vocabItems, setVocabItems] = useState<Array<{ word: string; translation: string; image?: string }>>(() => {
+    if (parsedInitialData && parsedInitialData.type === "vocabulary" && Array.isArray(parsedInitialData.vocabList)) {
+      return (parsedInitialData.vocabList as Array<Record<string, unknown>>).map((item) => ({
+        word: String(item.word || ""),
+        translation: String(item.translation || ""),
+        image: item.image ? String(item.image) : undefined,
+      }));
+    }
+    return [];
+  });
+
+  const [vocabPictureSupplementation, setVocabPictureSupplementation] = useState<boolean>(() => {
+    if (parsedInitialData && parsedInitialData.type === "vocabulary") {
+      return !!(parsedInitialData as Record<string, unknown>).pictureSupplementation;
+    }
+    return false;
+  });
+
+  const handleVocabRawTextChange = (newText: string) => {
+    setVocabRawText(newText);
+    const lines = newText.split("\n").map((line) => line.trim()).filter(Boolean);
+    const parsedList = lines.map((line) => {
+      const parts = line.split("=");
+      const word = parts[0]?.trim() || "";
+      const translation = parts[1]?.trim() || "";
+      return { word, translation };
+    }).filter((item) => item.word || item.translation);
+
+    const reconciled = parsedList.map((parsed) => {
+      const existing = vocabItems.find(
+        (item) =>
+          item.word.toLowerCase() === parsed.word.toLowerCase() &&
+          item.translation.toLowerCase() === parsed.translation.toLowerCase()
+      );
+      return {
+        word: parsed.word,
+        translation: parsed.translation,
+        image: existing?.image,
+      };
+    });
+    setVocabItems(reconciled);
+  };
+
   const [coachPrompt, setCoachPrompt] = useState<string>(
     parsedInitialData && parsedInitialData.type === "writing-coach"
       ? parsedInitialData.prompt || ""
@@ -147,6 +193,36 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
       ? parsedInitialData.criteria
       : []
   );
+
+  const [liveQuestions, setLiveQuestions] = useState<LiveQuizQuestion[]>(() => {
+    if (parsedInitialData && parsedInitialData.type === "live-quiz" && Array.isArray(parsedInitialData.questions)) {
+      return (parsedInitialData.questions as LiveQuizQuestion[]).map((q) => ({
+        id: q.id || crypto.randomUUID(),
+        type: q.type || "single-choice",
+        questionText: q.questionText || "",
+        timeLimit: q.timeLimit || 20,
+        media: q.media || undefined,
+        options: q.options || ["Option A", "Option B", "Option C", "Option D"],
+        correctOptionIdx: q.correctOptionIdx ?? 0,
+        correctOptionIndices: q.correctOptionIndices || [],
+        words: q.words || ["The", "fox", "jumps"],
+        acceptedAnswers: q.acceptedAnswers || ["Correct Answer"],
+      }));
+    }
+    return [
+      {
+        id: crypto.randomUUID(),
+        type: "single-choice",
+        questionText: "",
+        timeLimit: 20,
+        options: ["Option A", "Option B", "Option C", "Option D"],
+        correctOptionIdx: 0,
+        correctOptionIndices: [],
+        words: ["The", "fox", "jumps"],
+        acceptedAnswers: ["Correct Answer"],
+      },
+    ];
+  });
 
   // Helper to map exercise data back to CreatorQuestion format
   const getInitialQuestions = (): CreatorQuestion[] => {
@@ -498,7 +574,7 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
           throw new Error("Please enter at least one vocabulary word pair (e.g. apple = Apfel).");
         }
 
-        const vocabList: Array<{ word: string; translation: string }> = [];
+        const finalVocabList: Array<{ word: string; translation: string; image?: string }> = [];
         lines.forEach((line: string, lIdx: number) => {
           const parts = line.split("=");
           if (parts.length < 2) {
@@ -511,10 +587,23 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
             throw new Error(`Line ${lIdx + 1}: Both the source word and translation must be specified.`);
           }
 
-          vocabList.push({ word, translation });
+          const matchedItem = vocabItems.find(
+            (item) =>
+              item.word.toLowerCase() === word.toLowerCase() &&
+              item.translation.toLowerCase() === translation.toLowerCase()
+          );
+
+          finalVocabList.push({
+            word,
+            translation,
+            image: matchedItem?.image || undefined,
+          });
         });
 
-        contentString = JSON.stringify({ vocabList });
+        contentString = JSON.stringify({
+          vocabList: finalVocabList,
+          pictureSupplementation: vocabPictureSupplementation,
+        });
       } else if (creatorMode === "writing-coach") {
         if (!coachPrompt.trim()) {
           throw new Error("Writing prompt is required.");
@@ -532,6 +621,64 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
             description: c.description.trim(),
             tip: c.tip?.trim() || undefined,
           })),
+        });
+      } else if (creatorMode === "live-quiz") {
+        if (liveQuestions.length === 0) {
+          throw new Error("Please add at least one question to the Live Quiz.");
+        }
+
+        const formattedQuestions = liveQuestions.map((q, idx) => {
+          const indexStr = `Question ${idx + 1}`;
+          if (!q.questionText.trim()) {
+            throw new Error(`${indexStr}: Question text is required.`);
+          }
+
+          const base: Record<string, unknown> = {
+            id: q.id,
+            type: q.type,
+            questionText: q.questionText.trim(),
+            timeLimit: q.timeLimit,
+          };
+
+          if (q.media?.trim()) {
+            base.media = q.media.trim();
+          }
+
+          if (q.type === "single-choice") {
+            const opts = q.options.map((o) => o.trim()).filter(Boolean);
+            if (opts.length < 2) {
+              throw new Error(`${indexStr}: Please add at least 2 options for Single Choice.`);
+            }
+            base.options = opts;
+            base.correctOptionIdx = q.correctOptionIdx;
+          } else if (q.type === "multiple-choice") {
+            const opts = q.options.map((o) => o.trim()).filter(Boolean);
+            if (opts.length < 2) {
+              throw new Error(`${indexStr}: Please add at least 2 options for Multiple Choice.`);
+            }
+            if (q.correctOptionIndices.length === 0) {
+              throw new Error(`${indexStr}: Please select at least one correct option.`);
+            }
+            base.options = opts;
+            base.correctOptionIndices = q.correctOptionIndices;
+          } else if (q.type === "word-ordering") {
+            if (q.words.length < 2) {
+              throw new Error(`${indexStr}: Please specify at least 2 words to order.`);
+            }
+            base.words = q.words;
+          } else if (q.type === "text-input") {
+            const ans = q.acceptedAnswers.map((a) => a.trim()).filter(Boolean);
+            if (ans.length === 0) {
+              throw new Error(`${indexStr}: Please enter at least one accepted answer.`);
+            }
+            base.acceptedAnswers = ans;
+          }
+
+          return base;
+        });
+
+        contentString = JSON.stringify({
+          questions: formattedQuestions,
         });
       } else {
         if (questions.length === 0) {
@@ -790,6 +937,18 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
               <Sparkles className="w-3.5 h-3.5 text-purple-500 animate-pulse" />
               AI Writing Coach
             </button>
+            <button
+              type="button"
+              onClick={() => setCreatorMode("live-quiz")}
+              className={`px-3 py-1 text-xs font-semibold uppercase font-mono rounded border transition flex items-center gap-1 ${
+                creatorMode === "live-quiz"
+                  ? "bg-black text-white dark:bg-white dark:text-black border-transparent"
+                  : "border-neutral-300 dark:border-neutral-700 text-neutral-500 hover:bg-neutral-50 dark:hover:bg-neutral-800"
+              }`}
+            >
+              <HelpCircle className="w-3.5 h-3.5 text-purple-500" />
+              Live Quiz
+            </button>
           </div>
         )}
       </div>
@@ -881,6 +1040,7 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
 
           {creatorMode === "worksheet" && (
             <WorksheetQuestionsBuilder
+              exerciseId={id}
               questions={questions}
               setQuestions={setQuestions}
               handleMediaUpload={handleMediaUpload}
@@ -917,8 +1077,14 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
 
           {creatorMode === "vocabulary" && (
             <VocabularyBuilder
+              exerciseId={id}
               vocabRawText={vocabRawText}
-              setVocabRawText={setVocabRawText}
+              setVocabRawText={handleVocabRawTextChange}
+              vocabItems={vocabItems}
+              setVocabItems={setVocabItems}
+              pictureSupplementation={vocabPictureSupplementation}
+              setPictureSupplementation={setVocabPictureSupplementation}
+              handleMediaUpload={handleMediaUpload}
             />
           )}
 
@@ -930,6 +1096,13 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
               setCoachSystemPrompt={setCoachSystemPrompt}
               coachCriteria={coachCriteria}
               setCoachCriteria={setCoachCriteria}
+            />
+          )}
+
+          {creatorMode === "live-quiz" && (
+            <LiveQuizBuilder
+              questions={liveQuestions}
+              setQuestions={setLiveQuestions}
             />
           )}
         </div>
@@ -1032,7 +1205,7 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
                   </p>
                 </div>
               </div>
-            ) : (
+            ) : creatorMode === "writing-coach" ? (
               <div className="space-y-3">
                 <div className="space-y-1">
                   <span className="font-semibold text-neutral-850 dark:text-neutral-250 block">
@@ -1048,6 +1221,25 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
                   </span>
                   <p className="leading-relaxed">
                     Students write multiple drafts and request formative suggestions on criteria checks powered by Google Gemini.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <span className="font-semibold text-neutral-850 dark:text-neutral-250 block">
+                    Live Quiz Setup:
+                  </span>
+                  <p className="leading-relaxed">
+                    Create Kahoot-like quiz questions. Supports choice, word ordering, and text inputs.
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <span className="font-semibold text-neutral-850 dark:text-neutral-250 block">
+                    Hosting live:
+                  </span>
+                  <p className="leading-relaxed">
+                    Click &ldquo;Host Live&rdquo; on the teacher dashboard to launch the real-time session, generate a PIN, and share it with students.
                   </p>
                 </div>
               </div>

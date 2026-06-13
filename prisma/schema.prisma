@@ -60,19 +60,20 @@ model Course {
 }
 
 model Exercise {
-  id              String       @id // matches directory name
+  id              String            @id // matches directory name
   title           String
   description     String
-  type            String       // "multiple-choice", "drag-drop", "gap-fill", "categorization", "tiptoi"
+  type            String            // "multiple-choice", "drag-drop", "gap-fill", "categorization", "tiptoi"
   courseId        String?
-  order           Int          @default(0) // position within course
-  updatedAt       DateTime     @default(now())
-  pendingDeletion Boolean      @default(false)
-  tags            String       @default("")
+  order           Int               @default(0) // position within course
+  updatedAt       DateTime          @default(now())
+  pendingDeletion Boolean           @default(false)
+  tags            String            @default("")
 
   // Relations
-  course      Course?      @relation(fields: [courseId], references: [id], onDelete: SetNull)
-  assignments Assignment[]
+  course          Course?           @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  assignments     Assignment[]
+  liveSessions    LiveQuizSession[]
 }
 
 model Assignment {
@@ -121,4 +122,49 @@ model Submission {
   // Relations
   assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
   student      User       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+}
+
+model LiveQuizSession {
+  id                 String            @id @default(uuid())
+  exerciseId         String
+  hostId             String
+  pin                String            // e.g. 6-digit session pin
+  status             String            // LOBBY, QUESTION, SHOW_CORRECT, LEADERBOARD, FINISHED
+  currentQuestionIdx Int               @default(0)
+  questionStartedAt  DateTime?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  
+  // Relations
+  exercise           Exercise          @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  participants       LiveParticipant[]
+  responses          LiveResponse[]
+}
+
+model LiveParticipant {
+  id        String          @id @default(uuid())
+  sessionId String
+  userId    String?         // Optional: links to a registered student account
+  name      String          // Student nickname or full name
+  score     Int             @default(0)
+  joinedAt  DateTime        @default(now())
+  
+  // Relations
+  session   LiveQuizSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  responses LiveResponse[]
+}
+
+model LiveResponse {
+  id            String          @id @default(uuid())
+  sessionId     String
+  participantId String
+  questionIdx   Int
+  answerJson    String          // JSON array/string of answers
+  isCorrect     Boolean
+  points        Int             @default(0)
+  answeredAt    DateTime        @default(now())
+  
+  // Relations
+  session       LiveQuizSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  participant   LiveParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
 }

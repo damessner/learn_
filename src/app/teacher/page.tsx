@@ -18,6 +18,7 @@ import {
   Crosshair,
   Compass,
   Plus,
+  HelpCircle,
 } from "lucide-react";
 import { getExerciseTypeLabel } from "@/lib/exerciseLabels";
 import DragDropWrapper from "./DragDropWrapper";
@@ -128,7 +129,7 @@ export default async function TeacherDashboard({
             Create New Exercise
           </h2>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
             {/* Mixed Worksheet Card */}
             <Link
               href="/teacher/create?type=worksheet"
@@ -231,6 +232,27 @@ export default async function TeacherDashboard({
               </div>
               <span className="text-[9px] font-bold font-mono uppercase tracking-wider text-rose-650 dark:text-rose-400 group-hover:underline">
                 Create Story &rarr;
+              </span>
+            </Link>
+
+            {/* Live Quiz Card */}
+            <Link
+              href="/teacher/create?type=live-quiz"
+              className="group p-5 border border-neutral-200 dark:border-neutral-800 rounded-xl bg-white hover:bg-violet-50/20 dark:bg-neutral-900 dark:hover:bg-violet-955/10 shadow-sm hover:shadow hover:border-violet-300 dark:hover:border-violet-900/60 transition duration-300 flex flex-col justify-between h-40"
+            >
+              <div className="space-y-2">
+                <div className="p-2 w-9 h-9 rounded-lg bg-violet-50 dark:bg-violet-950/50 text-violet-650 dark:text-violet-400 group-hover:scale-110 transition duration-300 flex items-center justify-center">
+                  <HelpCircle className="w-5 h-5 animate-pulse" />
+                </div>
+                <h3 className="font-extrabold text-sm text-neutral-900 dark:text-neutral-100 group-hover:text-violet-600 dark:group-hover:text-violet-450 transition">
+                  Live Quiz
+                </h3>
+                <p className="text-[11px] leading-relaxed text-neutral-450 dark:text-neutral-500">
+                  Synchronous Kahoot-like real-time quizzes.
+                </p>
+              </div>
+              <span className="text-[9px] font-bold font-mono uppercase tracking-wider text-violet-650 dark:text-violet-400 group-hover:underline">
+                Create Live Quiz &rarr;
               </span>
             </Link>
           </div>

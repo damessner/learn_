@@ -392,6 +392,55 @@ function scoreExploreImageMap(config: AnyRecord, state: unknown): number {
   return clampScore((points / challenges.length) * 100);
 }
 
+function scoreLiveQuiz(config: AnyRecord, state: unknown): number {
+  const questions = asArray(config.questions);
+  if (questions.length === 0) return 0;
+  
+  const answers = asRecord(state);
+  if (!answers) return 0;
+
+  let correct = 0;
+  questions.forEach((q) => {
+    const qObj = asRecord(q);
+    if (!qObj) return;
+
+    const qId = String(qObj.id || "");
+    const ans = answers[qId];
+    if (ans === undefined || ans === null) return;
+
+    let isCorrect = false;
+    const type = qObj.type;
+
+    try {
+      if (type === "single-choice") {
+        isCorrect = Number(ans) === qObj.correctOptionIdx;
+      } else if (type === "multiple-choice") {
+        const selected = asArray(ans).map(Number);
+        const correctIndices = asArray(qObj.correctOptionIndices).map(Number);
+        isCorrect =
+          selected.length === correctIndices.length &&
+          selected.every((idx) => correctIndices.includes(idx));
+      } else if (type === "word-ordering") {
+        const selected = asArray(ans).map(String);
+        const correctWords = asArray(qObj.words).map(String);
+        isCorrect =
+          selected.length === correctWords.length &&
+          selected.every((w, idx) => w === correctWords[idx]);
+      } else if (type === "text-input") {
+        const selected = String(ans).trim().toLowerCase();
+        const accepted = asArray(qObj.acceptedAnswers).map((a) => String(a).trim().toLowerCase());
+        isCorrect = accepted.includes(selected);
+      }
+    } catch {
+      // ignore
+    }
+
+    if (isCorrect) correct++;
+  });
+
+  return clampScore((correct / questions.length) * 100);
+}
+
 function scoreQuestionByType(question: AnyRecord, state: unknown): number {
   switch (question.type) {
     case "multiple-choice":
@@ -470,6 +519,8 @@ export function scoreExerciseSubmission(exercise: ExerciseData, answers: Record<
       return scoreWritingCoach(exercise, answers);
     case "explore-image-map":
       return scoreExploreImageMap(exercise, answers);
+    case "live-quiz":
+      return scoreLiveQuiz(exercise, answers);
     case "media":
     case "instruction":
       return 100;

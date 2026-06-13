@@ -1,7 +1,8 @@
 "use client";
 
-import React from "react";
-import { Upload, Trash } from "lucide-react";
+import React, { useState } from "react";
+import { Upload, Trash, Search } from "lucide-react";
+import { PixabaySearchModal } from "@/components/PixabaySearchModal";
 
 export interface CreatorQuestion {
   id: string;
@@ -39,6 +40,7 @@ export interface CreatorQuestion {
 }
 
 interface WorksheetQuestionsBuilderProps {
+  exerciseId: string;
   questions: CreatorQuestion[];
   setQuestions: React.Dispatch<React.SetStateAction<CreatorQuestion[]>>;
   handleMediaUpload: (
@@ -49,10 +51,14 @@ interface WorksheetQuestionsBuilderProps {
 }
 
 export function WorksheetQuestionsBuilder({
+  exerciseId,
   questions,
   setQuestions,
   handleMediaUpload,
 }: WorksheetQuestionsBuilderProps) {
+  const [isPixabayOpen, setIsPixabayOpen] = useState(false);
+  const [activeMediaTarget, setActiveMediaTarget] = useState<((filename: string) => void) | null>(null);
+  const [activeQuery, setActiveQuery] = useState("");
 
   const addQuestion = (type: CreatorQuestion["type"]) => {
     setQuestions((prev) => [
@@ -233,6 +239,22 @@ export function WorksheetQuestionsBuilder({
                       Upload file
                     </label>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!exerciseId.trim()) {
+                        alert("Please specify the Worksheet ID at the top of the form before searching Pixabay.");
+                        return;
+                      }
+                      setActiveMediaTarget(() => (fn: string) => updateQuestion(q.id, { media: fn }));
+                      setActiveQuery(q.question || "");
+                      setIsPixabayOpen(true);
+                    }}
+                    className="flex items-center gap-1 border border-neutral-350 dark:border-neutral-700 bg-white dark:bg-neutral-900 px-3 py-1.5 rounded text-xs font-semibold hover:bg-neutral-100 transition cursor-pointer select-none font-mono uppercase"
+                  >
+                    <Search className="w-3.5 h-3.5" />
+                    Pixabay
+                  </button>
                 </div>
                 {q.mediaStatus && (
                   <span className="text-[10px] font-mono block text-neutral-500 italic">
@@ -468,6 +490,27 @@ export function WorksheetQuestionsBuilder({
                           >
                             Upload
                           </label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!exerciseId.trim()) {
+                                alert("Please specify the Worksheet ID at the top of the form before searching Pixabay.");
+                                  return;
+                              }
+                              setActiveMediaTarget(() => (fn: string) => {
+                                const newPairs = q.matchingPairs.map((p) =>
+                                  p.id === pair.id ? { ...p, leftMedia: fn } : p
+                                );
+                                updateQuestion(q.id, { matchingPairs: newPairs });
+                              });
+                              setActiveQuery(pair.leftText || "");
+                              setIsPixabayOpen(true);
+                            }}
+                            className="border border-neutral-350 dark:border-neutral-700 px-2 py-1 rounded text-[10px] font-bold font-mono uppercase hover:bg-neutral-100 dark:hover:bg-neutral-850 cursor-pointer shrink-0 flex items-center gap-0.5"
+                          >
+                            <Search className="w-3.5 h-3.5" />
+                            Pixabay
+                          </button>
                         </div>
                       </div>
 
@@ -667,6 +710,18 @@ export function WorksheetQuestionsBuilder({
           Instructions Card
         </button>
       </div>
+
+      <PixabaySearchModal
+        exerciseId={exerciseId}
+        isOpen={isPixabayOpen}
+        onClose={() => setIsPixabayOpen(false)}
+        onSelect={(fn) => {
+          if (activeMediaTarget) {
+            activeMediaTarget(fn);
+          }
+        }}
+        defaultQuery={activeQuery}
+      />
     </div>
   );
 }

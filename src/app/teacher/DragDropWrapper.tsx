@@ -175,6 +175,14 @@ export default function DragDropWrapper({
                               </span>
                             </div>
                             <div className="flex items-center gap-2 shrink-0 ml-4">
+                              {ex.type === "live-quiz" && (
+                                <Link
+                                  href={`/teacher/live-quiz/host/${ex.id}`}
+                                  className="inline-flex items-center gap-1 bg-purple-650 hover:bg-purple-700 text-white dark:bg-purple-600 dark:hover:bg-purple-500 px-2 py-1 rounded transition font-sans font-semibold text-xs shadow-sm"
+                                >
+                                  Host Live
+                                </Link>
+                              )}
                               <Link
                                 href={`/teacher/preview/${ex.id}`}
                                 className="inline-flex items-center gap-1 border border-neutral-350 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 px-2 py-1 rounded transition text-neutral-700 dark:text-neutral-300 font-sans font-semibold text-xs"
@@ -264,6 +272,14 @@ export default function DragDropWrapper({
                           )}
                         </td>
                         <td className="px-6 py-4 text-right space-x-2 whitespace-nowrap">
+                          {ex.type === "live-quiz" && (
+                            <Link
+                              href={`/teacher/live-quiz/host/${ex.id}`}
+                              className="inline-flex items-center gap-1 bg-purple-650 hover:bg-purple-700 text-white dark:bg-purple-600 dark:hover:bg-purple-500 px-2.5 py-1 rounded transition font-sans font-semibold text-xs shadow-sm"
+                            >
+                              Host Live
+                            </Link>
+                          )}
                           <Link
                             href={`/teacher/preview/${ex.id}`}
                             className="inline-flex items-center gap-1 border border-neutral-350 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 px-2.5 py-1 rounded transition text-neutral-700 dark:text-neutral-300 font-sans font-semibold text-xs"

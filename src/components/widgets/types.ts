@@ -215,7 +215,9 @@ export interface VocabularyConfig {
   vocabList: Array<{
     word: string;
     translation: string;
+    image?: string;
   }>;
+  pictureSupplementation?: boolean;
 }
 
 export interface WritingCoachConfig {
@@ -230,6 +232,25 @@ export interface WritingCoachConfig {
     name: string;
     description: string;
     tip?: string;
+  }>;
+}
+
+export interface LiveQuizConfig {
+  id: string;
+  title: string;
+  description?: string;
+  type: "live-quiz";
+  questions: Array<{
+    id: string;
+    type: "single-choice" | "multiple-choice" | "word-ordering" | "text-input";
+    questionText: string;
+    timeLimit: number; // in seconds
+    media?: string;
+    options?: string[]; // for choice types
+    correctOptionIdx?: number; // for single-choice
+    correctOptionIndices?: number[]; // for multiple-choice
+    words?: string[]; // for word ordering
+    acceptedAnswers?: string[]; // for text-input
   }>;
 }
 
@@ -248,6 +269,7 @@ export type WidgetConfig =
   | ImageHotspotQuizConfig
   | InteractiveReadingConfig
   | VocabularyConfig
-  | WritingCoachConfig;
+  | WritingCoachConfig
+  | LiveQuizConfig;
 
 

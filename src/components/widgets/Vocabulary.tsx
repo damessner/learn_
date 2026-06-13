@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { WidgetProps, VocabularyConfig } from "./types";
-import { Check, X, Award, Volume2, ArrowRight, BookOpen, HelpCircle, FileText, Sparkles, Loader2 } from "lucide-react";
+import { Check, X, Award, Volume2, ArrowRight, BookOpen, HelpCircle, FileText, Sparkles, Loader2, Image as ImageIcon } from "lucide-react";
 import { getVocabContextChallengeAction } from "@/lib/actions/ai-coach";
 
 // Human-readable level labels
@@ -89,6 +89,51 @@ export const Vocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
   );
   const [challengeError, setChallengeError] = useState<string | null>(null);
 
+  // Picture Quiz States
+  const [pictureQuizMode, setPictureQuizMode] = useState<"idle" | "playing" | "completed">(
+    savedState?.pictureQuizMode || "idle"
+  );
+  const [pictureQuizActiveIdx, setPictureQuizActiveIdx] = useState<number>(
+    savedState?.pictureQuizActiveIdx || 0
+  );
+  const [pictureQuizFeedback, setPictureQuizFeedback] = useState<"idle" | "correct" | "incorrect">(
+    savedState?.pictureQuizFeedback || "idle"
+  );
+  const [pictureQuizSelectedIdx, setPictureQuizSelectedIdx] = useState<number | null>(
+    savedState?.pictureQuizSelectedIdx || null
+  );
+  const [pictureQuizOrder, setPictureQuizOrder] = useState<number[]>(
+    savedState?.pictureQuizOrder || []
+  );
+
+  const wordsWithImagesIndices = useMemo(() => {
+    const indices: number[] = [];
+    vocabList.forEach((item, idx) => {
+      if (item.image) {
+        indices.push(idx);
+      }
+    });
+    return indices;
+  }, [vocabList]);
+
+  const pictureChoices = useMemo(() => {
+    if (pictureQuizMode !== "playing" || pictureQuizOrder.length === 0) return [];
+    const targetWordIdx = pictureQuizOrder[pictureQuizActiveIdx];
+    const targetWord = vocabList[targetWordIdx];
+    if (!targetWord || !targetWord.image) return [];
+
+    const otherImages = wordsWithImagesIndices
+      .filter((idx) => idx !== targetWordIdx)
+      .map((idx) => vocabList[idx].image)
+      .filter(Boolean) as string[];
+
+    const shuffledDistractors = seededShuffle(otherImages, targetWordIdx * 17 + pictureQuizActiveIdx * 3);
+    const chosenDistractors = shuffledDistractors.slice(0, 3);
+
+    const combined = [targetWord.image, ...chosenDistractors];
+    return seededShuffle(combined, targetWordIdx * 5);
+  }, [pictureQuizMode, pictureQuizActiveIdx, pictureQuizOrder, vocabList, wordsWithImagesIndices]);
+
   // Unmastered indices
   const unmasteredIndices = useMemo(() => {
     const indices: number[] = [];
@@ -131,7 +176,12 @@ export const Vocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
 
     const totalCount = vocabList.length;
     const masteredCount = vocabList.filter((_, idx) => (levels[idx] ?? 0) === 3).length;
-    const isComplete = masteredCount === totalCount;
+    
+    const standardComplete = masteredCount === totalCount;
+    const needsPictureQuiz = !!config.pictureSupplementation && wordsWithImagesIndices.length >= 2;
+    const pictureQuizComplete = pictureQuizMode === "completed";
+    
+    const isComplete = standardComplete && (!needsPictureQuiz || pictureQuizComplete);
 
     let firstTryCount = 0;
     vocabList.forEach((_, idx) => {
@@ -150,6 +200,11 @@ export const Vocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
         challengeInput,
         challengeFeedback,
         challengeCorrectCount,
+        pictureQuizMode,
+        pictureQuizActiveIdx,
+        pictureQuizFeedback,
+        pictureQuizSelectedIdx,
+        pictureQuizOrder,
       },
       isComplete,
       score
@@ -165,6 +220,13 @@ export const Vocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
     challengeInput,
     challengeFeedback,
     challengeCorrectCount,
+    pictureQuizMode,
+    pictureQuizActiveIdx,
+    pictureQuizFeedback,
+    pictureQuizSelectedIdx,
+    pictureQuizOrder,
+    config.pictureSupplementation,
+    wordsWithImagesIndices,
   ]);
 
   if (vocabList.length === 0) {
@@ -373,10 +435,174 @@ export const Vocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
     }
   };
 
+  const needsPictureQuiz = !!config.pictureSupplementation && wordsWithImagesIndices.length >= 2;
+
   // Completed State
   if (unmasteredIndices.length === 0) {
     let firstTryCount = 0;
     vocabList.forEach((_, idx) => { if (firstTryCorrect[idx]) firstTryCount++; });
+
+    if (needsPictureQuiz && pictureQuizMode !== "completed") {
+      if (pictureQuizMode === "idle") {
+        return (
+          <div className="text-center py-12 border border-purple-200 dark:border-purple-950/40 rounded bg-purple-50/10 space-y-6 max-w-md mx-auto">
+            <ImageIcon className="w-16 h-16 mx-auto text-purple-500 animate-bounce" />
+            <div className="space-y-2">
+              <h3 className="text-xl font-extrabold font-mono text-neutral-800 dark:text-neutral-200 uppercase tracking-wide">
+                Picture Quiz Unlocked!
+              </h3>
+              <p className="text-sm text-neutral-600 dark:text-neutral-400 max-w-xs mx-auto leading-relaxed">
+                You mastered spelling! Now test your memory with the image recognition matching quiz.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                const shuffled = seededShuffle(wordsWithImagesIndices, Date.now() & 0xffff);
+                setPictureQuizOrder(shuffled);
+                setPictureQuizActiveIdx(0);
+                setPictureQuizSelectedIdx(null);
+                setPictureQuizFeedback("idle");
+                setPictureQuizMode("playing");
+              }}
+              className="bg-purple-650 hover:bg-purple-700 active:scale-95 text-white font-mono font-bold text-xs uppercase py-3.5 px-6 rounded-lg shadow transition cursor-pointer inline-flex items-center gap-1.5"
+            >
+              Start Picture Quiz <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        );
+      }
+
+      if (pictureQuizMode === "playing" && pictureQuizOrder.length > 0) {
+        const targetWordIdx = pictureQuizOrder[pictureQuizActiveIdx];
+        const targetWord = vocabList[targetWordIdx];
+
+        const handlePictureChoiceClick = (opt: string, optIdx: number) => {
+          if (pictureQuizFeedback !== "idle") return;
+          setPictureQuizSelectedIdx(optIdx);
+          const isCorrect = opt === targetWord.image;
+          if (isCorrect) {
+            setPictureQuizFeedback("correct");
+          } else {
+            setPictureQuizFeedback("incorrect");
+          }
+        };
+
+        const handlePictureQuizContinue = () => {
+          const nextIdx = pictureQuizActiveIdx + 1;
+          if (nextIdx < pictureQuizOrder.length) {
+            setPictureQuizActiveIdx(nextIdx);
+            setPictureQuizFeedback("idle");
+            setPictureQuizSelectedIdx(null);
+          } else {
+            setPictureQuizMode("completed");
+          }
+        };
+
+        return (
+          <div className="space-y-6 max-w-md mx-auto py-4">
+            <div className="text-center space-y-1">
+              <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold uppercase tracking-wider text-purple-550">
+                <ImageIcon className="w-3.5 h-3.5" />
+                Picture Recognition Match
+              </span>
+              <h4 className="font-bold text-sm text-neutral-500 font-mono">
+                Item {pictureQuizActiveIdx + 1} of {pictureQuizOrder.length}
+              </h4>
+            </div>
+
+            <div className="p-5 border rounded bg-neutral-50 dark:bg-neutral-950 border-neutral-300 dark:border-neutral-850 text-center space-y-2">
+              <span className="text-xs font-mono text-neutral-500 uppercase tracking-wider">
+                Select the correct image for:
+              </span>
+              <h2 className="text-3xl font-extrabold text-neutral-900 dark:text-neutral-100 leading-tight">
+                {targetWord.word}
+              </h2>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              {pictureChoices.map((opt, oIdx) => {
+                const isSelected = pictureQuizSelectedIdx === oIdx;
+                const isCorrect = opt === targetWord.image;
+
+                let borderClass = "border-2 border-neutral-200 dark:border-neutral-800 ";
+                if (pictureQuizFeedback !== "idle") {
+                  if (isCorrect) {
+                    borderClass = "border-2 border-green-500 ring-2 ring-green-500/35 ";
+                  } else if (isSelected) {
+                    borderClass = "border-2 border-red-500 ring-2 ring-red-500/35 ";
+                  } else {
+                    borderClass = "border border-neutral-100 dark:border-neutral-900 opacity-40 ";
+                  }
+                } else {
+                  borderClass += "hover:border-purple-400 focus:border-purple-500 ";
+                }
+
+                return (
+                  <button
+                    key={oIdx}
+                    type="button"
+                    disabled={pictureQuizFeedback !== "idle"}
+                    onClick={() => handlePictureChoiceClick(opt, oIdx)}
+                    className={`aspect-square rounded-xl overflow-hidden bg-neutral-100 dark:bg-neutral-955 focus:outline-none transition cursor-pointer relative shadow-sm ${borderClass}`}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={`/api/exercises/${config.id}/assets/${opt}`}
+                      alt="quiz choice"
+                      className="w-full h-full object-cover"
+                    />
+                    {pictureQuizFeedback !== "idle" && isCorrect && (
+                      <div className="absolute top-2 right-2 bg-green-500 text-white rounded-full p-1 shadow-md">
+                        <Check className="w-3.5 h-3.5" />
+                      </div>
+                    )}
+                    {pictureQuizFeedback !== "idle" && isSelected && !isCorrect && (
+                      <div className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 shadow-md">
+                        <X className="w-3.5 h-3.5" />
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {pictureQuizFeedback !== "idle" && (
+              <div className="space-y-3 pt-1">
+                <div
+                  className={`p-3 rounded border text-xs font-medium flex items-center gap-2 ${
+                    pictureQuizFeedback === "correct"
+                      ? "border-green-300 bg-green-50/20 text-green-700 dark:text-green-300"
+                      : "border-red-350 bg-red-50/20 text-red-755 dark:text-red-300"
+                  }`}
+                >
+                  {pictureQuizFeedback === "correct" ? (
+                    <>
+                      <Check className="w-4 h-4 text-green-500" />
+                      <span>Correct! Excellent memory!</span>
+                    </>
+                  ) : (
+                    <>
+                      <X className="w-4 h-4 text-red-500" />
+                      <span>Not quite. Let&apos;s memorize this connection!</span>
+                    </>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handlePictureQuizContinue}
+                  className="w-full bg-black hover:bg-neutral-800 active:bg-neutral-900 text-white dark:bg-white dark:text-black py-4 rounded-md font-sans font-bold text-sm transition flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
+                >
+                  Continue
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+          </div>
+        );
+      }
+    }
 
     if (challengeMode === "loading") {
       return (
@@ -560,10 +786,12 @@ export const Vocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
         <div className="text-center py-12 border border-green-200 dark:border-green-950/40 rounded bg-green-50/15 dark:bg-green-950/5 space-y-4 max-w-md mx-auto">
           <Award className="w-16 h-16 mx-auto text-green-500 animate-bounce" />
           <h3 className="text-xl font-extrabold font-mono text-neutral-800 dark:text-neutral-200 uppercase tracking-wide">
-            All Vocabulary Mastered!
+            {needsPictureQuiz ? "Vocab & Picture Match Mastered!" : "All Vocabulary Mastered!"}
           </h3>
           <p className="text-sm text-neutral-600 dark:text-neutral-400 max-w-sm mx-auto">
-            Congratulations! You have completed all vocabulary items.
+            {needsPictureQuiz
+              ? "Congratulations! You have mastered all terms and matching pictures."
+              : "Congratulations! You have completed all vocabulary items."}
           </p>
           <div className="inline-block border border-green-300 dark:border-green-800 px-4 py-2 rounded bg-white dark:bg-neutral-900 font-mono text-sm font-bold text-green-700 dark:text-green-300">
             Accuracy Score: {((firstTryCount / vocabList.length) * 100).toFixed(0)}%

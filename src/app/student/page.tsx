@@ -87,6 +87,19 @@ export default async function StudentDashboard() {
     },
   });
 
+  // Fetch active live sessions from teachers of classrooms the student has joined
+  const teacherIds = classroomsJoined.map((cs) => cs.classroom.teacherId);
+  const activeLiveSessions = await prisma.liveQuizSession.findMany({
+    where: {
+      status: { not: "FINISHED" },
+      hostId: { in: teacherIds },
+    },
+    include: {
+      exercise: true,
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
   // Calculate student in-app notifications
   const notifications: { id: string; type: "DUE_SOON" | "NEW"; message: string; link: string }[] = [];
 
@@ -180,6 +193,45 @@ export default async function StudentDashboard() {
                     Open Task →
                   </span>
                 </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Active Live Sessions */}
+        {activeLiveSessions.length > 0 && (
+          <div className="border border-purple-300 dark:border-purple-900 rounded-2xl bg-purple-50/10 dark:bg-purple-955/5 p-6 space-y-4 shadow-sm animate-pulse">
+            <h2 className="text-xs font-bold font-mono uppercase tracking-wider text-purple-650 dark:text-purple-400 flex items-center gap-2">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500"></span>
+              </span>
+              Active Live Quiz sessions ({activeLiveSessions.length})
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {activeLiveSessions.map((session) => (
+                <div
+                  key={session.id}
+                  className="p-5 border border-purple-200 dark:border-purple-950 bg-white dark:bg-neutral-900 rounded-xl shadow-sm flex items-center justify-between gap-4 hover:scale-[1.005] transition duration-200"
+                >
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-purple-600">
+                      PIN: {session.pin}
+                    </span>
+                    <h3 className="font-extrabold text-sm text-neutral-900 dark:text-neutral-100">
+                      {session.exercise.title}
+                    </h3>
+                    <p className="text-[10px] text-neutral-450">
+                      Status: <span className="font-semibold uppercase">{session.status}</span>
+                    </p>
+                  </div>
+                  <Link
+                    href={`/student/live-quiz/join?pin=${session.pin}`}
+                    className="bg-purple-650 hover:bg-purple-700 text-white font-mono font-bold text-xs px-4 py-2.5 rounded-xl uppercase tracking-wider hover:opacity-90 transition shadow-sm shrink-0"
+                  >
+                    Join Quiz 🚀
+                  </Link>
+                </div>
               ))}
             </div>
           </div>
