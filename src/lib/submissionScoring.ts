@@ -341,6 +341,33 @@ function scoreVocabulary(config: AnyRecord, state: unknown): number {
   return clampScore((points / vocabList.length) * 100);
 }
 
+function scoreWritingCoach(config: AnyRecord, state: unknown): number {
+  const stateObj = asRecord(state);
+  if (!stateObj) return 0;
+
+  const text = String(stateObj.text || "").trim();
+  if (!text) return 0;
+
+  const latestFeedback = asRecord(stateObj.latestFeedback);
+  if (!latestFeedback) {
+    return 20; // baseline score if text is written but coach feedback never requested
+  }
+
+  const criteriaFeedback = asArray(latestFeedback.criteria);
+  const exerciseCriteria = asArray(config.criteria);
+  if (exerciseCriteria.length === 0) return 100;
+
+  let completedCount = 0;
+  criteriaFeedback.forEach((c) => {
+    const cObj = asRecord(c);
+    if (cObj && cObj.status === "completed") {
+      completedCount++;
+    }
+  });
+
+  return clampScore(Math.round((completedCount / exerciseCriteria.length) * 100));
+}
+
 function scoreExploreImageMap(config: AnyRecord, state: unknown): number {
   const gameMode = asRecord(config.gameMode);
   if (!gameMode || gameMode.enabled !== true) return 100;
@@ -439,6 +466,8 @@ export function scoreExerciseSubmission(exercise: ExerciseData, answers: Record<
       return scoreInteractiveReading(exercise, answers);
     case "vocabulary":
       return scoreVocabulary(exercise, answers);
+    case "writing-coach":
+      return scoreWritingCoach(exercise, answers);
     case "explore-image-map":
       return scoreExploreImageMap(exercise, answers);
     case "media":

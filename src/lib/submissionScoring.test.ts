@@ -178,3 +178,56 @@ describe("scoreSimpleExercise", () => {
     expect(scoreSimpleExercise(NaN)).toBe(0);
   });
 });
+
+describe("scoreWritingCoach", () => {
+  const config = {
+    id: "coach-1",
+    type: "writing-coach",
+    prompt: "Write a letter",
+    criteria: [
+      { id: "c1", name: "Greeting", description: "Say hello" },
+      { id: "c2", name: "Content", description: "Body of text" },
+      { id: "c3", name: "Signoff", description: "Say goodbye" },
+    ],
+  };
+
+  it("returns 0 if state is missing or text is empty", () => {
+    expect(scoreExerciseSubmission(config as any, {})).toBe(0);
+    expect(scoreExerciseSubmission(config as any, { text: "" })).toBe(0);
+  });
+
+  it("returns 20 baseline participation if text exists but no feedback was fetched", () => {
+    expect(scoreExerciseSubmission(config as any, { text: "Hello my friend. How are you? Goodbye." })).toBe(20);
+  });
+
+  it("computes score from criteria completion status", () => {
+    const answers1 = {
+      text: "Hello my friend. How are you? Goodbye.",
+      latestFeedback: {
+        overallFeedback: "Good work",
+        criteria: [
+          { id: "c1", status: "completed" },
+          { id: "c2", status: "needs_work" },
+          { id: "c3", status: "needs_work" },
+        ],
+      },
+    };
+    // 1/3 completed = 33%
+    expect(scoreExerciseSubmission(config as any, answers1)).toBe(33);
+
+    const answers2 = {
+      text: "Hello my friend. How are you? Goodbye.",
+      latestFeedback: {
+        overallFeedback: "Perfect work",
+        criteria: [
+          { id: "c1", status: "completed" },
+          { id: "c2", status: "completed" },
+          { id: "c3", status: "completed" },
+        ],
+      },
+    };
+    // 3/3 completed = 100%
+    expect(scoreExerciseSubmission(config as any, answers2)).toBe(100);
+  });
+});
+

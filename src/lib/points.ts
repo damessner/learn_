@@ -63,6 +63,9 @@ export function getExerciseMaxPoints(exercise: any): number {
   if (exercise.type === "vocabulary") {
     return (exercise.vocabList || []).length || 1;
   }
+  if (exercise.type === "writing-coach") {
+    return (exercise.criteria || []).length || 1;
+  }
   if (exercise.type === "open-question") return 1;
   if (exercise.type === "ordering") return 1;
   return 1;

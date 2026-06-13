@@ -216,6 +216,21 @@ export interface VocabularyConfig {
   }>;
 }
 
+export interface WritingCoachConfig {
+  id: string;
+  title: string;
+  description?: string;
+  type: "writing-coach";
+  prompt: string;
+  systemPrompt?: string;
+  criteria: Array<{
+    id: string;
+    name: string;
+    description: string;
+    tip?: string;
+  }>;
+}
+
 export type WidgetConfig =
   | MultipleChoiceConfig
   | DragDropConfig
@@ -230,5 +245,7 @@ export type WidgetConfig =
   | OrderingConfig
   | ImageHotspotQuizConfig
   | InteractiveReadingConfig
-  | VocabularyConfig;
+  | VocabularyConfig
+  | WritingCoachConfig;
+
 

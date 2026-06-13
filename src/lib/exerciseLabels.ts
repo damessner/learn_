@@ -18,6 +18,7 @@ export const EXERCISE_TYPE_LABELS: Record<string, string> = {
   "image-hotspot-quiz": "Image Hotspot Quiz",
   "interactive-reading": "Interactive Reading",
   "vocabulary": "Vocabulary Practice",
+  "writing-coach": "AI Writing Coach",
 };
 
 export function getExerciseTypeLabel(type: string): string {

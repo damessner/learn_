@@ -23,7 +23,8 @@ const BaseExerciseSchema = z.object({
     "ordering",
     "image-hotspot-quiz",
     "interactive-reading",
-    "vocabulary"
+    "vocabulary",
+    "writing-coach"
   ]),
   tags: z.union([z.string(), z.array(z.string())]).optional().default(""),
 });
@@ -224,6 +225,20 @@ export const VocabularySchema = BaseExerciseSchema.extend({
   ),
 });
 
+export const WritingCoachSchema = BaseExerciseSchema.extend({
+  type: z.literal("writing-coach"),
+  prompt: z.string(),
+  systemPrompt: z.string().optional(),
+  criteria: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      description: z.string(),
+      tip: z.string().optional(),
+    })
+  ),
+});
+
 export const WorksheetQuestionSchema = z.object({
   id: z.string(),
   type: z.enum([
@@ -302,6 +317,7 @@ export const ExerciseSchema = z.discriminatedUnion("type", [
   ImageHotspotQuizSchema,
   InteractiveReadingSchema,
   VocabularySchema,
+  WritingCoachSchema,
 ]);
 
 export type ExerciseData = z.infer<typeof ExerciseSchema>;

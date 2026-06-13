@@ -12,6 +12,7 @@ import Ordering from "./Ordering";
 import ImageHotspotQuiz from "./ImageHotspotQuiz";
 import InteractiveReading from "./InteractiveReading";
 import Vocabulary from "./Vocabulary";
+import { WritingCoach } from "./WritingCoach";
 import { WidgetProps } from "./types";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -30,6 +31,7 @@ export const WIDGET_REGISTRY: Record<string, React.FC<WidgetProps<any>>> = {
   "image-hotspot-quiz": ImageHotspotQuiz,
   "interactive-reading": InteractiveReading,
   "vocabulary": Vocabulary,
+  "writing-coach": WritingCoach,
 };
 
 export type { WidgetProps };

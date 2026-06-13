@@ -10,6 +10,7 @@ import { WorksheetQuestionsBuilder } from "./components/WorksheetQuestionsBuilde
 import { ImageHotspotQuizBuilder } from "./components/ImageHotspotQuizBuilder";
 import { InteractiveReadingBuilder } from "./components/InteractiveReadingBuilder";
 import { VocabularyBuilder } from "./components/VocabularyBuilder";
+import { WritingCoachBuilder, CreatorCriterion } from "./components/WritingCoachBuilder";
 
 interface CreatorQuestion {
   id: string;
@@ -88,7 +89,7 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
   const parsedInitialData = initialDataJson ? JSON.parse(initialDataJson) : initialData;
 
   // Mode: "worksheet" (standard mixed) or "image-hotspot-quiz" or "interactive-reading"
-  const [creatorMode, setCreatorMode] = useState<"worksheet" | "image-hotspot-quiz" | "interactive-reading" | "vocabulary">(
+  const [creatorMode, setCreatorMode] = useState<"worksheet" | "image-hotspot-quiz" | "interactive-reading" | "vocabulary" | "writing-coach">(
     parsedInitialData
       ? (parsedInitialData.type === "image-hotspot-quiz"
           ? "image-hotspot-quiz"
@@ -96,6 +97,8 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
           ? "interactive-reading"
           : parsedInitialData.type === "vocabulary"
           ? "vocabulary"
+          : parsedInitialData.type === "writing-coach"
+          ? "writing-coach"
           : "worksheet")
       : "worksheet"
   );
@@ -123,6 +126,22 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
     }
     return "";
   });
+
+  const [coachPrompt, setCoachPrompt] = useState<string>(
+    parsedInitialData && parsedInitialData.type === "writing-coach"
+      ? parsedInitialData.prompt || ""
+      : ""
+  );
+  const [coachSystemPrompt, setCoachSystemPrompt] = useState<string>(
+    parsedInitialData && parsedInitialData.type === "writing-coach"
+      ? parsedInitialData.systemPrompt || ""
+      : ""
+  );
+  const [coachCriteria, setCoachCriteria] = useState<CreatorCriterion[]>(
+    parsedInitialData && parsedInitialData.type === "writing-coach" && Array.isArray(parsedInitialData.criteria)
+      ? parsedInitialData.criteria
+      : []
+  );
 
   // Helper to map exercise data back to CreatorQuestion format
   const getInitialQuestions = (): CreatorQuestion[] => {
@@ -475,6 +494,24 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
         });
 
         contentString = JSON.stringify({ vocabList });
+      } else if (creatorMode === "writing-coach") {
+        if (!coachPrompt.trim()) {
+          throw new Error("Writing prompt is required.");
+        }
+        const formattedCriteria = coachCriteria.filter((c) => c.name.trim() && c.description.trim());
+        if (formattedCriteria.length === 0) {
+          throw new Error("Please add at least one feedback goal.");
+        }
+        contentString = JSON.stringify({
+          prompt: coachPrompt.trim(),
+          systemPrompt: coachSystemPrompt.trim() || undefined,
+          criteria: formattedCriteria.map((c) => ({
+            id: c.id,
+            name: c.name.trim(),
+            description: c.description.trim(),
+            tip: c.tip?.trim() || undefined,
+          })),
+        });
       } else {
         if (questions.length === 0) {
           throw new Error("Please add at least one task to the worksheet.");
@@ -720,6 +757,18 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
               <FileText className="w-3.5 h-3.5 text-green-500" />
               Vocabulary Practice
             </button>
+            <button
+              type="button"
+              onClick={() => setCreatorMode("writing-coach")}
+              className={`px-3 py-1 text-xs font-semibold uppercase font-mono rounded border transition flex items-center gap-1 ${
+                creatorMode === "writing-coach"
+                  ? "bg-black text-white dark:bg-white dark:text-black border-transparent"
+                  : "border-neutral-300 dark:border-neutral-700 text-neutral-500 hover:bg-neutral-50 dark:hover:bg-neutral-800"
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5 text-purple-500 animate-pulse" />
+              AI Writing Coach
+            </button>
           </div>
         )}
       </div>
@@ -849,6 +898,17 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
               setVocabRawText={setVocabRawText}
             />
           )}
+
+          {creatorMode === "writing-coach" && (
+            <WritingCoachBuilder
+              coachPrompt={coachPrompt}
+              setCoachPrompt={setCoachPrompt}
+              coachSystemPrompt={coachSystemPrompt}
+              setCoachSystemPrompt={setCoachSystemPrompt}
+              coachCriteria={coachCriteria}
+              setCoachCriteria={setCoachCriteria}
+            />
+          )}
         </div>
 
         {/* Sidebar Info/Submit Column */}
@@ -930,7 +990,7 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
                   </p>
                 </div>
               </div>
-            ) : (
+            ) : creatorMode === "vocabulary" ? (
               <div className="space-y-3">
                 <div className="space-y-1">
                   <span className="font-semibold text-neutral-850 dark:text-neutral-250 block">
@@ -946,6 +1006,25 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
                   </span>
                   <p className="leading-relaxed">
                     Generates recognition flashcards, multiple-choice options, and spelling stages for pupils.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <span className="font-semibold text-neutral-850 dark:text-neutral-250 block">
+                    Writing Coach Setup:
+                  </span>
+                  <p className="leading-relaxed">
+                    Enter the student writing prompt instructions, optional coach context, and add goal check criteria.
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <span className="font-semibold text-neutral-850 dark:text-neutral-250 block">
+                    Socratic Loop:
+                  </span>
+                  <p className="leading-relaxed">
+                    Students write multiple drafts and request formative suggestions on criteria checks powered by Google Gemini.
                   </p>
                 </div>
               </div>
