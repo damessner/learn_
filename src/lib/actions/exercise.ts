@@ -82,7 +82,7 @@ ${content}
       fs.writeFileSync(path.join(exerciseDir, "index.md"), mdContent, "utf-8");
     } else {
       const parsedContent = JSON.parse(content);
-      const jsonContent = {
+      let jsonContent = {
         ...parsedContent,
         id,
         title,
@@ -90,6 +90,15 @@ ${content}
         type,
         tags: tags || "",
       };
+
+      // Generate TTS if needed
+      try {
+        const { generateTTSForExercise } = await import("@/lib/tts/generator");
+        jsonContent = await generateTTSForExercise(id, type, jsonContent);
+      } catch (ttsErr) {
+        console.error("TTS generation error:", ttsErr);
+      }
+
       fs.writeFileSync(
         path.join(exerciseDir, "index.json"),
         JSON.stringify(jsonContent, null, 2),

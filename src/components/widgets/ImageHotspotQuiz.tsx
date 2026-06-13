@@ -253,6 +253,7 @@ export const ImageHotspotQuiz: React.FC<WidgetProps<ImageHotspotQuizConfig>> = (
           className={`absolute top-0 left-0 w-full h-full ${
             isReadOnly || isCompleted ? "pointer-events-none" : "cursor-crosshair pointer-events-auto"
           }`}
+          style={{ touchAction: "none" }}
         >
           {/* In read-only or completed mode, draw the hotspots to visualize them */}
           {(isReadOnly || isCompleted) &&

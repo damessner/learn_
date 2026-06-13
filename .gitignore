@@ -49,3 +49,6 @@ next-env.d.ts
 
 # content uploads (optional - comment out to include exercise assets)
 # /content/exercises/*/assets/
+
+# exercise recycle/trash
+/content/exercises/.deleted-*/

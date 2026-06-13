@@ -19,7 +19,7 @@ _Built for the MORE! 1st-grade AHS/MS curriculum_
 
 ## Overview
 
-Learn is a self-hosted web application for creating, assigning, completing, and reviewing interactive language exercises. It supports 14 exercise types—ranging from multiple choice and gap-fills to image hotspot quizzes, interactive reading, and media-rich open questions—and handles the full workflow from content authoring to student submission, gradebook analytics, and manual teacher grading override.
+Learn is a self-hosted web application for creating, assigning, completing, and reviewing interactive language exercises. It supports 16 exercise types—ranging from multiple choice and gap-fills to image hotspot quizzes, interactive reading, oral vocabulary drills, and media-rich open questions—and handles the full workflow from content authoring to student submission, gradebook analytics, and manual teacher grading override.
 
 Designed around the **MORE!** textbook series for Austrian 1st-grade English classes, but easily extensible to any language teaching context.
 
@@ -31,6 +31,8 @@ Designed around the **MORE!** textbook series for Austrian 1st-grade English cla
 
 - **Worksheet Creator** — Build mixed-modality exercises in a single worksheet (e.g. multiple-choice, gap-fill, drag-and-drop, categorization, matching, ordering, open questions, media embeds, instruction cards).
 - **Pixabay Image Search Integration** — Search, preview, and download copyright-free public images directly into worksheets or vocabulary flashcards via a secure server proxy.
+- **Text-to-Speech (TTS) Engine** — Automatically generate spoken pronunciation audio for vocabulary items (English & German) via an inline Python-based TTS pipeline. Integrated into the Vocabulary and Oral Vocabulary Quiz builders so audio prompts are created during exercise authoring.
+- **Oral Vocabulary Quiz Creator** — Dedicated builder for audio-driven vocabulary tests where students hear a word and must type the correct translation. TTS audio is generated server-side at exercise build time.
 - **Live Quiz Host** — Create and host Kahoot-like real-time synchronous quizzes supporting single choice, multiple choice, word ordering, and text inputs with live charts and a student leaderboard.
 - **Master Course Organizer** — Arrange exercises into units and courses with drag-and-drop reordering and assign them to classrooms in bulk.
 - **Roster & Class Gradebook Matrix** — View a unified grid of student performance per assignment, drill down into student profiles to inspect attempts, and reset student passwords directly.
@@ -40,9 +42,11 @@ Designed around the **MORE!** textbook series for Austrian 1st-grade English cla
 
 ### 🧑‍🎓 For Students
 
+- **PWA / Offline Support** — Installable as a Progressive Web App on mobile and desktop. The service worker caches core assets for offline access, and a dedicated offline page is shown when the network is unavailable. Supports notched mobile displays via `viewport-fit: cover`.
 - **Interactive Player** — Responsive, dark-mode friendly workspace for solving drag-and-drop, clickable choice, categorization, and hotspot-based exercises.
 - **Vocabulary Picture Supplementation** — Reinforce spelling retention with an experimental **Picture Match Stage** (Stage 4) grid quiz showing target words and distractors.
 - **Live Quiz Gamepad** — Participate in real-time synchronous class games using a 6-digit PIN with speed-based scoring, live ranking feedback, and custom shape pads.
+- **Oral Vocabulary Quiz** — Audio-driven vocabulary exercise where students hear a TTS-generated pronunciation and type the matching translation. Keyboard-friendly with autocorrect disabled during assessment.
 - **Autocorrect Protection** — iPad-ready forms with autocorrect, suggestions, and spellcheck disabled by default to prevent unwanted keyboard assistance during assessments.
 - **Rich Media Submissions** — Record audio directly in-browser via the `MediaRecorder` API or upload pictures as open-question submissions.
 - **Attempt Multipliers** — Reward mastery by letting students retry exercises with decreasing score multipliers (100% &rarr; 75% &rarr; 50% &rarr; 25% max-score caps).
@@ -68,6 +72,7 @@ Designed around the **MORE!** textbook series for Austrian 1st-grade English cla
 | **Image Hotspot Quiz**| Find and tap hidden regions/items on a background image | Automated (tap inside boundary box) |
 | **Interactive Reading**| Branching "choose-your-own-adventure" story choices | Automated (completion path logic) |
 | **Vocabulary Practice**| Interactive flashcard drills for word-translation matching | Automated (spelling or match checks) |
+| **Oral Vocabulary Quiz** | Audio-based vocabulary quiz — pupils hear a TTS-generated pronunciation and type the translation | Automated (spelling match) |
 | **Explore Image Map** | Interactive image map with audio hotspots and scene transitions | Non-graded (Exploratory) |
 | **Live Quiz** | Synchronous multiplayer class game with single/multiple choice, text, and order inputs | Automated (speed-based scoring) |
 
@@ -114,6 +119,8 @@ The application has been hardened to prevent tampering, unauthorized access, and
 - **Database**: SQLite via Prisma 7
 - **Authentication**: Encrypted session cookies (AES-256-GCM)
 - **Validation**: Zod Schemas
+- **TTS Engine**: Python (gTTS/pyttsx3) + Node.js child-process bridge
+- **PWA**: Service Worker, Web App Manifest, offline fallback
 - **Test Runner**: Vitest 3
 
 ---
@@ -126,6 +133,12 @@ The application has been hardened to prevent tampering, unauthorized access, and
 │   └── seed.ts                # Seeding script for development environments
 ├── content/
 │   └── exercises/             # JSON/Markdown exercise definitions and media assets
+├── public/
+│   ├── sw.js                  # PWA Service Worker (offline caching)
+│   ├── offline.html           # Offline fallback page
+│   ├── apple-touch-icon.png   # Apple touch icon (180×180)
+│   ├── icon-192.png           # PWA icon (192×192)
+│   └── icon-512.png           # PWA icon (512×512)
 ├── src/
 │   ├── app/
 │   │   ├── actions.ts         # Delegating wrapper for server actions
@@ -135,14 +148,17 @@ The application has been hardened to prevent tampering, unauthorized access, and
 │   │   │   └── submissions/   # Student media upload endpoint
 │   │   ├── teacher/           # Teacher dashboard, creator client, classroom gradebook
 │   │   ├── student/           # Student assignment player & dashboards
-│   │   └── layout.tsx         # Root container
+│   │   ├── manifest.ts        # PWA Web App Manifest
+│   │   ├── layout.tsx         # Root container (PWA metadata, viewport, fonts)
 │   ├── components/
 │   │   ├── Navbar.tsx         # Unified global navigation
-│   │   └── widgets/           # 14 player widgets and builder helper scripts
+│   │   ├── PWARegistration.tsx # Service Worker registration component
+│   │   └── widgets/           # 16 player widgets and builder helper scripts
 │   └── lib/
 │       ├── actions/           # Hardened server actions (classroom, course, exercise, submission)
 │       ├── exercises.ts       # Zod exercise definitions, cache, and disk I/O helpers
 │       ├── live-quiz-utils.ts # Pure Live Quiz helpers (answer evaluation, speed-based points)
+│       ├── tts/               # Text-to-Speech engine (Python + TypeScript wrapper)
 │       ├── rateLimit.ts       # Brute-force credentials rate-limiter
 │       ├── session.ts         # Cookie encryption and session authorization utilities
 │       ├── submissionScoring.ts # Server-side answers evaluation and grading logic

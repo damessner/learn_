@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { randomUUID } from "@/lib/uuid";
 import { createWorksheet } from "@/lib/actions/exercise";
-import { ArrowLeft, HelpCircle, Crosshair, Sparkles, BookOpen, FileText } from "lucide-react";
+import { ArrowLeft, HelpCircle, Crosshair, Sparkles, BookOpen, FileText, Volume2 } from "lucide-react";
 import Link from "next/link";
 import { WorksheetQuestionsBuilder } from "./components/WorksheetQuestionsBuilder";
 import { ImageHotspotQuizBuilder } from "./components/ImageHotspotQuizBuilder";
@@ -46,6 +46,7 @@ interface CreatorQuestion {
   }>;
   keywords: string; // comma list for open questions
   orderingSentence: string; // string sentence for ordering questions
+  ttsEnabled?: boolean;
 }
 
 interface ImageHotspot {
@@ -82,6 +83,7 @@ interface ReadingPageCreator {
     correctOptionIdx: number;
     keywords: string;
   }>;
+  ttsEnabled?: boolean;
 }
 
 export default function WorksheetCreator({ initialData, initialDataJson, courses = [] }: { initialData?: Record<string, unknown>; initialDataJson?: string; courses?: { id: string; title: string }[] }) {
@@ -93,7 +95,7 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
   const parsedInitialData = initialDataJson ? JSON.parse(initialDataJson) : initialData;
 
   // Mode: "worksheet" (standard mixed) or "image-hotspot-quiz" or "interactive-reading"
-  const [creatorMode, setCreatorMode] = useState<"worksheet" | "image-hotspot-quiz" | "interactive-reading" | "vocabulary" | "writing-coach" | "live-quiz">(
+  const [creatorMode, setCreatorMode] = useState<"worksheet" | "image-hotspot-quiz" | "interactive-reading" | "vocabulary" | "oral-vocabulary" | "writing-coach" | "live-quiz">(
     parsedInitialData
       ? (parsedInitialData.type === "image-hotspot-quiz"
           ? "image-hotspot-quiz"
@@ -101,13 +103,15 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
           ? "interactive-reading"
           : parsedInitialData.type === "vocabulary"
           ? "vocabulary"
+          : parsedInitialData.type === "oral-vocabulary"
+          ? "oral-vocabulary"
           : parsedInitialData.type === "writing-coach"
           ? "writing-coach"
           : parsedInitialData.type === "live-quiz"
           ? "live-quiz"
           : "worksheet")
-      : (typeParam === "image-hotspot-quiz" || typeParam === "interactive-reading" || typeParam === "vocabulary" || typeParam === "writing-coach" || typeParam === "live-quiz"
-          ? typeParam
+      : (typeParam === "image-hotspot-quiz" || typeParam === "interactive-reading" || typeParam === "vocabulary" || typeParam === "oral-vocabulary" || typeParam === "writing-coach" || typeParam === "live-quiz"
+          ? (typeParam as any)
           : "worksheet")
   );
 
@@ -127,7 +131,7 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
   const [error, setError] = useState<string | null>(null);
 
   const [vocabRawText, setVocabRawText] = useState(() => {
-    if (parsedInitialData && parsedInitialData.type === "vocabulary" && Array.isArray(parsedInitialData.vocabList)) {
+    if (parsedInitialData && (parsedInitialData.type === "vocabulary" || parsedInitialData.type === "oral-vocabulary") && Array.isArray(parsedInitialData.vocabList)) {
       return (parsedInitialData.vocabList as Array<Record<string, unknown>>)
         .map((item) => `${(item as Record<string, string>).word} = ${(item as Record<string, string>).translation}`)
         .join("\n");
@@ -135,19 +139,22 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
     return "";
   });
 
-  const [vocabItems, setVocabItems] = useState<Array<{ word: string; translation: string; image?: string }>>(() => {
-    if (parsedInitialData && parsedInitialData.type === "vocabulary" && Array.isArray(parsedInitialData.vocabList)) {
+  const [vocabItems, setVocabItems] = useState<Array<{ word: string; translation: string; image?: string; ttsEnabled?: boolean; wordAudio?: string; translationAudio?: string }>>(() => {
+    if (parsedInitialData && (parsedInitialData.type === "vocabulary" || parsedInitialData.type === "oral-vocabulary") && Array.isArray(parsedInitialData.vocabList)) {
       return (parsedInitialData.vocabList as Array<Record<string, unknown>>).map((item) => ({
         word: String(item.word || ""),
         translation: String(item.translation || ""),
         image: item.image ? String(item.image) : undefined,
+        ttsEnabled: !!item.ttsEnabled,
+        wordAudio: item.wordAudio ? String(item.wordAudio) : undefined,
+        translationAudio: item.translationAudio ? String(item.translationAudio) : undefined,
       }));
     }
     return [];
   });
 
   const [vocabPictureSupplementation, setVocabPictureSupplementation] = useState<boolean>(() => {
-    if (parsedInitialData && parsedInitialData.type === "vocabulary") {
+    if (parsedInitialData && (parsedInitialData.type === "vocabulary" || parsedInitialData.type === "oral-vocabulary")) {
       return !!(parsedInitialData as Record<string, unknown>).pictureSupplementation;
     }
     return false;
@@ -173,6 +180,9 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
         word: parsed.word,
         translation: parsed.translation,
         image: existing?.image,
+        ttsEnabled: existing?.ttsEnabled ?? false,
+        wordAudio: existing?.wordAudio,
+        translationAudio: existing?.translationAudio,
       };
     });
     setVocabItems(reconciled);
@@ -284,6 +294,7 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
           matchingPairs,
           keywords,
           orderingSentence,
+          ttsEnabled: !!qRecord.ttsEnabled,
         } as CreatorQuestion;
       });
     }
@@ -363,6 +374,7 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
           media: (p.media as string) || "",
           mediaStatus: p.media ? "✓ Loaded" : "",
           choices: (p.choices as ReadingPageCreator["choices"]) || [],
+          ttsEnabled: !!p.ttsEnabled,
           questions: ((p.questions as Array<Record<string, unknown>>) || []).map((q) => ({
             id: q.id as string,
             type: q.type as string,
@@ -561,6 +573,7 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
             media: p.media.trim() || undefined,
             choices: formattedChoices,
             questions: formattedQuestions,
+            ttsEnabled: p.ttsEnabled,
           };
         });
 
@@ -568,13 +581,20 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
           startPage: startPageId.trim(),
           pages: pagesObj,
         });
-      } else if (creatorMode === "vocabulary") {
+      } else if (creatorMode === "vocabulary" || creatorMode === "oral-vocabulary") {
         const lines = vocabRawText.split("\n").map((line: string) => line.trim()).filter(Boolean);
         if (lines.length === 0) {
           throw new Error("Please enter at least one vocabulary word pair (e.g. apple = Apfel).");
         }
 
-        const finalVocabList: Array<{ word: string; translation: string; image?: string }> = [];
+        const finalVocabList: Array<{
+          word: string;
+          translation: string;
+          image?: string;
+          ttsEnabled?: boolean;
+          wordAudio?: string;
+          translationAudio?: string;
+        }> = [];
         lines.forEach((line: string, lIdx: number) => {
           const parts = line.split("=");
           if (parts.length < 2) {
@@ -597,6 +617,9 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
             word,
             translation,
             image: matchedItem?.image || undefined,
+            ttsEnabled: matchedItem?.ttsEnabled,
+            wordAudio: matchedItem?.wordAudio,
+            translationAudio: matchedItem?.translationAudio,
           });
         });
 
@@ -694,6 +717,7 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
             question: q.question.trim(),
           };
 
+          if (q.ttsEnabled) base.ttsEnabled = true;
           if (q.media.trim()) base.media = q.media.trim();
           if (q.hint.trim()) base.hint = q.hint.trim();
 
@@ -927,6 +951,18 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
             </button>
             <button
               type="button"
+              onClick={() => setCreatorMode("oral-vocabulary")}
+              className={`px-3 py-1 text-xs font-semibold uppercase font-mono rounded border transition flex items-center gap-1 ${
+                creatorMode === "oral-vocabulary"
+                  ? "bg-black text-white dark:bg-white dark:text-black border-transparent"
+                  : "border-neutral-300 dark:border-neutral-700 text-neutral-500 hover:bg-neutral-50 dark:hover:bg-neutral-800"
+              }`}
+            >
+              <Volume2 className="w-3.5 h-3.5 text-blue-500" />
+              Oral Vocabulary Quiz
+            </button>
+            <button
+              type="button"
               onClick={() => setCreatorMode("writing-coach")}
               className={`px-3 py-1 text-xs font-semibold uppercase font-mono rounded border transition flex items-center gap-1 ${
                 creatorMode === "writing-coach"
@@ -972,7 +1008,7 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
                   placeholder="e.g. math-decimals-1"
                   value={id}
                   onChange={(e) => setId(e.target.value.replace(/[^a-zA-Z0-9-]/g, ""))}
-                  className="w-full text-sm border border-neutral-300 dark:border-neutral-750 rounded px-3 py-1.5 bg-transparent outline-none focus:border-black dark:focus:border-white font-mono disabled:opacity-60"
+                  className="w-full text-base border border-neutral-300 dark:border-neutral-750 rounded px-3 py-1.5 bg-transparent outline-none focus:border-black dark:focus:border-white font-mono disabled:opacity-60"
                 />
               </div>
 
@@ -986,7 +1022,7 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
                   placeholder="e.g. Decimals & Fractions quiz"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full text-sm border border-neutral-300 dark:border-neutral-750 rounded px-3 py-1.5 bg-transparent outline-none focus:border-black dark:focus:border-white"
+                  className="w-full text-base border border-neutral-300 dark:border-neutral-750 rounded px-3 py-1.5 bg-transparent outline-none focus:border-black dark:focus:border-white"
                 />
               </div>
             </div>
@@ -1000,7 +1036,7 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={2}
-                className="w-full text-sm border border-neutral-300 dark:border-neutral-750 rounded px-3 py-1.5 bg-transparent outline-none focus:border-black dark:focus:border-white"
+                className="w-full text-base border border-neutral-300 dark:border-neutral-750 rounded px-3 py-1.5 bg-transparent outline-none focus:border-black dark:focus:border-white"
               />
             </div>
 
@@ -1013,7 +1049,7 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
                 placeholder="e.g. spelling, vocabulary, verbs"
                 value={tags}
                 onChange={(e) => setTags(e.target.value)}
-                className="w-full text-sm border border-neutral-300 dark:border-neutral-750 rounded px-3 py-1.5 bg-transparent outline-none focus:border-black dark:focus:border-white"
+                className="w-full text-base border border-neutral-300 dark:border-neutral-750 rounded px-3 py-1.5 bg-transparent outline-none focus:border-black dark:focus:border-white"
               />
             </div>
 
@@ -1025,7 +1061,7 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
                 <select
                   value={selectedCourseId}
                   onChange={(e) => setSelectedCourseId(e.target.value)}
-                  className="w-full text-sm border border-neutral-300 dark:border-neutral-750 rounded px-3 py-1.5 bg-white dark:bg-neutral-900 outline-none focus:border-black dark:focus:border-white"
+                  className="w-full text-base border border-neutral-300 dark:border-neutral-750 rounded px-3 py-1.5 bg-white dark:bg-neutral-900 outline-none focus:border-black dark:focus:border-white"
                 >
                   <option value="">— No course (standalone) —</option>
                   {courses.map((c) => (
@@ -1075,7 +1111,7 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
             />
           )}
 
-          {creatorMode === "vocabulary" && (
+          {(creatorMode === "vocabulary" || creatorMode === "oral-vocabulary") && (
             <VocabularyBuilder
               exerciseId={id}
               vocabRawText={vocabRawText}
@@ -1085,6 +1121,7 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
               pictureSupplementation={vocabPictureSupplementation}
               setPictureSupplementation={setVocabPictureSupplementation}
               handleMediaUpload={handleMediaUpload}
+              isOralVocabulary={creatorMode === "oral-vocabulary"}
             />
           )}
 
@@ -1186,11 +1223,11 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
                   </p>
                 </div>
               </div>
-            ) : creatorMode === "vocabulary" ? (
+            ) : (creatorMode === "vocabulary" || creatorMode === "oral-vocabulary") ? (
               <div className="space-y-3">
                 <div className="space-y-1">
                   <span className="font-semibold text-neutral-850 dark:text-neutral-250 block">
-                    Vocabulary Setup:
+                    {creatorMode === "oral-vocabulary" ? "Oral Quiz Setup:" : "Vocabulary Setup:"}
                   </span>
                   <p className="leading-relaxed">
                     Copy and paste list in the format <code>word = translation</code> (e.g. <code>apple = Apfel</code>), one pair per line.
@@ -1198,10 +1235,12 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
                 </div>
                 <div className="space-y-1">
                   <span className="font-semibold text-neutral-850 dark:text-neutral-250 block">
-                    Tiered Study Loop:
+                    {creatorMode === "oral-vocabulary" ? "Audio Translation Test:" : "Tiered Study Loop:"}
                   </span>
                   <p className="leading-relaxed">
-                    Generates recognition flashcards, multiple-choice options, and spelling stages for pupils.
+                    {creatorMode === "oral-vocabulary"
+                      ? "Pupils hear the German audio automatically generated for the translation (e.g. Apfel) and translate to and write the English word (apple)."
+                      : "Generates recognition flashcards, multiple-choice options, and spelling stages for pupils."}
                   </p>
                 </div>
               </div>

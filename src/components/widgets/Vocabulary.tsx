@@ -22,6 +22,7 @@ function seededShuffle<T>(arr: T[], seed: number): T[] {
 
 export const Vocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
   config,
+  assetsPath,
   savedState,
   onChange,
   isReadOnly = false,
@@ -389,10 +390,25 @@ export const Vocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
     setSpellingInput("");
   };
 
-  const handleSpeak = (text: string) => {
+  const handleSpeak = (text: string, isTranslation: boolean = false) => {
+    // Check if pre-generated audio file exists
+    const audioFile = isTranslation ? activeWord.translationAudio : activeWord.wordAudio;
+    if (audioFile) {
+      const url = `${assetsPath}${audioFile}`;
+      const audio = new Audio(url);
+      audio.play().catch((err) => {
+        console.error("Pre-generated audio playback failed, falling back to synthesis:", err);
+        fallbackSpeak(text, isTranslation);
+      });
+    } else {
+      fallbackSpeak(text, isTranslation);
+    }
+  };
+
+  const fallbackSpeak = (text: string, isTranslation: boolean) => {
     if (typeof window !== "undefined" && window.speechSynthesis) {
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = "en-US";
+      utterance.lang = isTranslation ? "de-DE" : "en-US";
       window.speechSynthesis.speak(utterance);
     }
   };
@@ -904,17 +920,32 @@ export const Vocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
                   <span className="text-3xl font-extrabold text-green-700 dark:text-green-400 block leading-tight">
                     {activeWord.translation}
                   </span>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleSpeak(activeWord.word);
-                    }}
-                    className="inline-flex items-center gap-1 text-[10px] font-bold font-mono bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 px-2 py-1.5 rounded text-neutral-600 dark:text-neutral-350 transition"
-                  >
-                    <Volume2 className="w-3.5 h-3.5" />
-                    Pronounce
-                  </button>
+                  <div className="flex justify-center gap-2 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSpeak(activeWord.word, false);
+                      }}
+                      className="inline-flex items-center gap-1 text-[10px] font-bold font-mono bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 px-2 py-1.5 rounded text-neutral-600 dark:text-neutral-355 transition"
+                    >
+                      <Volume2 className="w-3.5 h-3.5" />
+                      Pronounce (EN)
+                    </button>
+                    {(activeWord.translationAudio || activeWord.ttsEnabled) && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSpeak(activeWord.translation, true);
+                        }}
+                        className="inline-flex items-center gap-1 text-[10px] font-bold font-mono bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 px-2 py-1.5 rounded text-blue-600 dark:text-blue-355 transition"
+                      >
+                        <Volume2 className="w-3.5 h-3.5 text-blue-500" />
+                        Pronounce (DE)
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

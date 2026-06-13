@@ -128,11 +128,11 @@ export const GapFill: React.FC<WidgetProps<GapFillConfig>> = ({
                       disabled={isReadOnly}
                       value={answers[gap.index] || ""}
                       onChange={(e) => handleChange(gap.index, e.target.value)}
-                      className={`text-sm rounded border px-2.5 py-1 outline-none transition ${
+                      className={`text-base md:text-sm rounded border px-2.5 py-1 outline-none transition ${
                         isReadOnly
                           ? (answers[gap.index] || "").trim().toLowerCase() === gap.correctAnswer.toLowerCase()
                             ? "bg-green-50 dark:bg-green-950/20 border-green-500 text-green-700 dark:text-green-300 font-semibold"
-                            : "bg-red-50 dark:bg-red-950/20 border-red-500 text-red-700 dark:text-red-300 font-semibold"
+                            : "bg-red-50 dark:bg-red-955/20 border-red-500 text-red-700 dark:text-red-300 font-semibold"
                           : "border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 focus:border-black dark:focus:border-white"
                       }`}
                     >
@@ -154,7 +154,7 @@ export const GapFill: React.FC<WidgetProps<GapFillConfig>> = ({
                       autoCorrect="off"
                       autoCapitalize="none"
                       spellCheck="false"
-                      className={`text-sm px-2.5 py-1 border-b outline-none transition w-32 ${
+                      className={`text-base md:text-sm px-2.5 py-1 border-b outline-none transition w-32 ${
                         isReadOnly
                           ? (answers[gap.index] || "").trim().toLowerCase() === gap.correctAnswer.toLowerCase()
                             ? "border-green-500 bg-green-50 dark:bg-green-950/20 text-green-700 dark:text-green-300 font-semibold"

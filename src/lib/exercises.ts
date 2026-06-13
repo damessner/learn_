@@ -24,6 +24,7 @@ const BaseExerciseSchema = z.object({
     "image-hotspot-quiz",
     "interactive-reading",
     "vocabulary",
+    "oral-vocabulary",
     "writing-coach",
     "live-quiz"
   ]),
@@ -198,6 +199,7 @@ export const InteractiveReadingSchema = BaseExerciseSchema.extend({
       title: z.string().optional(),
       text: z.string(),
       media: z.string().optional(),
+      ttsEnabled: z.boolean().optional(),
       choices: z.array(
         z.object({
           text: z.string(),
@@ -225,6 +227,24 @@ export const VocabularySchema = BaseExerciseSchema.extend({
       word: z.string(),
       translation: z.string(),
       image: z.string().optional(),
+      ttsEnabled: z.boolean().optional(),
+      wordAudio: z.string().optional(),
+      translationAudio: z.string().optional(),
+    })
+  ),
+  pictureSupplementation: z.boolean().optional(),
+});
+
+export const OralVocabularySchema = BaseExerciseSchema.extend({
+  type: z.literal("oral-vocabulary"),
+  vocabList: z.array(
+    z.object({
+      word: z.string(),
+      translation: z.string(),
+      image: z.string().optional(),
+      ttsEnabled: z.boolean().optional(),
+      wordAudio: z.string().optional(),
+      translationAudio: z.string().optional(),
     })
   ),
   pictureSupplementation: z.boolean().optional(),
@@ -261,6 +281,7 @@ export const WorksheetQuestionSchema = z.object({
   question: z.string().default(""),
   media: z.string().optional(), // general media input for questions
   hint: z.string().optional(), // optional hint
+  ttsEnabled: z.boolean().optional(),
   options: z.array(z.string()).optional(),
   correctOptionIndex: z.number().int().min(0).optional(),
   text: z.string().optional(),
@@ -340,6 +361,7 @@ export const ExerciseSchema = z.discriminatedUnion("type", [
   ImageHotspotQuizSchema,
   InteractiveReadingSchema,
   VocabularySchema,
+  OralVocabularySchema,
   WritingCoachSchema,
   LiveQuizSchema,
 ]);

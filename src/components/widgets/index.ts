@@ -12,6 +12,7 @@ import Ordering from "./Ordering";
 import ImageHotspotQuiz from "./ImageHotspotQuiz";
 import InteractiveReading from "./InteractiveReading";
 import Vocabulary from "./Vocabulary";
+import OralVocabulary from "./OralVocabulary";
 import { WritingCoach } from "./WritingCoach";
 import { WidgetProps } from "./types";
 
@@ -31,6 +32,7 @@ export const WIDGET_REGISTRY: Record<string, React.FC<WidgetProps<any>>> = {
   "image-hotspot-quiz": ImageHotspotQuiz,
   "interactive-reading": InteractiveReading,
   "vocabulary": Vocabulary,
+  "oral-vocabulary": OralVocabulary,
   "writing-coach": WritingCoach,
 };
 

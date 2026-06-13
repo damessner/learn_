@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { WidgetProps, InteractiveReadingConfig } from "./types";
 import { Check, ArrowRight, Award } from "lucide-react";
+import { MediaEmbed } from "./MediaEmbed";
 
 export const InteractiveReading: React.FC<WidgetProps<InteractiveReadingConfig>> = ({
   config,
@@ -152,12 +153,6 @@ export const InteractiveReading: React.FC<WidgetProps<InteractiveReadingConfig>>
     setIsCompleted(false);
   };
 
-  const imageUrl = page?.media
-    ? page.media.startsWith("http") || page.media.startsWith("/")
-      ? page.media
-      : `${assetsPath}${page.media}`
-    : null;
-
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       {/* Book Title Header */}
@@ -195,14 +190,9 @@ export const InteractiveReading: React.FC<WidgetProps<InteractiveReadingConfig>>
             </h4>
           )}
 
-          {imageUrl && (
-            <div className="relative border rounded overflow-hidden max-h-[40vh] bg-neutral-50 dark:bg-neutral-950/20">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={imageUrl}
-                alt={page.title || "Story Illustration"}
-                className="w-full h-auto max-h-[35vh] object-contain block mx-auto"
-              />
+          {page?.media && (
+            <div className="relative border rounded overflow-hidden max-h-[40vh] bg-neutral-50 dark:bg-neutral-95/20 dark:bg-neutral-950/20 p-2">
+              <MediaEmbed src={page.media} assetsPath={assetsPath} />
             </div>
           )}
 
@@ -286,7 +276,7 @@ export const InteractiveReading: React.FC<WidgetProps<InteractiveReadingConfig>>
                                 },
                               }));
                             }}
-                            className="w-full text-[11px] border border-neutral-300 dark:border-neutral-750 rounded px-2.5 py-1.5 bg-transparent outline-none focus:border-black dark:focus:border-white"
+                            className="w-full text-base md:text-sm border border-neutral-300 dark:border-neutral-750 rounded px-2.5 py-1.5 bg-transparent outline-none focus:border-black dark:focus:border-white"
                           />
                         </div>
                       )}

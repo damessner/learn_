@@ -191,6 +191,7 @@ export interface InteractiveReadingConfig {
       title?: string;
       text: string;
       media?: string;
+      ttsEnabled?: boolean;
       choices: Array<{
         text: string;
         nextPageId: string;
@@ -216,6 +217,25 @@ export interface VocabularyConfig {
     word: string;
     translation: string;
     image?: string;
+    ttsEnabled?: boolean;
+    wordAudio?: string;
+    translationAudio?: string;
+  }>;
+  pictureSupplementation?: boolean;
+}
+
+export interface OralVocabularyConfig {
+  id: string;
+  title: string;
+  description?: string;
+  type: "oral-vocabulary";
+  vocabList: Array<{
+    word: string;
+    translation: string;
+    image?: string;
+    ttsEnabled?: boolean;
+    wordAudio?: string;
+    translationAudio?: string;
   }>;
   pictureSupplementation?: boolean;
 }
@@ -269,6 +289,7 @@ export type WidgetConfig =
   | ImageHotspotQuizConfig
   | InteractiveReadingConfig
   | VocabularyConfig
+  | OralVocabularyConfig
   | WritingCoachConfig
   | LiveQuizConfig;
 

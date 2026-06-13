@@ -196,15 +196,13 @@ export default async function StudentDashboard() {
               ))}
             </div>
           </div>
-        )}
-
-        {/* Active Live Sessions */}
+        )}        {/* Active Live Sessions */}
         {activeLiveSessions.length > 0 && (
-          <div className="border border-purple-300 dark:border-purple-900 rounded-2xl bg-purple-50/10 dark:bg-purple-955/5 p-6 space-y-4 shadow-sm animate-pulse">
-            <h2 className="text-xs font-bold font-mono uppercase tracking-wider text-purple-650 dark:text-purple-400 flex items-center gap-2">
+          <div className="border border-neutral-200 dark:border-neutral-900 rounded-none bg-white/40 dark:bg-black/20 backdrop-blur-sm p-6 space-y-4">
+            <h2 className="text-xs font-bold font-mono uppercase tracking-wider text-black dark:text-white flex items-center gap-2">
               <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500"></span>
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#ff2a2e]"></span>
               </span>
               Active Live Quiz sessions ({activeLiveSessions.length})
             </h2>
@@ -212,24 +210,24 @@ export default async function StudentDashboard() {
               {activeLiveSessions.map((session) => (
                 <div
                   key={session.id}
-                  className="p-5 border border-purple-200 dark:border-purple-950 bg-white dark:bg-neutral-900 rounded-xl shadow-sm flex items-center justify-between gap-4 hover:scale-[1.005] transition duration-200"
+                  className="p-5 border border-neutral-200 dark:border-neutral-900 bg-white/40 dark:bg-black/25 rounded-none shadow-sm flex items-center justify-between gap-4 hover:border-black dark:hover:border-white transition duration-200"
                 >
                   <div className="space-y-1">
-                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-purple-600">
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#ff2a2e]">
                       PIN: {session.pin}
                     </span>
-                    <h3 className="font-extrabold text-sm text-neutral-900 dark:text-neutral-100">
+                    <h3 className="font-bold text-sm text-neutral-900 dark:text-neutral-100">
                       {session.exercise.title}
                     </h3>
-                    <p className="text-[10px] text-neutral-450">
-                      Status: <span className="font-semibold uppercase">{session.status}</span>
+                    <p className="text-[10px] text-neutral-500 uppercase tracking-wide font-mono">
+                      Status: <span className="font-semibold">{session.status}</span>
                     </p>
                   </div>
                   <Link
                     href={`/student/live-quiz/join?pin=${session.pin}`}
-                    className="bg-purple-650 hover:bg-purple-700 text-white font-mono font-bold text-xs px-4 py-2.5 rounded-xl uppercase tracking-wider hover:opacity-90 transition shadow-sm shrink-0"
+                    className="bg-black text-white dark:bg-white dark:text-black border border-black dark:border-white font-mono font-bold text-xs px-4 py-2.5 rounded-none uppercase tracking-widest hover:bg-transparent hover:text-black dark:hover:bg-transparent dark:hover:text-white transition duration-200 shrink-0"
                   >
-                    Join Quiz 🚀
+                    Join Quiz &rarr;
                   </Link>
                 </div>
               ))}
@@ -242,9 +240,9 @@ export default async function StudentDashboard() {
 
         {/* Classrooms & Assignments */}
         {classroomsJoined.length === 0 ? (
-          <div className="text-center py-12 border border-dashed rounded text-neutral-500 space-y-4">
+          <div className="text-center py-12 border border-dashed border-neutral-300 dark:border-neutral-800 rounded-none text-neutral-500 space-y-4 font-mono text-xs uppercase">
             <p>You have not joined any classrooms yet.</p>
-            <p className="text-xs">
+            <p className="text-[10px] normal-case text-neutral-450 max-w-md mx-auto">
               Enter a join code above or register a new student account using a classroom Join Code provided by your teacher.
             </p>
           </div>
@@ -253,9 +251,9 @@ export default async function StudentDashboard() {
             {classroomsJoined.map(({ classroom }) => (
               <div
                 key={classroom.id}
-                className="border border-neutral-300 dark:border-neutral-800 rounded bg-white dark:bg-neutral-900 shadow-sm p-6 space-y-4"
+                className="border border-neutral-200 dark:border-neutral-900 rounded-none bg-white/40 dark:bg-black/20 backdrop-blur-sm p-6 space-y-4"
               >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-200 dark:border-neutral-900 pb-3">
                   <div>
                     <h2 className="text-xl font-bold font-mono uppercase text-neutral-900 dark:text-neutral-100 flex items-center gap-2">
                       <Users className="w-5 h-5 text-neutral-500" />
@@ -265,7 +263,7 @@ export default async function StudentDashboard() {
                       Teacher: <span className="font-semibold">{classroom.teacher.username}</span>
                     </p>
                   </div>
-                  <span className="text-[10px] font-mono uppercase bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 rounded text-neutral-600 dark:text-neutral-300 self-start sm:self-center">
+                  <span className="text-[10px] font-mono uppercase border border-neutral-300 dark:border-neutral-800 px-2.5 py-0.5 rounded-none text-neutral-600 dark:text-neutral-400 self-start sm:self-center">
                     Join Code: {classroom.joinCode}
                   </span>
                 </div>
@@ -282,12 +280,12 @@ export default async function StudentDashboard() {
                       return (
                         <details
                           key={courseAssignment.id}
-                          className="group border border-neutral-200 dark:border-neutral-800 rounded overflow-hidden"
+                          className="group border border-neutral-200 dark:border-neutral-900 rounded-none overflow-hidden"
                         >
-                          <summary className="flex items-center justify-between gap-3 px-4 py-3 cursor-pointer bg-neutral-50 dark:bg-neutral-800/50 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition text-sm font-mono uppercase list-none [&::-webkit-details-marker]:hidden">
+                          <summary className="flex items-center justify-between gap-3 px-4 py-3 cursor-pointer bg-white/40 dark:bg-black/20 hover:bg-neutral-50 dark:hover:bg-neutral-950/45 border-b border-neutral-200 dark:border-neutral-900 transition text-sm font-mono uppercase list-none [&::-webkit-details-marker]:hidden">
                             <div className="flex items-center gap-2 min-w-0">
                               <FolderOpen className="w-4 h-4 shrink-0 text-neutral-500" />
-                              <span className="font-semibold text-neutral-900 dark:text-neutral-100 truncate">
+                              <span className="font-bold text-neutral-900 dark:text-neutral-100 truncate">
                                 {courseAssignment.course.title}
                               </span>
                             </div>
@@ -303,7 +301,7 @@ export default async function StudentDashboard() {
                             </div>
                           </summary>
 
-                          <div className="divide-y divide-neutral-200 dark:divide-neutral-800">
+                          <div className="divide-y divide-neutral-200 dark:divide-neutral-900">
                             {courseAssignment.assignments.map((assignment) => {
                               const submissions = assignment.submissions;
                               const attemptCount = submissions.length;
@@ -316,28 +314,28 @@ export default async function StudentDashboard() {
                               return (
                                 <div
                                   key={assignment.id}
-                                  className="py-3 px-4 first:pt-3 last:pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                                  className="py-3.5 px-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white/5 dark:bg-black/5"
                                 >
                                   <div className="space-y-1">
                                     <h4 className="font-bold text-sm text-neutral-900 dark:text-neutral-200">
                                       {assignment.exercise.title}
                                     </h4>
                                     <div className="flex flex-wrap items-center gap-3 text-xs text-neutral-500">
-                                      <span className="font-mono uppercase text-[10px] bg-neutral-100 dark:bg-neutral-850 px-1.5 py-0.5 rounded">
+                                      <span className="font-mono uppercase text-[9px] border border-neutral-250 dark:border-neutral-850 px-1.5 py-0.5 rounded-none">
                                         {getExerciseTypeLabel(assignment.exercise.type)}
                                       </span>
                                       {assignment.dueDate && (
-                                        <span className="font-mono">
+                                        <span className="font-mono text-[10px]">
                                           Due: {new Date(assignment.dueDate).toLocaleDateString("en-GB")}
                                         </span>
                                       )}
                                       {renderDueDateBadge(assignment.dueDate, isCompleted)}
                                       {isCompleted && attemptCount > 0 && (
-                                        <details className="text-xs text-neutral-500 mt-2 select-none w-full">
+                                        <details className="text-xs text-neutral-550 mt-2 select-none w-full">
                                           <summary className="cursor-pointer hover:text-black dark:hover:text-white transition font-mono font-semibold flex items-center gap-1">
                                             History ({attemptCount} attempt{attemptCount !== 1 ? "s" : ""})
                                           </summary>
-                                          <ul className="mt-1.5 space-y-1.5 pl-3 border-l border-neutral-200 dark:border-neutral-800">
+                                          <ul className="mt-1.5 space-y-1.5 pl-3 border-l border-neutral-250 dark:border-neutral-800">
                                             {submissions.map((sub, sIdx) => {
                                               const subNum = attemptCount - sIdx;
                                               const subScore = sub.teacherScore !== null ? sub.teacherScore : sub.effectiveScore;
@@ -367,21 +365,21 @@ export default async function StudentDashboard() {
                                   <div className="flex items-center gap-3 self-end sm:self-center shrink-0">
                                     {isCompleted ? (
                                       <div className="flex items-center gap-3">
-                                        <div className="flex items-center gap-1.5 text-xs text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950/20 border border-green-200/50 dark:border-green-900/50 px-2.5 py-1.5 rounded">
+                                        <div className="flex items-center gap-1.5 text-xs text-green-700 dark:text-green-400 border border-green-500 bg-green-500/5 px-2.5 py-1.5 rounded-none font-mono">
                                           <Trophy className="w-3.5 h-3.5 shrink-0" />
                                           <div className="flex flex-col leading-tight">
                                             <span className="font-bold">
                                               {bestEffective?.toFixed(0)}%
                                             </span>
-                                            <span className="text-[9px] font-mono opacity-80">
-                                              Best score
+                                            <span className="text-[9px] font-mono opacity-80 uppercase tracking-wider">
+                                              Best Score
                                             </span>
                                           </div>
                                         </div>
 
                                         <Link
                                           href={`/assignments/${assignment.id}`}
-                                          className="flex items-center gap-1.5 text-xs font-semibold uppercase font-mono border border-neutral-350 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 px-3 py-2 rounded transition text-neutral-700 dark:text-neutral-300"
+                                          className="flex items-center gap-1.5 text-[10px] font-bold uppercase font-mono border border-neutral-300 dark:border-neutral-800 bg-transparent hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black px-3 py-2 rounded-none transition duration-150 text-neutral-700 dark:text-neutral-300"
                                           title={`Attempt #${attemptCount + 1} — score ×${attemptCount === 1 ? "75" : attemptCount === 2 ? "50" : "25"}%`}
                                         >
                                           <RotateCcw className="w-3 h-3" />
@@ -390,13 +388,13 @@ export default async function StudentDashboard() {
                                       </div>
                                     ) : (
                                       <div className="flex items-center gap-3">
-                                        <div className="flex items-center gap-1 text-xs text-amber-700 dark:text-amber-500 bg-amber-50 dark:bg-amber-950/20 px-2 py-1 rounded">
+                                        <div className="flex items-center gap-1.5 text-[9px] uppercase font-mono border border-neutral-300 dark:border-neutral-800 text-neutral-600 dark:text-neutral-400 px-2 py-1 rounded-none">
                                           <AlertCircle className="w-3.5 h-3.5" />
                                           <span>Not Started</span>
                                         </div>
                                         <Link
                                           href={`/assignments/${assignment.id}`}
-                                          className="flex items-center gap-1 bg-black text-white dark:bg-white dark:text-black px-4 py-2 rounded text-xs font-semibold font-mono uppercase hover:opacity-90 transition shadow cursor-pointer"
+                                          className="flex items-center gap-1.5 bg-black text-white dark:bg-white dark:text-black border border-black dark:border-white px-4 py-2 rounded-none text-xs font-bold font-mono uppercase hover:bg-transparent hover:text-black dark:hover:bg-transparent dark:hover:text-white transition duration-200 cursor-pointer"
                                         >
                                           <Play className="w-3 h-3 fill-current" />
                                           Start
@@ -421,12 +419,12 @@ export default async function StudentDashboard() {
                   );
                   return standaloneAssignments.length > 0 ? (
                     <div className="space-y-3">
-                      <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-500 flex items-center gap-1.5">
+                      <h3 className="text-xs font-bold uppercase tracking-widest text-[#ff2a2e] flex items-center gap-1.5">
                         <BookOpen className="w-3.5 h-3.5" />
                         Assignments
                       </h3>
 
-                      <div className="divide-y divide-neutral-200 dark:divide-neutral-800">
+                      <div className="divide-y divide-neutral-200 dark:divide-neutral-900 border border-neutral-200 dark:border-neutral-900 rounded-none overflow-hidden">
                         {standaloneAssignments.map((assignment) => {
                           const submissions = assignment.submissions;
                           const attemptCount = submissions.length;
@@ -440,28 +438,28 @@ export default async function StudentDashboard() {
                           return (
                             <div
                               key={assignment.id}
-                              className="py-4 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                              className="py-3.5 px-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white/5 dark:bg-black/5"
                             >
                               <div className="space-y-1.5">
-                                <h4 className="font-bold text-base text-neutral-900 dark:text-neutral-200">
+                                <h4 className="font-bold text-sm text-neutral-900 dark:text-neutral-200">
                                   {assignment.exercise.title}
                                 </h4>
                                 <div className="flex flex-wrap items-center gap-3 text-xs text-neutral-500">
-                                  <span className="font-mono uppercase text-[10px] bg-neutral-100 dark:bg-neutral-850 px-1.5 py-0.5 rounded">
+                                  <span className="font-mono uppercase text-[9px] border border-neutral-250 dark:border-neutral-850 px-1.5 py-0.5 rounded-none">
                                     {getExerciseTypeLabel(assignment.exercise.type)}
                                   </span>
                                   {assignment.dueDate && (
-                                    <span className="font-mono">
+                                    <span className="font-mono text-[10px]">
                                       Due: {new Date(assignment.dueDate).toLocaleDateString("en-GB")}
                                     </span>
                                   )}
                                   {renderDueDateBadge(assignment.dueDate, isCompleted)}
                                   {isCompleted && attemptCount > 0 && (
-                                    <details className="text-xs text-neutral-500 mt-2 select-none w-full">
+                                    <details className="text-xs text-neutral-550 mt-2 select-none w-full">
                                       <summary className="cursor-pointer hover:text-black dark:hover:text-white transition font-mono font-semibold flex items-center gap-1">
                                         History ({attemptCount} attempt{attemptCount !== 1 ? "s" : ""})
                                       </summary>
-                                      <ul className="mt-1.5 space-y-1.5 pl-3 border-l border-neutral-200 dark:border-neutral-800">
+                                      <ul className="mt-1.5 space-y-1.5 pl-3 border-l border-neutral-250 dark:border-neutral-800">
                                         {submissions.map((sub, sIdx) => {
                                           const subNum = attemptCount - sIdx;
                                           const subScore = sub.teacherScore !== null ? sub.teacherScore : sub.effectiveScore;
@@ -474,7 +472,7 @@ export default async function StudentDashboard() {
                                                 <span className="font-bold">{subScore}%</span>
                                                 <Link
                                                   href={`/submissions/${sub.id}`}
-                                                  className="text-neutral-455 hover:text-black dark:hover:text-white underline"
+                                                  className="text-neutral-450 hover:text-black dark:hover:text-white underline"
                                                 >
                                                   Review
                                                 </Link>
@@ -492,14 +490,14 @@ export default async function StudentDashboard() {
                                 {isCompleted ? (
                                   <div className="flex items-center gap-3">
                                     {/* Best effective score badge */}
-                                    <div className="flex items-center gap-1.5 text-xs text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950/20 border border-green-200/50 dark:border-green-900/50 px-2.5 py-1.5 rounded">
+                                    <div className="flex items-center gap-1.5 text-xs text-green-700 dark:text-green-400 border border-green-500 bg-green-500/5 px-2.5 py-1.5 rounded-none font-mono">
                                       <Trophy className="w-3.5 h-3.5 shrink-0" />
                                       <div className="flex flex-col leading-tight">
                                         <span className="font-bold">
                                           {bestEffective?.toFixed(0)}%
                                         </span>
-                                        <span className="text-[9px] font-mono opacity-80">
-                                          Best score
+                                        <span className="text-[9px] font-mono opacity-80 uppercase tracking-wider">
+                                          Best Score
                                         </span>
                                       </div>
                                     </div>
@@ -507,7 +505,7 @@ export default async function StudentDashboard() {
                                     {/* Redo button */}
                                     <Link
                                       href={`/assignments/${assignment.id}`}
-                                      className="flex items-center gap-1.5 text-xs font-semibold uppercase font-mono border border-neutral-350 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 px-3 py-2 rounded transition text-neutral-700 dark:text-neutral-300"
+                                      className="flex items-center gap-1.5 text-[10px] font-bold uppercase font-mono border border-neutral-300 dark:border-neutral-800 bg-transparent hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black px-3 py-2 rounded-none transition duration-150 text-neutral-700 dark:text-neutral-300"
                                       title={`Attempt #${attemptCount + 1} — score ×${attemptCount === 1 ? "75" : attemptCount === 2 ? "50" : "25"}%`}
                                     >
                                       <RotateCcw className="w-3 h-3" />
@@ -516,13 +514,13 @@ export default async function StudentDashboard() {
                                   </div>
                                 ) : (
                                   <div className="flex items-center gap-3">
-                                    <div className="flex items-center gap-1 text-xs text-amber-700 dark:text-amber-500 bg-amber-50 dark:bg-amber-950/20 px-2 py-1 rounded">
+                                    <div className="flex items-center gap-1.5 text-[9px] uppercase font-mono border border-neutral-300 dark:border-neutral-800 text-neutral-600 dark:text-neutral-400 px-2 py-1 rounded-none">
                                       <AlertCircle className="w-3.5 h-3.5" />
                                       <span>Not Started</span>
                                     </div>
                                     <Link
                                       href={`/assignments/${assignment.id}`}
-                                      className="flex items-center gap-1 bg-black text-white dark:bg-white dark:text-black px-4 py-2 rounded text-xs font-semibold font-mono uppercase hover:opacity-90 transition shadow cursor-pointer"
+                                      className="flex items-center gap-1.5 bg-black text-white dark:bg-white dark:text-black border border-black dark:border-white px-4 py-2 rounded-none text-xs font-bold font-mono uppercase hover:bg-transparent hover:text-black dark:hover:bg-transparent dark:hover:text-white transition duration-200 cursor-pointer"
                                     >
                                       <Play className="w-3 h-3 fill-current" />
                                       Start

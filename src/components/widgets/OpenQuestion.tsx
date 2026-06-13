@@ -276,7 +276,7 @@ export const OpenQuestion: React.FC<WidgetProps<OpenQuestionConfig>> = ({
           autoCorrect="off"
           autoCapitalize="none"
           spellCheck="false"
-          className={`w-full text-sm border rounded p-3 bg-transparent outline-none transition ${
+          className={`w-full text-base md:text-sm border rounded p-3 bg-transparent outline-none transition ${
             isReadOnly
               ? isPassing
                 ? "border-green-500 bg-green-50/10"

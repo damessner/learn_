@@ -37,6 +37,7 @@ export interface CreatorQuestion {
   }>;
   keywords: string; // open-question space/comma separated
   orderingSentence: string;
+  ttsEnabled?: boolean;
 }
 
 interface WorksheetQuestionsBuilderProps {
@@ -171,9 +172,20 @@ export function WorksheetQuestionsBuilder({
             {q.type !== "media" && q.type !== "instruction" && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-semibold uppercase tracking-wider text-neutral-450">
-                    Task Prompt / Prompt Instructions
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-semibold uppercase tracking-wider text-neutral-450">
+                      Task Prompt / Prompt Instructions
+                    </label>
+                    <label className="flex items-center gap-1 text-[10px] font-mono font-bold text-neutral-450 select-none cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={q.ttsEnabled || false}
+                        onChange={(e) => updateQuestion(q.id, { ttsEnabled: e.target.checked })}
+                        className="h-3.5 w-3.5 cursor-pointer accent-purple-650"
+                      />
+                      <span>🔊 English TTS</span>
+                    </label>
+                  </div>
                   <input
                     type="text"
                     required

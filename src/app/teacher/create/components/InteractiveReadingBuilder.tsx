@@ -9,6 +9,7 @@ export interface ReadingPageCreator {
   text: string;
   media: string;
   mediaStatus: string;
+  ttsEnabled?: boolean;
   choices: Array<{
     text: string;
     nextPageId: string;
@@ -54,6 +55,7 @@ export function InteractiveReadingBuilder({
         text: "",
         media: "",
         mediaStatus: "",
+        ttsEnabled: false,
         choices: [],
         questions: [],
       },
@@ -267,9 +269,20 @@ export function InteractiveReadingBuilder({
           {/* Title and Media Illustration Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1">
-              <label className="text-[10px] font-semibold uppercase tracking-wider text-neutral-450 block">
-                Page Title Header
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="text-[10px] font-semibold uppercase tracking-wider text-neutral-450 block">
+                  Page Title Header
+                </label>
+                <label className="flex items-center gap-1 text-[10px] font-mono font-bold text-neutral-450 select-none cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={p.ttsEnabled || false}
+                    onChange={(e) => updateReadingPage(p.id, { ttsEnabled: e.target.checked })}
+                    className="h-3.5 w-3.5 cursor-pointer accent-purple-650"
+                  />
+                  <span>🔊 English TTS</span>
+                </label>
+              </div>
               <input
                 type="text"
                 placeholder="e.g. Inside the Giant Castle"

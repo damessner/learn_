@@ -133,126 +133,126 @@ export default async function TeacherDashboard({
             {/* Mixed Worksheet Card */}
             <Link
               href="/teacher/create?type=worksheet"
-              className="group p-5 border border-neutral-200 dark:border-neutral-800 rounded-xl bg-white hover:bg-blue-50/20 dark:bg-neutral-900 dark:hover:bg-blue-955/10 shadow-sm hover:shadow hover:border-blue-300 dark:hover:border-blue-900/60 transition duration-300 flex flex-col justify-between h-40"
+              className="group p-5 border border-neutral-200 dark:border-neutral-900 rounded-none bg-white/40 dark:bg-black/20 backdrop-blur-sm hover:bg-neutral-50 dark:hover:bg-neutral-950/40 hover:border-black dark:hover:border-white transition duration-200 flex flex-col justify-between h-40"
             >
               <div className="space-y-2">
-                <div className="p-2 w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-950/50 text-blue-650 dark:text-blue-400 group-hover:scale-110 transition duration-300 flex items-center justify-center">
-                  <FileText className="w-5 h-5" />
+                <div className="p-2 w-9 h-9 rounded-none bg-neutral-100 dark:bg-neutral-900 text-neutral-800 dark:text-neutral-250 flex items-center justify-center">
+                  <FileText className="w-4 h-4" />
                 </div>
-                <h3 className="font-extrabold text-sm text-neutral-900 dark:text-neutral-100 group-hover:text-blue-600 dark:group-hover:text-blue-450 transition">
-                  Mixed Worksheet
+                <h3 className="font-bold text-xs font-mono uppercase tracking-widest text-neutral-900 dark:text-neutral-100 group-hover:text-[#ff2a2e] transition">
+                  Worksheet
                 </h3>
-                <p className="text-[11px] leading-relaxed text-neutral-450 dark:text-neutral-500">
-                  Multiple choice, gap-fill, matching, ordering.
+                <p className="text-[10px] leading-relaxed text-neutral-500">
+                  Multiple choice, gap-fill, matching, ordering formats.
                 </p>
               </div>
-              <span className="text-[9px] font-bold font-mono uppercase tracking-wider text-blue-650 dark:text-blue-400 group-hover:underline">
-                Build Worksheet &rarr;
+              <span className="text-[8px] font-bold font-mono uppercase tracking-widest text-neutral-500 group-hover:text-black dark:group-hover:text-white">
+                BUILD &rarr;
               </span>
             </Link>
 
             {/* AI Writing Coach Card */}
             <Link
               href="/teacher/create?type=writing-coach"
-              className="group p-5 border border-neutral-200 dark:border-neutral-800 rounded-xl bg-white hover:bg-purple-50/20 dark:bg-neutral-900 dark:hover:bg-purple-955/10 shadow-sm hover:shadow hover:border-purple-300 dark:hover:border-purple-900/60 transition duration-300 flex flex-col justify-between h-40"
+              className="group p-5 border border-neutral-200 dark:border-neutral-900 rounded-none bg-white/40 dark:bg-black/20 backdrop-blur-sm hover:bg-neutral-50 dark:hover:bg-neutral-950/40 hover:border-black dark:hover:border-white transition duration-200 flex flex-col justify-between h-40"
             >
               <div className="space-y-2">
-                <div className="p-2 w-9 h-9 rounded-lg bg-purple-50 dark:bg-purple-950/50 text-purple-650 dark:text-purple-400 group-hover:scale-110 transition duration-300 flex items-center justify-center">
-                  <Sparkles className="w-5 h-5 animate-pulse" />
+                <div className="p-2 w-9 h-9 rounded-none bg-neutral-100 dark:bg-neutral-900 text-neutral-800 dark:text-neutral-250 flex items-center justify-center">
+                  <Sparkles className="w-4 h-4" />
                 </div>
-                <h3 className="font-extrabold text-sm text-neutral-900 dark:text-neutral-100 group-hover:text-purple-600 dark:group-hover:text-purple-450 transition">
-                  AI Writing Coach
+                <h3 className="font-bold text-xs font-mono uppercase tracking-widest text-neutral-900 dark:text-neutral-100 group-hover:text-[#ff2a2e] transition">
+                  AI Coach
                 </h3>
-                <p className="text-[11px] leading-relaxed text-neutral-450 dark:text-neutral-500">
-                  Gemini-powered formative Socratic writing loops.
+                <p className="text-[10px] leading-relaxed text-neutral-500">
+                  Gemini-powered Socratic writing guidance loops.
                 </p>
               </div>
-              <span className="text-[9px] font-bold font-mono uppercase tracking-wider text-purple-650 dark:text-purple-400 group-hover:underline">
-                Create Coach &rarr;
+              <span className="text-[8px] font-bold font-mono uppercase tracking-widest text-neutral-500 group-hover:text-black dark:group-hover:text-white">
+                CREATE &rarr;
               </span>
             </Link>
 
             {/* Vocabulary Card */}
             <Link
               href="/teacher/create?type=vocabulary"
-              className="group p-5 border border-neutral-200 dark:border-neutral-800 rounded-xl bg-white hover:bg-emerald-50/20 dark:bg-neutral-900 dark:hover:bg-emerald-955/10 shadow-sm hover:shadow hover:border-emerald-300 dark:hover:border-emerald-900/60 transition duration-300 flex flex-col justify-between h-40"
+              className="group p-5 border border-neutral-200 dark:border-neutral-900 rounded-none bg-white/40 dark:bg-black/20 backdrop-blur-sm hover:bg-neutral-50 dark:hover:bg-neutral-950/40 hover:border-black dark:hover:border-white transition duration-200 flex flex-col justify-between h-40"
             >
               <div className="space-y-2">
-                <div className="p-2 w-9 h-9 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 text-emerald-650 dark:text-emerald-400 group-hover:scale-110 transition duration-300 flex items-center justify-center">
-                  <BookOpen className="w-5 h-5" />
+                <div className="p-2 w-9 h-9 rounded-none bg-neutral-100 dark:bg-neutral-900 text-neutral-800 dark:text-neutral-250 flex items-center justify-center">
+                  <BookOpen className="w-4 h-4" />
                 </div>
-                <h3 className="font-extrabold text-sm text-neutral-900 dark:text-neutral-100 group-hover:text-emerald-600 dark:group-hover:text-emerald-450 transition">
-                  Vocabulary Practice
+                <h3 className="font-bold text-xs font-mono uppercase tracking-widest text-neutral-900 dark:text-neutral-100 group-hover:text-[#ff2a2e] transition">
+                  Vocabulary
                 </h3>
-                <p className="text-[11px] leading-relaxed text-neutral-450 dark:text-neutral-500">
-                  Drills, spelling rounds, and AI cloze challenge.
+                <p className="text-[10px] leading-relaxed text-neutral-500">
+                  Spelling rounds, flashcards, and cloze tests.
                 </p>
               </div>
-              <span className="text-[9px] font-bold font-mono uppercase tracking-wider text-emerald-650 dark:text-emerald-400 group-hover:underline">
-                Create Practice &rarr;
+              <span className="text-[8px] font-bold font-mono uppercase tracking-widest text-neutral-500 group-hover:text-black dark:group-hover:text-white">
+                CREATE &rarr;
               </span>
             </Link>
 
             {/* Image Hotspot Card */}
             <Link
               href="/teacher/create?type=image-hotspot-quiz"
-              className="group p-5 border border-neutral-200 dark:border-neutral-800 rounded-xl bg-white hover:bg-amber-50/20 dark:bg-neutral-900 dark:hover:bg-amber-955/10 shadow-sm hover:shadow hover:border-amber-300 dark:hover:border-amber-900/60 transition duration-300 flex flex-col justify-between h-40"
+              className="group p-5 border border-neutral-200 dark:border-neutral-900 rounded-none bg-white/40 dark:bg-black/20 backdrop-blur-sm hover:bg-neutral-50 dark:hover:bg-neutral-950/40 hover:border-black dark:hover:border-white transition duration-200 flex flex-col justify-between h-40"
             >
               <div className="space-y-2">
-                <div className="p-2 w-9 h-9 rounded-lg bg-amber-50 dark:bg-amber-950/50 text-amber-650 dark:text-amber-400 group-hover:scale-110 transition duration-300 flex items-center justify-center">
-                  <Crosshair className="w-5 h-5" />
+                <div className="p-2 w-9 h-9 rounded-none bg-neutral-100 dark:bg-neutral-900 text-neutral-800 dark:text-neutral-250 flex items-center justify-center">
+                  <Crosshair className="w-4 h-4" />
                 </div>
-                <h3 className="font-extrabold text-sm text-neutral-900 dark:text-neutral-100 group-hover:text-amber-600 dark:group-hover:text-amber-450 transition">
-                  Image Hotspot Quiz
+                <h3 className="font-bold text-xs font-mono uppercase tracking-widest text-neutral-900 dark:text-neutral-100 group-hover:text-[#ff2a2e] transition">
+                  Hotspot
                 </h3>
-                <p className="text-[11px] leading-relaxed text-neutral-450 dark:text-neutral-500">
-                  Interactive find-and-tap visual region quizzes.
+                <p className="text-[10px] leading-relaxed text-neutral-500">
+                  Tap-target visual interactive quiz builder.
                 </p>
               </div>
-              <span className="text-[9px] font-bold font-mono uppercase tracking-wider text-amber-650 dark:text-amber-400 group-hover:underline">
-                Create Quiz &rarr;
+              <span className="text-[8px] font-bold font-mono uppercase tracking-widest text-neutral-500 group-hover:text-black dark:group-hover:text-white">
+                CREATE &rarr;
               </span>
             </Link>
 
             {/* Interactive Reading Card */}
             <Link
               href="/teacher/create?type=interactive-reading"
-              className="group p-5 border border-neutral-200 dark:border-neutral-800 rounded-xl bg-white hover:bg-rose-50/20 dark:bg-neutral-900 dark:hover:bg-rose-955/10 shadow-sm hover:shadow hover:border-rose-300 dark:hover:border-rose-900/60 transition duration-300 flex flex-col justify-between h-40"
+              className="group p-5 border border-neutral-200 dark:border-neutral-900 rounded-none bg-white/40 dark:bg-black/20 backdrop-blur-sm hover:bg-neutral-50 dark:hover:bg-neutral-950/40 hover:border-black dark:hover:border-white transition duration-200 flex flex-col justify-between h-40"
             >
               <div className="space-y-2">
-                <div className="p-2 w-9 h-9 rounded-lg bg-rose-50 dark:bg-rose-950/50 text-rose-650 dark:text-rose-400 group-hover:scale-110 transition duration-300 flex items-center justify-center">
-                  <Compass className="w-5 h-5" />
+                <div className="p-2 w-9 h-9 rounded-none bg-neutral-100 dark:bg-neutral-900 text-neutral-800 dark:text-neutral-250 flex items-center justify-center">
+                  <Compass className="w-4 h-4" />
                 </div>
-                <h3 className="font-extrabold text-sm text-neutral-900 dark:text-neutral-100 group-hover:text-rose-650 dark:group-hover:text-rose-400 transition">
-                  Interactive Reading
+                <h3 className="font-bold text-xs font-mono uppercase tracking-widest text-neutral-900 dark:text-neutral-100 group-hover:text-[#ff2a2e] transition">
+                  Reading
                 </h3>
-                <p className="text-[11px] leading-relaxed text-neutral-450 dark:text-neutral-500">
-                  Choose-your-own branching storytelling paths.
+                <p className="text-[10px] leading-relaxed text-neutral-500">
+                  Choose-your-own branching narrative stories.
                 </p>
               </div>
-              <span className="text-[9px] font-bold font-mono uppercase tracking-wider text-rose-650 dark:text-rose-400 group-hover:underline">
-                Create Story &rarr;
+              <span className="text-[8px] font-bold font-mono uppercase tracking-widest text-neutral-500 group-hover:text-black dark:group-hover:text-white">
+                CREATE &rarr;
               </span>
             </Link>
 
             {/* Live Quiz Card */}
             <Link
               href="/teacher/create?type=live-quiz"
-              className="group p-5 border border-neutral-200 dark:border-neutral-800 rounded-xl bg-white hover:bg-violet-50/20 dark:bg-neutral-900 dark:hover:bg-violet-955/10 shadow-sm hover:shadow hover:border-violet-300 dark:hover:border-violet-900/60 transition duration-300 flex flex-col justify-between h-40"
+              className="group p-5 border border-neutral-200 dark:border-neutral-900 rounded-none bg-white/40 dark:bg-black/20 backdrop-blur-sm hover:bg-neutral-50 dark:hover:bg-neutral-950/40 hover:border-black dark:hover:border-white transition duration-200 flex flex-col justify-between h-40"
             >
               <div className="space-y-2">
-                <div className="p-2 w-9 h-9 rounded-lg bg-violet-50 dark:bg-violet-950/50 text-violet-650 dark:text-violet-400 group-hover:scale-110 transition duration-300 flex items-center justify-center">
-                  <HelpCircle className="w-5 h-5 animate-pulse" />
+                <div className="p-2 w-9 h-9 rounded-none bg-neutral-100 dark:bg-neutral-900 text-neutral-800 dark:text-neutral-250 flex items-center justify-center">
+                  <HelpCircle className="w-4 h-4" />
                 </div>
-                <h3 className="font-extrabold text-sm text-neutral-900 dark:text-neutral-100 group-hover:text-violet-600 dark:group-hover:text-violet-450 transition">
+                <h3 className="font-bold text-xs font-mono uppercase tracking-widest text-neutral-900 dark:text-neutral-100 group-hover:text-[#ff2a2e] transition">
                   Live Quiz
                 </h3>
-                <p className="text-[11px] leading-relaxed text-neutral-450 dark:text-neutral-500">
-                  Synchronous Kahoot-like real-time quizzes.
+                <p className="text-[10px] leading-relaxed text-neutral-500">
+                  Synchronous real-time classroom competition.
                 </p>
               </div>
-              <span className="text-[9px] font-bold font-mono uppercase tracking-wider text-violet-650 dark:text-violet-400 group-hover:underline">
-                Create Live Quiz &rarr;
+              <span className="text-[8px] font-bold font-mono uppercase tracking-widest text-neutral-500 group-hover:text-black dark:group-hover:text-white">
+                CREATE &rarr;
               </span>
             </Link>
           </div>
@@ -260,11 +260,11 @@ export default async function TeacherDashboard({
 
         {/* Configuration Forms */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="p-6 border border-neutral-350 dark:border-neutral-800 rounded bg-white dark:bg-neutral-900/50 shadow-sm">
+          <div className="p-6 border border-neutral-200 dark:border-neutral-900 rounded-none bg-white/40 dark:bg-black/20 backdrop-blur-sm">
             <CreateClassroomForm />
           </div>
 
-          <div className="p-6 border border-neutral-350 dark:border-neutral-800 rounded bg-white dark:bg-neutral-900/50 shadow-sm">
+          <div className="p-6 border border-neutral-200 dark:border-neutral-900 rounded-none bg-white/40 dark:bg-black/20 backdrop-blur-sm">
             <AssignExerciseForm
               classrooms={classrooms.map((c) => ({ id: c.id, name: c.name }))}
               exercises={exercises.map((e) => ({
@@ -285,7 +285,7 @@ export default async function TeacherDashboard({
           </h2>
 
           {classrooms.length === 0 ? (
-            <div className="text-center py-12 border border-dashed rounded text-neutral-500">
+            <div className="text-center py-12 border border-dashed border-neutral-300 dark:border-neutral-800 rounded-none text-neutral-500 font-mono text-xs uppercase">
               No classrooms created yet. Use the form above to create one.
             </div>
           ) : (
@@ -293,7 +293,7 @@ export default async function TeacherDashboard({
               {classrooms.map((classroom) => (
                 <div
                   key={classroom.id}
-                  className="border border-neutral-300 dark:border-neutral-800 rounded bg-white dark:bg-neutral-900 shadow-sm p-5 space-y-4 flex flex-col justify-between"
+                  className="border border-neutral-200 dark:border-neutral-900 rounded-none bg-white/40 dark:bg-black/20 backdrop-blur-sm p-5 space-y-4 flex flex-col justify-between hover:border-black dark:hover:border-white transition duration-200"
                 >
                   <div className="space-y-3">
                     <div className="flex items-start justify-between">
@@ -302,7 +302,7 @@ export default async function TeacherDashboard({
                           {classroom.name}
                           <Link
                             href={`/teacher/classrooms/${classroom.id}`}
-                            className="inline-flex items-center gap-0.5 text-[9px] uppercase font-mono tracking-wider bg-neutral-150 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 px-1.5 py-0.5 border border-neutral-300 dark:border-neutral-700 rounded text-neutral-600 dark:text-neutral-300 transition"
+                            className="inline-flex items-center gap-0.5 text-[9px] uppercase font-mono tracking-widest bg-transparent hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black px-2 py-0.5 border border-neutral-300 dark:border-neutral-800 rounded-none text-neutral-600 dark:text-neutral-300 transition duration-150"
                           >
                             Gradebook
                             <ExternalLink className="w-2.5 h-2.5" />
@@ -310,27 +310,27 @@ export default async function TeacherDashboard({
                         </h3>
                         <p className="text-xs text-neutral-500 flex items-center gap-1 mt-0.5">
                           Join Code:{" "}
-                          <code className="bg-neutral-100 dark:bg-neutral-800 px-1.5 py-0.5 rounded font-mono font-bold text-neutral-800 dark:text-neutral-200">
+                          <code className="bg-transparent border border-neutral-250 dark:border-neutral-800 px-1.5 py-0.5 rounded-none font-mono font-bold text-neutral-800 dark:text-neutral-200">
                             {classroom.joinCode}
                           </code>
                         </p>
                       </div>
-                      <span className="text-xs bg-neutral-200 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-300 px-2 py-0.5 rounded font-mono font-bold">
-                        {classroom.students.length} Student(s)
+                      <span className="text-[10px] border border-neutral-300 dark:border-neutral-800 bg-transparent text-neutral-600 dark:text-neutral-350 px-2 py-0.5 rounded-none font-mono tracking-widest uppercase font-bold">
+                        {classroom.students.length} Pupils
                       </span>
                     </div>
 
                     {/* Students list */}
                     {classroom.students.length > 0 && (
-                      <div className="text-xs space-y-1 border-t pt-2">
-                        <span className="font-semibold text-neutral-450 uppercase block tracking-wider">
+                      <div className="text-xs space-y-1 border-t border-neutral-200 dark:border-neutral-900 pt-2">
+                        <span className="text-[10px] font-mono font-bold text-neutral-450 uppercase block tracking-wider">
                           Students:
                         </span>
                         <div className="flex flex-wrap gap-1">
                           {classroom.students.map((cs) => (
                             <span
                               key={cs.studentId}
-                              className="bg-neutral-50 dark:bg-neutral-850 border border-neutral-200 dark:border-neutral-800 rounded px-1.5 py-0.5 text-neutral-700 dark:text-neutral-300"
+                              className="bg-transparent border border-neutral-200 dark:border-neutral-850 rounded-none px-1.5 py-0.5 text-neutral-700 dark:text-neutral-300 font-mono text-[10px] uppercase"
                             >
                               {cs.student.username}
                             </span>
@@ -340,8 +340,8 @@ export default async function TeacherDashboard({
                     )}
 
                     {/* Active Assignments */}
-                    <div className="space-y-1.5 border-t pt-2">
-                      <span className="text-xs font-semibold text-neutral-450 uppercase block tracking-wider">
+                    <div className="space-y-1.5 border-t border-neutral-200 dark:border-neutral-900 pt-2">
+                      <span className="text-[10px] font-mono font-bold text-neutral-450 uppercase block tracking-wider">
                         Assigned Exercises:
                       </span>
                       {classroom.assignments.length === 0 ? (
@@ -354,9 +354,9 @@ export default async function TeacherDashboard({
                             <Link
                               key={as.id}
                               href={`/teacher/assignments/${as.id}`}
-                              className="text-xs flex items-center justify-between p-1.5 rounded bg-neutral-50 hover:bg-neutral-100 dark:bg-neutral-955/45 dark:hover:bg-neutral-800/40 border border-neutral-200/50 dark:border-neutral-800/50 hover:border-neutral-300 dark:hover:border-neutral-700 transition"
+                              className="text-xs flex items-center justify-between p-2 rounded-none bg-white/40 dark:bg-black/20 backdrop-blur-sm border border-neutral-200 dark:border-neutral-900 hover:border-black dark:hover:border-white transition duration-150"
                             >
-                              <span className="font-semibold text-neutral-850 dark:text-neutral-200 hover:underline">
+                              <span className="font-semibold text-neutral-800 dark:text-neutral-200">
                                 {as.exercise.title}
                               </span>
                               <div className="flex items-center gap-2">
@@ -404,10 +404,10 @@ export default async function TeacherDashboard({
               their results will appear here.
             </div>
           ) : (
-            <div className="border border-neutral-300 dark:border-neutral-800 rounded overflow-hidden bg-white dark:bg-neutral-900 shadow-sm">
+            <div className="border border-neutral-200 dark:border-neutral-900 rounded-none overflow-hidden bg-white/40 dark:bg-black/20 backdrop-blur-sm">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left">
-                  <thead className="text-xs font-mono uppercase bg-neutral-50 dark:bg-neutral-955 border-b border-neutral-300 dark:border-neutral-800 text-neutral-500">
+                  <thead className="text-xs font-mono uppercase border-b border-neutral-200 dark:border-neutral-900 text-neutral-500">
                     <tr>
                       <th className="px-6 py-3 font-semibold">Student</th>
                       <th className="px-6 py-3 font-semibold">Classroom</th>
@@ -421,7 +421,7 @@ export default async function TeacherDashboard({
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
+                  <tbody className="divide-y divide-neutral-200 dark:divide-neutral-900">
                     {submissions.map((sub) => {
                       const isHigh = sub.effectiveScore >= 80;
                       const isLow = sub.effectiveScore < 50;
@@ -429,7 +429,7 @@ export default async function TeacherDashboard({
                       return (
                         <tr
                           key={sub.id}
-                          className="hover:bg-neutral-50/50 dark:hover:bg-neutral-950/20"
+                          className="hover:bg-neutral-50/40 dark:hover:bg-neutral-950/20"
                         >
                           <td className="px-6 py-4 font-semibold text-neutral-900 dark:text-neutral-100">
                             {sub.student.username}
@@ -438,10 +438,10 @@ export default async function TeacherDashboard({
                             {sub.assignment.classroom.name}
                           </td>
                           <td className="px-6 py-4">
-                            <span className="font-medium text-neutral-900 dark:text-neutral-200">
+                            <span className="font-semibold text-neutral-900 dark:text-neutral-200">
                               {sub.assignment.exercise.title}
                             </span>
-                            <span className="text-[10px] uppercase font-mono block text-neutral-500">
+                            <span className="text-[9px] uppercase font-mono block text-neutral-500 tracking-wider">
                               {getExerciseTypeLabel(
                                 sub.assignment.exercise.type
                               )}
@@ -450,26 +450,25 @@ export default async function TeacherDashboard({
                           <td className="px-6 py-4 text-center">
                             <div className="flex flex-col items-center gap-0.5">
                               <span
-                                className={`px-2 py-0.5 rounded text-xs font-mono font-bold ${
+                                className={`px-2 py-0.5 rounded-none text-xs font-mono font-bold border ${
                                   isHigh
-                                    ? "bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-300"
+                                    ? "border-green-500 text-green-650 dark:text-green-400 bg-green-500/5"
                                     : isLow
-                                    ? "bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300"
-                                    : "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300"
+                                    ? "border-red-500 text-red-650 dark:text-red-450 bg-red-500/5"
+                                    : "border-neutral-300 dark:border-neutral-800 text-neutral-750 dark:text-neutral-350 bg-neutral-500/5"
                                 }`}
                               >
                                 {sub.effectiveScore.toFixed(0)}%
                               </span>
                               {sub.attemptNumber > 1 && (
-                                <span className="text-[9px] font-mono text-amber-600 dark:text-amber-400">
-                                  Attempt #{sub.attemptNumber} · Raw{" "}
+                                <span className="text-[9px] font-mono text-neutral-450 uppercase tracking-wide">
+                                  Try #{sub.attemptNumber} · Raw{" "}
                                   {sub.score.toFixed(0)}%
                                 </span>
                               )}
                             </div>
                           </td>
-                          <td className="px-6 py-4 text-xs text-neutral-500 font-mono flex items-center gap-1 mt-2.5">
-                            <Clock className="w-3.5 h-3.5" />
+                          <td className="px-6 py-4 text-[11px] text-neutral-500 font-mono">
                             {new Date(sub.completedAt).toLocaleString("en-GB", {
                               dateStyle: "medium",
                               timeStyle: "short",
@@ -478,10 +477,10 @@ export default async function TeacherDashboard({
                           <td className="px-6 py-4 text-right">
                             <Link
                               href={`/submissions/${sub.id}`}
-                              className="inline-flex items-center gap-1 text-xs font-semibold uppercase font-mono border border-neutral-350 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 px-2.5 py-1 rounded transition text-neutral-700 dark:text-neutral-300"
+                              className="inline-flex items-center gap-1 text-[9px] font-bold uppercase font-mono border border-neutral-300 dark:border-neutral-800 bg-transparent hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black px-2.5 py-1 rounded-none transition duration-150 text-neutral-700 dark:text-neutral-300"
                             >
                               Review
-                              <ExternalLink className="w-3 h-3" />
+                              <ExternalLink className="w-2.5 h-2.5" />
                             </Link>
                           </td>
                         </tr>
@@ -493,37 +492,37 @@ export default async function TeacherDashboard({
 
               {/* Pagination Controls */}
               {totalPages > 1 && (
-                <div className="flex items-center justify-between px-6 py-4 border-t border-neutral-300 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-900/50">
-                  <span className="text-xs font-mono text-neutral-500">
-                    Showing {skip + 1}–{Math.min(skip + pageSize, totalSubmissions)} of {totalSubmissions} submissions
+                <div className="flex items-center justify-between px-6 py-4 border-t border-neutral-200 dark:border-neutral-900 bg-transparent">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-neutral-500">
+                    Showing {skip + 1}–{Math.min(skip + pageSize, totalSubmissions)} of {totalSubmissions}
                   </span>
                   <div className="flex items-center gap-2">
                     {currentPage > 1 ? (
                       <Link
                         href={`/teacher?page=${currentPage - 1}`}
-                        className="px-3 py-1.5 border border-neutral-350 dark:border-neutral-700 rounded text-xs font-mono font-semibold uppercase hover:bg-neutral-100 dark:hover:bg-neutral-800 transition active:scale-95 text-neutral-700 dark:text-neutral-300"
+                        className="px-3 py-1.5 border border-neutral-300 dark:border-neutral-800 rounded-none text-xs font-mono font-bold uppercase hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition text-neutral-700 dark:text-neutral-300"
                       >
                         &larr; Prev
                       </Link>
                     ) : (
-                      <span className="px-3 py-1.5 border border-neutral-200 dark:border-neutral-800/80 rounded text-xs font-mono text-neutral-400 dark:text-neutral-600 uppercase cursor-not-allowed select-none bg-neutral-100/50 dark:bg-neutral-900/20">
+                      <span className="px-3 py-1.5 border border-neutral-200 dark:border-neutral-800/80 rounded-none text-xs font-mono text-neutral-400 dark:text-neutral-600 uppercase cursor-not-allowed select-none bg-transparent">
                         &larr; Prev
                       </span>
                     )}
 
-                    <span className="text-xs font-mono font-bold px-2 py-1 bg-neutral-200 dark:bg-neutral-800 rounded text-neutral-850 dark:text-neutral-250">
+                    <span className="text-xs font-mono font-bold px-2.5 py-1 bg-transparent border border-neutral-250 dark:border-neutral-800 rounded-none text-neutral-850 dark:text-neutral-250">
                       Page {currentPage} of {totalPages}
                     </span>
 
                     {currentPage < totalPages ? (
                       <Link
                         href={`/teacher?page=${currentPage + 1}`}
-                        className="px-3 py-1.5 border border-neutral-350 dark:border-neutral-700 rounded text-xs font-mono font-semibold uppercase hover:bg-neutral-100 dark:hover:bg-neutral-800 transition active:scale-95 text-neutral-700 dark:text-neutral-300"
+                        className="px-3 py-1.5 border border-neutral-300 dark:border-neutral-800 rounded-none text-xs font-mono font-bold uppercase hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition text-neutral-700 dark:text-neutral-300"
                       >
                         Next &rarr;
                       </Link>
                     ) : (
-                      <span className="px-3 py-1.5 border border-neutral-200 dark:border-neutral-800/80 rounded text-xs font-mono text-neutral-400 dark:text-neutral-600 uppercase cursor-not-allowed select-none bg-neutral-100/50 dark:bg-neutral-900/20">
+                      <span className="px-3 py-1.5 border border-neutral-200 dark:border-neutral-800/80 rounded-none text-xs font-mono text-neutral-400 dark:text-neutral-600 uppercase cursor-not-allowed select-none bg-transparent">
                         Next &rarr;
                       </span>
                     )}
