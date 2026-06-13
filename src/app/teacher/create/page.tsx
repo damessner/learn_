@@ -1,4 +1,4 @@
-import React from "react";
+import React, { Suspense } from "react";
 import { getSession } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { redirect } from "next/navigation";
@@ -21,7 +21,13 @@ export default async function CreateWorksheetPage() {
     <>
       <Navbar />
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-8">
-        <WorksheetCreator courses={courses} />
+        <Suspense fallback={
+          <div className="flex items-center justify-center py-20 text-neutral-500 font-mono text-sm uppercase">
+            Loading Worksheet Creator...
+          </div>
+        }>
+          <WorksheetCreator courses={courses} />
+        </Suspense>
       </main>
     </>
   );

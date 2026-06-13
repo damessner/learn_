@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import crypto from "crypto";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createWorksheet } from "@/lib/actions/exercise";
 import { ArrowLeft, HelpCircle, Crosshair, Sparkles, BookOpen, FileText } from "lucide-react";
 import Link from "next/link";
@@ -84,6 +84,8 @@ interface ReadingPageCreator {
 
 export default function WorksheetCreator({ initialData, initialDataJson, courses = [] }: { initialData?: Record<string, unknown>; initialDataJson?: string; courses?: { id: string; title: string }[] }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const typeParam = searchParams.get("type");
 
   // Parse initial data from JSON string to avoid Next.js server→client nesting limit
   const parsedInitialData = initialDataJson ? JSON.parse(initialDataJson) : initialData;
@@ -100,7 +102,9 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
           : parsedInitialData.type === "writing-coach"
           ? "writing-coach"
           : "worksheet")
-      : "worksheet"
+      : (typeParam === "image-hotspot-quiz" || typeParam === "interactive-reading" || typeParam === "vocabulary" || typeParam === "writing-coach"
+          ? typeParam
+          : "worksheet")
   );
 
   // Basic meta

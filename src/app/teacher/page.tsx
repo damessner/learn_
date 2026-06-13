@@ -13,6 +13,11 @@ import {
   BookOpen,
   Clock,
   Calendar,
+  Sparkles,
+  FileText,
+  Crosshair,
+  Compass,
+  Plus,
 } from "lucide-react";
 import { getExerciseTypeLabel } from "@/lib/exerciseLabels";
 import DragDropWrapper from "./DragDropWrapper";
@@ -112,13 +117,122 @@ export default async function TeacherDashboard({
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <Link
-              href="/teacher/create"
-              className="flex items-center gap-1 px-3 py-1.5 bg-black text-white dark:bg-white dark:text-black rounded text-xs font-mono uppercase font-semibold hover:opacity-90 transition shadow shrink-0"
-            >
-              + Create Worksheet
-            </Link>
             <SyncButton />
+          </div>
+        </div>
+
+        {/* Create New Exercise Grid */}
+        <div className="space-y-4">
+          <h2 className="text-xl font-bold font-mono uppercase tracking-wide border-b pb-2 flex items-center gap-2">
+            <Plus className="w-5 h-5 text-neutral-500" />
+            Create New Exercise
+          </h2>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            {/* Mixed Worksheet Card */}
+            <Link
+              href="/teacher/create?type=worksheet"
+              className="group p-5 border border-neutral-200 dark:border-neutral-800 rounded-xl bg-white hover:bg-blue-50/20 dark:bg-neutral-900 dark:hover:bg-blue-955/10 shadow-sm hover:shadow hover:border-blue-300 dark:hover:border-blue-900/60 transition duration-300 flex flex-col justify-between h-40"
+            >
+              <div className="space-y-2">
+                <div className="p-2 w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-950/50 text-blue-650 dark:text-blue-400 group-hover:scale-110 transition duration-300 flex items-center justify-center">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <h3 className="font-extrabold text-sm text-neutral-900 dark:text-neutral-100 group-hover:text-blue-600 dark:group-hover:text-blue-450 transition">
+                  Mixed Worksheet
+                </h3>
+                <p className="text-[11px] leading-relaxed text-neutral-450 dark:text-neutral-500">
+                  Multiple choice, gap-fill, matching, ordering.
+                </p>
+              </div>
+              <span className="text-[9px] font-bold font-mono uppercase tracking-wider text-blue-650 dark:text-blue-400 group-hover:underline">
+                Build Worksheet &rarr;
+              </span>
+            </Link>
+
+            {/* AI Writing Coach Card */}
+            <Link
+              href="/teacher/create?type=writing-coach"
+              className="group p-5 border border-neutral-200 dark:border-neutral-800 rounded-xl bg-white hover:bg-purple-50/20 dark:bg-neutral-900 dark:hover:bg-purple-955/10 shadow-sm hover:shadow hover:border-purple-300 dark:hover:border-purple-900/60 transition duration-300 flex flex-col justify-between h-40"
+            >
+              <div className="space-y-2">
+                <div className="p-2 w-9 h-9 rounded-lg bg-purple-50 dark:bg-purple-950/50 text-purple-650 dark:text-purple-400 group-hover:scale-110 transition duration-300 flex items-center justify-center">
+                  <Sparkles className="w-5 h-5 animate-pulse" />
+                </div>
+                <h3 className="font-extrabold text-sm text-neutral-900 dark:text-neutral-100 group-hover:text-purple-600 dark:group-hover:text-purple-450 transition">
+                  AI Writing Coach
+                </h3>
+                <p className="text-[11px] leading-relaxed text-neutral-450 dark:text-neutral-500">
+                  Gemini-powered formative Socratic writing loops.
+                </p>
+              </div>
+              <span className="text-[9px] font-bold font-mono uppercase tracking-wider text-purple-650 dark:text-purple-400 group-hover:underline">
+                Create Coach &rarr;
+              </span>
+            </Link>
+
+            {/* Vocabulary Card */}
+            <Link
+              href="/teacher/create?type=vocabulary"
+              className="group p-5 border border-neutral-200 dark:border-neutral-800 rounded-xl bg-white hover:bg-emerald-50/20 dark:bg-neutral-900 dark:hover:bg-emerald-955/10 shadow-sm hover:shadow hover:border-emerald-300 dark:hover:border-emerald-900/60 transition duration-300 flex flex-col justify-between h-40"
+            >
+              <div className="space-y-2">
+                <div className="p-2 w-9 h-9 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 text-emerald-650 dark:text-emerald-400 group-hover:scale-110 transition duration-300 flex items-center justify-center">
+                  <BookOpen className="w-5 h-5" />
+                </div>
+                <h3 className="font-extrabold text-sm text-neutral-900 dark:text-neutral-100 group-hover:text-emerald-600 dark:group-hover:text-emerald-450 transition">
+                  Vocabulary Practice
+                </h3>
+                <p className="text-[11px] leading-relaxed text-neutral-450 dark:text-neutral-500">
+                  Drills, spelling rounds, and AI cloze challenge.
+                </p>
+              </div>
+              <span className="text-[9px] font-bold font-mono uppercase tracking-wider text-emerald-650 dark:text-emerald-400 group-hover:underline">
+                Create Practice &rarr;
+              </span>
+            </Link>
+
+            {/* Image Hotspot Card */}
+            <Link
+              href="/teacher/create?type=image-hotspot-quiz"
+              className="group p-5 border border-neutral-200 dark:border-neutral-800 rounded-xl bg-white hover:bg-amber-50/20 dark:bg-neutral-900 dark:hover:bg-amber-955/10 shadow-sm hover:shadow hover:border-amber-300 dark:hover:border-amber-900/60 transition duration-300 flex flex-col justify-between h-40"
+            >
+              <div className="space-y-2">
+                <div className="p-2 w-9 h-9 rounded-lg bg-amber-50 dark:bg-amber-950/50 text-amber-650 dark:text-amber-400 group-hover:scale-110 transition duration-300 flex items-center justify-center">
+                  <Crosshair className="w-5 h-5" />
+                </div>
+                <h3 className="font-extrabold text-sm text-neutral-900 dark:text-neutral-100 group-hover:text-amber-600 dark:group-hover:text-amber-450 transition">
+                  Image Hotspot Quiz
+                </h3>
+                <p className="text-[11px] leading-relaxed text-neutral-450 dark:text-neutral-500">
+                  Interactive find-and-tap visual region quizzes.
+                </p>
+              </div>
+              <span className="text-[9px] font-bold font-mono uppercase tracking-wider text-amber-650 dark:text-amber-400 group-hover:underline">
+                Create Quiz &rarr;
+              </span>
+            </Link>
+
+            {/* Interactive Reading Card */}
+            <Link
+              href="/teacher/create?type=interactive-reading"
+              className="group p-5 border border-neutral-200 dark:border-neutral-800 rounded-xl bg-white hover:bg-rose-50/20 dark:bg-neutral-900 dark:hover:bg-rose-955/10 shadow-sm hover:shadow hover:border-rose-300 dark:hover:border-rose-900/60 transition duration-300 flex flex-col justify-between h-40"
+            >
+              <div className="space-y-2">
+                <div className="p-2 w-9 h-9 rounded-lg bg-rose-50 dark:bg-rose-950/50 text-rose-650 dark:text-rose-400 group-hover:scale-110 transition duration-300 flex items-center justify-center">
+                  <Compass className="w-5 h-5" />
+                </div>
+                <h3 className="font-extrabold text-sm text-neutral-900 dark:text-neutral-100 group-hover:text-rose-650 dark:group-hover:text-rose-400 transition">
+                  Interactive Reading
+                </h3>
+                <p className="text-[11px] leading-relaxed text-neutral-450 dark:text-neutral-500">
+                  Choose-your-own branching storytelling paths.
+                </p>
+              </div>
+              <span className="text-[9px] font-bold font-mono uppercase tracking-wider text-rose-650 dark:text-rose-400 group-hover:underline">
+                Create Story &rarr;
+              </span>
+            </Link>
           </div>
         </div>
 
