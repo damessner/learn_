@@ -3,7 +3,7 @@
 import React from "react";
 import { Sparkles, Trash2, PlusCircle, HelpCircle, Wand2, Loader2 } from "lucide-react";
 import { improveCriterionAction } from "@/lib/actions/ai-coach";
-import crypto from "crypto";
+import { randomUUID } from "@/lib/uuid";
 
 export interface CreatorCriterion {
   id: string;
@@ -58,7 +58,7 @@ export function WritingCoachBuilder({
     setCoachCriteria((prev) => [
       ...prev,
       {
-        id: crypto.randomUUID(),
+        id: randomUUID(),
         name: "",
         description: "",
         tip: "",

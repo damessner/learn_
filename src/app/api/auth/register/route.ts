@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 import { setSession } from "@/lib/session";
-import { checkRateLimit, recordFailedAttempt, buildRateLimitKey } from "@/lib/rateLimit";
+import { checkRateLimit, recordFailedAttempt } from "@/lib/rateLimit";
 import { headers } from "next/headers";
 
 export async function POST(request: Request) {

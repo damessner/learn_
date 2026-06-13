@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import fs from "fs";
 import path from "path";
-import crypto from "crypto";
+import { randomUUID } from "@/lib/uuid";
 
 const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads", "submissions");
 
@@ -56,8 +56,8 @@ export async function POST(request: NextRequest) {
       return new NextResponse("File exceeds the maximum size limit", { status: 400 });
     }
 
-    // Use crypto.randomUUID for secure unique filename (replaces Math.random)
-    const uniqueName = `sub-${crypto.randomUUID()}${ext}`;
+    // Use randomUUID for secure unique filename (replaces Math.random)
+    const uniqueName = `sub-${randomUUID()}${ext}`;
 
     fs.writeFileSync(path.join(UPLOAD_DIR, uniqueName), buffer);
 

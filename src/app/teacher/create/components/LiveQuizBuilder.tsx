@@ -2,6 +2,7 @@
 
 import React from "react";
 import { Plus, Trash, HelpCircle, List, ArrowDownAz, Type, Clock } from "lucide-react";
+import { randomUUID } from "@/lib/uuid";
 
 export interface LiveQuizQuestion {
   id: string;
@@ -24,7 +25,7 @@ interface LiveQuizBuilderProps {
 export function LiveQuizBuilder({ questions, setQuestions }: LiveQuizBuilderProps) {
   const addQuestion = () => {
     const newQ: LiveQuizQuestion = {
-      id: crypto.randomUUID(),
+      id: randomUUID(),
       type: "single-choice",
       questionText: "",
       timeLimit: 20,

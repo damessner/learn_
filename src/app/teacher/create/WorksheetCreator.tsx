@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import crypto from "crypto";
 import { useRouter, useSearchParams } from "next/navigation";
+import { randomUUID } from "@/lib/uuid";
 import { createWorksheet } from "@/lib/actions/exercise";
 import { ArrowLeft, HelpCircle, Crosshair, Sparkles, BookOpen, FileText } from "lucide-react";
 import Link from "next/link";
@@ -197,7 +197,7 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
   const [liveQuestions, setLiveQuestions] = useState<LiveQuizQuestion[]>(() => {
     if (parsedInitialData && parsedInitialData.type === "live-quiz" && Array.isArray(parsedInitialData.questions)) {
       return (parsedInitialData.questions as LiveQuizQuestion[]).map((q) => ({
-        id: q.id || crypto.randomUUID(),
+        id: q.id || randomUUID(),
         type: q.type || "single-choice",
         questionText: q.questionText || "",
         timeLimit: q.timeLimit || 20,
@@ -211,7 +211,7 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
     }
     return [
       {
-        id: crypto.randomUUID(),
+        id: randomUUID(),
         type: "single-choice",
         questionText: "",
         timeLimit: 20,
@@ -249,7 +249,7 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
         const qPairs = qRecord.pairs as Array<Record<string, unknown>> | undefined;
         const matchingPairs = qPairs
           ? qPairs.map((p) => ({
-              id: ((p as Record<string, unknown>).id as string) || crypto.randomUUID(),
+              id: ((p as Record<string, unknown>).id as string) || randomUUID(),
               leftText: ((p as Record<string, unknown>).leftText as string) || "",
               leftMedia: ((p as Record<string, unknown>).leftMedia as string) || "",
               leftMediaStatus: (p as Record<string, unknown>).leftMedia ? "✓ Loaded" : "",
@@ -268,7 +268,7 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
           : "";
 
         return {
-          id: (qRecord.id as string) || crypto.randomUUID(),
+          id: (qRecord.id as string) || randomUUID(),
           type: (qRecord.type as CreatorQuestion["type"]) || "multiple-choice",
           question: (qRecord.question as string) || "",
           media: (qRecord.media as string) || "",
@@ -732,7 +732,7 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
 
               parsedItems.forEach((name) => {
                 items.push({
-                  id: crypto.randomUUID(),
+                  id: randomUUID(),
                   name,
                   category: cat,
                 });
@@ -767,7 +767,7 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
               }
 
               return {
-                id: crypto.randomUUID(),
+                id: randomUUID(),
                 text: parts[0].trim(),
                 correctChoice,
               };
