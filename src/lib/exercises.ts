@@ -29,6 +29,8 @@ const BaseExerciseSchema = z.object({
     "live-quiz"
   ]),
   tags: z.union([z.string(), z.array(z.string())]).optional().default(""),
+  badgeName: z.string().optional().default(""),
+  badgeEmoji: z.string().optional().default(""),
 });
 
 // Zod schemas for validation
@@ -530,6 +532,8 @@ export async function syncExercisesToDb(): Promise<{ syncedCount: number; delete
         updatedAt: new Date(),
         pendingDeletion: false, // restore if it was previously soft-deleted
         tags: tagsStr,
+        badgeName: exercise.badgeName || null,
+        badgeEmoji: exercise.badgeEmoji || null,
         // courseId and order are preserved — not overwritten from disk
       },
       create: {
@@ -539,6 +543,8 @@ export async function syncExercisesToDb(): Promise<{ syncedCount: number; delete
         type: exercise.type,
         pendingDeletion: false,
         tags: tagsStr,
+        badgeName: exercise.badgeName || null,
+        badgeEmoji: exercise.badgeEmoji || null,
         // courseId defaults to null, order defaults to 0
       },
     });

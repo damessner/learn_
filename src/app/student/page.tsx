@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
 import Link from "next/link";
-import { Play, AlertCircle, BookOpen, Users, RotateCcw, Trophy, FolderOpen } from "lucide-react";
+import { Play, AlertCircle, BookOpen, Users, RotateCcw, Trophy, FolderOpen, Award } from "lucide-react";
 import { getExerciseTypeLabel } from "@/lib/exerciseLabels";
 import JoinClassroomForm from "./JoinClassroomForm";
 
@@ -155,6 +155,62 @@ export default async function StudentDashboard() {
     });
   });
 
+  // Extract all earned badges from completed assignments
+  const earnedBadges: Array<{
+    exerciseId: string;
+    worksheetTitle: string;
+    badgeName: string;
+    badgeEmoji: string;
+    completedAt: Date;
+    score: number;
+  }> = [];
+
+  classroomsJoined.forEach((cs) => {
+    // Standalone assignments
+    cs.classroom.assignments.forEach((as) => {
+      if (as.submissions.length > 0) {
+        const latestSub = as.submissions[0];
+        const exercise = as.exercise;
+        const name = exercise.badgeName || exercise.title;
+        const emoji = exercise.badgeEmoji || "🏆";
+        
+        if (!earnedBadges.some((b) => b.exerciseId === exercise.id)) {
+          earnedBadges.push({
+            exerciseId: exercise.id,
+            worksheetTitle: exercise.title,
+            badgeName: name,
+            badgeEmoji: emoji,
+            completedAt: latestSub.completedAt,
+            score: Math.max(...as.submissions.map((s) => s.effectiveScore)),
+          });
+        }
+      }
+    });
+
+    // Course assignments
+    cs.classroom.courseAssignments.forEach((ca) => {
+      ca.assignments.forEach((as) => {
+        if (as.submissions.length > 0) {
+          const latestSub = as.submissions[0];
+          const exercise = as.exercise;
+          const name = exercise.badgeName || exercise.title;
+          const emoji = exercise.badgeEmoji || "🏆";
+
+          if (!earnedBadges.some((b) => b.exerciseId === exercise.id)) {
+            earnedBadges.push({
+              exerciseId: exercise.id,
+              worksheetTitle: exercise.title,
+              badgeName: name,
+              badgeEmoji: emoji,
+              completedAt: latestSub.completedAt,
+              score: Math.max(...as.submissions.map((s) => s.effectiveScore)),
+            });
+          }
+        }
+      });
+    });
+  });
+
   return (
     <>
       <Navbar />
@@ -237,6 +293,39 @@ export default async function StudentDashboard() {
 
         {/* Join Classroom Form */}
         <JoinClassroomForm />
+
+        {/* Badges Section */}
+        {earnedBadges.length > 0 && (
+          <div className="border border-purple-200 dark:border-purple-900 rounded-none bg-gradient-to-r from-purple-50/50 to-indigo-50/50 dark:from-purple-950/10 dark:to-indigo-950/10 p-6 space-y-4 shadow-sm">
+            <h2 className="text-xs font-bold font-mono uppercase tracking-wider text-purple-700 dark:text-purple-400 flex items-center gap-2">
+              <Award className="w-4 h-4 shrink-0" />
+              My Badges ({earnedBadges.length})
+            </h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              {earnedBadges.map((badge) => (
+                <div
+                  key={badge.exerciseId}
+                  className="p-4 border border-purple-200/60 dark:border-purple-900/30 bg-white/60 dark:bg-black/35 rounded-none shadow-sm flex flex-col items-center text-center justify-between gap-3 hover:scale-[1.02] hover:border-purple-400 transition-all duration-200"
+                >
+                  <div className="w-12 h-12 flex items-center justify-center text-3xl bg-purple-100 dark:bg-purple-950/50 rounded-full border border-purple-200 dark:border-purple-900 shadow-inner">
+                    {badge.badgeEmoji || "🏆"}
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="font-bold text-xs text-neutral-900 dark:text-neutral-100 line-clamp-1" title={badge.badgeName}>
+                      {badge.badgeName}
+                    </h3>
+                    <p className="text-[9px] text-neutral-500 uppercase tracking-wide font-mono line-clamp-1" title={badge.worksheetTitle}>
+                      {badge.worksheetTitle}
+                    </p>
+                  </div>
+                  <span className="text-[9px] font-mono bg-purple-100/50 dark:bg-purple-950/30 text-purple-800 dark:text-purple-300 px-2 py-0.5 rounded-none font-bold uppercase tracking-wider">
+                    Score: {badge.score.toFixed(0)}%
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Classrooms & Assignments */}
         {classroomsJoined.length === 0 ? (

@@ -5,7 +5,7 @@ import { getExerciseFromDisk } from "@/lib/exercises";
 import { redirect, notFound } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
 import Link from "next/link";
-import { ArrowLeft, BookOpen, Calendar, Check, X, ExternalLink } from "lucide-react";
+import { ArrowLeft, BookOpen, Calendar, Check, X, ExternalLink, Award } from "lucide-react";
 import ResetPasswordButton from "../../ResetPasswordButton";
 import { getExerciseMaxPoints } from "@/lib/points";
 
@@ -106,6 +106,36 @@ export default async function StudentProfilePage({
   }, 0);
   const averageScore = totalScoreCount > 0 ? Math.round(totalScoreSum / totalScoreCount) : null;
 
+  // Extract all earned badges from completed assignments
+  const earnedBadges: Array<{
+    exerciseId: string;
+    worksheetTitle: string;
+    badgeName: string;
+    badgeEmoji: string;
+    completedAt: Date;
+    score: number;
+  }> = [];
+
+  classroom.assignments.forEach((as) => {
+    if (as.submissions.length > 0) {
+      const latestSub = as.submissions[0];
+      const exercise = as.exercise;
+      const name = exercise.badgeName || exercise.title;
+      const emoji = exercise.badgeEmoji || "🏆";
+
+      if (!earnedBadges.some((b) => b.exerciseId === exercise.id)) {
+        earnedBadges.push({
+          exerciseId: exercise.id,
+          worksheetTitle: exercise.title,
+          badgeName: name,
+          badgeEmoji: emoji,
+          completedAt: latestSub.completedAt,
+          score: Math.max(...as.submissions.map((s) => s.teacherScore !== null ? s.teacherScore : s.effectiveScore)),
+        });
+      }
+    }
+  });
+
   return (
     <>
       <Navbar />
@@ -159,6 +189,39 @@ export default async function StudentProfilePage({
             </div>
           </div>
         </div>
+
+        {/* Badges Earned Section */}
+        {earnedBadges.length > 0 && (
+          <div className="border border-purple-200 dark:border-purple-900 rounded bg-gradient-to-r from-purple-50/50 to-indigo-50/50 dark:from-purple-950/10 dark:to-indigo-950/10 p-6 space-y-4 shadow-sm">
+            <h2 className="text-xs font-bold font-mono uppercase tracking-wider text-purple-700 dark:text-purple-400 flex items-center gap-2">
+              <Award className="w-4 h-4 shrink-0" />
+              Badges Earned ({earnedBadges.length})
+            </h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              {earnedBadges.map((badge) => (
+                <div
+                  key={badge.exerciseId}
+                  className="p-4 border border-purple-200/60 dark:border-purple-900/30 bg-white/60 dark:bg-black/35 rounded shadow-sm flex flex-col items-center text-center justify-between gap-3 hover:scale-[1.02] hover:border-purple-400 transition-all duration-200"
+                >
+                  <div className="w-12 h-12 flex items-center justify-center text-3xl bg-purple-100 dark:bg-purple-950/50 rounded-full border border-purple-200 dark:border-purple-900 shadow-inner">
+                    {badge.badgeEmoji || "🏆"}
+                  </div>
+                  <div className="space-y-1">
+                    <h3 className="font-bold text-xs text-neutral-900 dark:text-neutral-100 line-clamp-1" title={badge.badgeName}>
+                      {badge.badgeName}
+                    </h3>
+                    <p className="text-[9px] text-neutral-500 uppercase tracking-wide font-mono line-clamp-1" title={badge.worksheetTitle}>
+                      {badge.worksheetTitle}
+                    </p>
+                  </div>
+                  <span className="text-[9px] font-mono bg-purple-100/50 dark:bg-purple-950/30 text-purple-800 dark:text-purple-300 px-2 py-0.5 rounded font-bold uppercase tracking-wider">
+                    Score: {badge.score.toFixed(0)}%
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Quick Password Reset */}
         <div className="p-5 border border-neutral-300 dark:border-neutral-800 rounded bg-neutral-50 dark:bg-neutral-900/30 space-y-3">

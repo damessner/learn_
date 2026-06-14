@@ -39,6 +39,7 @@ Designed around the **MORE!** textbook series for Austrian 1st-grade English cla
 - **Bulk Import/Export** — Add students in bulk using CSV/JSON formatted lists, and export the entire classroom gradebook to CSV for external school records.
 - **Grading & Scoring Reviews** — Review student answers, view submission timelines, grade student open responses (media or free text), and overwrite automated scores.
 - **Content Sync** — Synchronize exercises defined as JSON or Markdown on disk directly into the database. Handles soft-deletes smoothly.
+- **Badges System** — Assign custom badge names and emojis to any exercise during creation or editing. Badges are displayed to students upon completion on their dashboard and in the teacher's student profile view, providing visual achievement milestones.
 
 ### 🧑‍🎓 For Students
 
@@ -52,6 +53,7 @@ Designed around the **MORE!** textbook series for Austrian 1st-grade English cla
 - **Attempt Multipliers** — Reward mastery by letting students retry exercises with decreasing score multipliers (100% &rarr; 75% &rarr; 50% &rarr; 25% max-score caps).
 - **AI Feedback Quota** — Ask the coach for feedback up to 3 times per text attempt. This guides students through a Socratic revision process (first draft, second draft, and third draft review) before final submission.
 - **Progress Dashboard** — View completed work, check outstanding assignments, and trace due dates.
+- **Badges Showcase** — Earn custom badges for completed exercises (configured by teachers with custom name and emoji). Badges are displayed in a dedicated grid on the student dashboard, organized by exercise, with score achieved.
 
 ---
 
@@ -67,7 +69,7 @@ Designed around the **MORE!** textbook series for Austrian 1st-grade English cla
 | **Matching** | Match left-column cards to right-column items | Automated (correct key pairs) |
 | **Open Question** | Text input with support for voice recording and image uploads | Advanced Rubric / Teacher Manual override |
 | **Ordering** | Rearrange a randomized set of words into the correct sentence | Automated (exact order match) |
-| **Media Embed** | Display images, play audio files, or show embedded video | Non-graded (Informational) |
+| **Media Embed** | Display images, play audio files, show embedded video, or embed YouTube videos via URL | Non-graded (Informational) |
 | **Instruction Card**| Render formatted instructional text for worksheets | Non-graded (Informational) |
 | **Image Hotspot Quiz**| Find and tap hidden regions/items on a background image | Automated (tap inside boundary box) |
 | **Interactive Reading**| Branching "choose-your-own-adventure" story choices | Automated (completion path logic) |

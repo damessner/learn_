@@ -221,7 +221,7 @@ export function WorksheetQuestionsBuilder({
                 <div className="flex flex-col md:flex-row gap-3 items-center">
                   <input
                     type="text"
-                    placeholder="Media file name (e.g. audio.mp3)"
+                    placeholder="Media file name (e.g. audio.mp3) or YouTube URL"
                     value={q.media}
                     onChange={(e) => updateQuestion(q.id, { media: e.target.value })}
                     className="flex-1 text-xs border border-neutral-300 dark:border-neutral-700 bg-transparent rounded px-2.5 py-1.5 outline-none font-mono"

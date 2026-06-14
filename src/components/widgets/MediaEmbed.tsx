@@ -6,8 +6,31 @@ interface MediaEmbedProps {
   className?: string;
 }
 
+function getYouTubeId(url: string): string | null {
+  if (!url) return null;
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=|shorts\/)([^#\&\?]*).*/;
+  const match = url.match(regExp);
+  return (match && match[2].length === 11) ? match[2] : null;
+}
+
 export const MediaEmbed: React.FC<MediaEmbedProps> = ({ src, assetsPath, className = "" }) => {
   if (!src) return null;
+
+  const ytId = getYouTubeId(src);
+  if (ytId) {
+    return (
+      <div className={`relative aspect-video max-w-xl mx-auto rounded border overflow-hidden bg-black ${className}`}>
+        <iframe
+          src={`https://www.youtube.com/embed/${ytId}`}
+          title="YouTube video player"
+          frameBorder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowFullScreen
+          className="w-full h-full"
+        />
+      </div>
+    );
+  }
 
   // Resolve absolute URL
   const url = src.startsWith("http") || src.startsWith("/") ? src : `${assetsPath}${src}`;

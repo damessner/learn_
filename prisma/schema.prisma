@@ -69,6 +69,8 @@ model Exercise {
   updatedAt       DateTime          @default(now())
   pendingDeletion Boolean           @default(false)
   tags            String            @default("")
+  badgeName       String?
+  badgeEmoji      String?
 
   // Relations
   course          Course?           @relation(fields: [courseId], references: [id], onDelete: SetNull)

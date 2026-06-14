@@ -127,6 +127,8 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
           : parsedInitialData.tags || "")
       : ""
   );
+  const [badgeName, setBadgeName] = useState(parsedInitialData?.badgeName || "");
+  const [badgeEmoji, setBadgeEmoji] = useState(parsedInitialData?.badgeEmoji || "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -868,7 +870,9 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
         contentString,
         !!parsedInitialData,
         selectedCourseId || null,
-        tags
+        tags,
+        badgeName.trim(),
+        badgeEmoji.trim()
       );
 
       if (res?.error) {
@@ -1051,6 +1055,34 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
                 onChange={(e) => setTags(e.target.value)}
                 className="w-full text-base border border-neutral-300 dark:border-neutral-750 rounded px-3 py-1.5 bg-transparent outline-none focus:border-black dark:focus:border-white"
               />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
+                  Custom Badge Name (optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Decimal Master (defaults to quiz title)"
+                  value={badgeName}
+                  onChange={(e) => setBadgeName(e.target.value)}
+                  className="w-full text-base border border-neutral-300 dark:border-neutral-750 rounded px-3 py-1.5 bg-transparent outline-none focus:border-black dark:focus:border-white"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
+                  Custom Badge Emoji (optional)
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. 💡 (defaults to 🏆)"
+                  value={badgeEmoji}
+                  onChange={(e) => setBadgeEmoji(e.target.value)}
+                  className="w-full text-base border border-neutral-300 dark:border-neutral-750 rounded px-3 py-1.5 bg-transparent outline-none focus:border-black dark:focus:border-white"
+                />
+              </div>
             </div>
 
             {courses.length > 0 && (

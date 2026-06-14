@@ -27,7 +27,9 @@ export async function createWorksheet(
   content: string,
   isUpdate: boolean = false,
   courseId?: string | null,
-  tags?: string
+  tags?: string,
+  badgeName?: string,
+  badgeEmoji?: string
 ) {
   await requireTeacher();
 
@@ -76,6 +78,8 @@ title: ${title}
 description: ${description}
 type: gap-fill
 tags: ${tags || ""}
+badgeName: ${badgeName || ""}
+badgeEmoji: ${badgeEmoji || ""}
 ---
 ${content}
 `;
@@ -89,6 +93,8 @@ ${content}
         description,
         type,
         tags: tags || "",
+        badgeName: badgeName || "",
+        badgeEmoji: badgeEmoji || "",
       };
 
       // Generate TTS if needed
