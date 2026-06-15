@@ -25,6 +25,23 @@ Designed around the **MORE!** textbook series for Austrian 1st-grade English cla
 
 ---
 
+## Screenshots
+
+<table>
+  <tr>
+    <td><img src="screenshots/login_page.png" alt="Login page" width="100%"></td>
+    <td><img src="screenshots/dashboard_exercise_types.png" alt="Exercise types dashboard" width="100%"></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/worksheet%20creator.png" alt="Worksheet creator" width="100%"></td>
+    <td><img src="screenshots/ai%20writing%20coach%20exercise%20creator.png" alt="AI writing coach exercise creator" width="100%"></td>
+  </tr>
+  <tr>
+    <td><img src="screenshots/live%20quiz%20creator.png" alt="Live quiz creator" width="100%"></td>
+    <td><img src="screenshots/classes_courses_worksheet%20overview%20in%20dashboard.png" alt="Classes, courses and worksheet overview" width="100%"></td>
+  </tr>
+</table>
+
 ## Core Features
 
 ### 👩‍🏫 For Teachers
