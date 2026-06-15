@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Learn Platform — Proxmox LXC Creator
 # ======================================
-# bash -c "$(curl -fsSL https://raw.githubusercontent.com/damessner/learn_/main/learn-lxc.sh)"
-# bash -c "$(curl -fsSL https://raw.githubusercontent.com/damessner/learn_/main/learn-lxc.sh)" -s -- -y
+# bash -c "$(curl -fsSL https://cdn.jsdelivr.net/gh/damessner/learn_@main/learn-lxc.sh)"
+# bash -c "$(curl -fsSL https://cdn.jsdelivr.net/gh/damessner/learn_@main/learn-lxc.sh)" -s -- -y
 #
 # Creates a Debian 13 LXC container on Proxmox VE with the Learn platform pre-installed.
 # License: MIT
@@ -288,7 +288,8 @@ create_container() {
   fi
 
   msg "Creating LXC container ${CT_ID} (this may take a minute)..."
-  note "  pct create output shown below:"
+  note "Hostname: ${CT_HOSTNAME} | Cores: ${CT_CORES} | RAM: ${CT_RAM}MiB | Disk: ${CT_DISK}G"
+  note "pct create output:"
   # Redirect stderr to stdout so the user sees progress
   pct create "$CT_ID" "$CT_TPL_PATH" \
     --hostname "$CT_HOSTNAME" \

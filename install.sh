@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Learn Platform Installer
-# curl -fsSL https://raw.githubusercontent.com/damessner/learn_/main/install.sh | bash
-# curl -fsSL https://raw.githubusercontent.com/damessner/learn_/main/install.sh | bash -s -- -y
+# curl -fsSL https://cdn.jsdelivr.net/gh/damessner/learn_@main/install.sh | bash
+# curl -fsSL https://cdn.jsdelivr.net/gh/damessner/learn_@main/install.sh | bash -s -- -y
 #
 # Installs the Learn educational platform on Debian 13 (Trixie).
 # License: MIT

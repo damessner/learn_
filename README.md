@@ -175,13 +175,13 @@ The application has been hardened to prevent tampering, unauthorized access, and
 ### Quick Install (Debian 13)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/damessner/learn_/main/install.sh | bash
+curl -fsSL https://cdn.jsdelivr.net/gh/damessner/learn_@main/install.sh | bash
 ```
 
 ### Proxmox LXC (one-command container)
 
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/damessner/learn_/main/learn-lxc.sh)"
+bash -c "$(curl -fsSL https://cdn.jsdelivr.net/gh/damessner/learn_@main/learn-lxc.sh)"
 ```
 
 This installs the platform to `/opt/learn` with a systemd service, Python TTS engine, and optional nginx reverse proxy with Let's Encrypt SSL.
