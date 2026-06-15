@@ -283,7 +283,9 @@ create_container() {
     err "CT ID ${CT_ID} is already in use."
   fi
 
-  msg "Creating LXC container ${CT_ID}..."
+  msg "Creating LXC container ${CT_ID} (this may take a minute)..."
+  note "  pct create output shown below:"
+  # Redirect stderr to stdout so the user sees progress
   pct create "$CT_ID" "$CT_TPL_PATH" \
     --hostname "$CT_HOSTNAME" \
     --cores "$CT_CORES" \
@@ -293,14 +295,12 @@ create_container() {
     --password "$CT_PASSWORD" \
     --unprivileged 1 \
     --features "keyctl=1,nesting=1" \
-    --tags "learn;debian-13" \
-    --start 1 >/dev/null 2>&1
-  ok "Container ${CT_ID} created and started"
+    --tags "learn;debian-13" 2>&1 || err "pct create failed (exit code $?)"
+  ok "Container ${CT_ID} created"
 
-  # Wait for the container to finish booting
-  msg "Waiting for container to boot..."
-  sleep 5
-  ok "Container is running"
+  msg "Starting container..."
+  pct start "$CT_ID" >/dev/null 2>&1 || true
+  ok "Container ${CT_ID} started"
 }
 
 # ----- Install Learn platform inside container -----
