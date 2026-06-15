@@ -217,21 +217,30 @@ This installs the platform to `/opt/learn` with a systemd service, Python TTS en
    ```
 
 4. **Configuration (`.env`)**:
-   Create a `.env` file in the root directory. SQLite is configured by default:
+   Create a `.env` file in the project root directory. All optional keys are commented out by default — uncomment and add your keys as needed:
+
     ```env
+    # Database (SQLite — relative to project root)
     DATABASE_URL="file:./dev.db"
-    SESSION_SECRET="your_secure_32_character_session_secret_key"
-    
-    # Set SECURE_COOKIE=true only if you have HTTPS configured.
+
+    # Required: 32+ character hex string for session encryption
+    # Generate with: openssl rand -hex 32
+    SESSION_SECRET="your_32_character_session_secret_key"
+
+    # Set to true only if you have HTTPS behind a reverse proxy.
     # Leave unset (or false) for plain HTTP.
     # SECURE_COOKIE="true"
 
-    # Optional: Gemini API Configuration
-    GEMINI_API_KEY="AIzaSy..."
-    GEMINI_MODEL="gemini-3.5-flash"
+    # --- Optional API Keys ---
 
-    # Optional: Pixabay API Configuration
-    PIXABAY_API_KEY="your_pixabay_api_key"
+    # Google Gemini — AI writing coach feedback & cloze generation
+    # Get a free key: https://aistudio.google.com/apikey
+    # GEMINI_API_KEY="your_gemini_api_key"
+    # GEMINI_MODEL="gemini-3.5-flash"
+
+    # Pixabay — image search inside the worksheet creator
+    # Get a free key: https://pixabay.com/api/docs/
+    # PIXABAY_API_KEY="your_pixabay_api_key"
     ```
 
 5. **Start Development Server**:

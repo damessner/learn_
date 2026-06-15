@@ -334,8 +334,25 @@ install_learn() {
   local secret
   secret=$(openssl rand -hex 32)
   pct exec "$CT_ID" -- bash -c "cat > /opt/learn/.env <<EOF
+# Database (SQLite — relative to project root)
 DATABASE_URL=\"file:./dev.db\"
+
+# Required: 32+ character hex string for session encryption
 SESSION_SECRET=\"${secret}\"
+
+# Set to true only if you have HTTPS behind a reverse proxy
+# SECURE_COOKIE=\"true\"
+
+# --- Optional API Keys ---
+
+# Google Gemini (AI writing coach, cloze generation)
+# Get a free key: https://aistudio.google.com/apikey
+# GEMINI_API_KEY=\"your_gemini_api_key\"
+# GEMINI_MODEL=\"gemini-3.5-flash\"
+
+# Pixabay (image search in worksheet creator)
+# Get a free key: https://pixabay.com/api/docs/
+# PIXABAY_API_KEY=\"your_pixabay_api_key\"
 EOF"
   ok "Environment configured"
 
