@@ -1,236 +1,168 @@
 #!/usr/bin/env bash
-
 # Learn Platform Installer
-# ========================
 # curl -fsSL https://raw.githubusercontent.com/damessner/learn_/main/install.sh | bash
-#
-# Non-interactive (no prompts, all defaults):
 # curl -fsSL https://raw.githubusercontent.com/damessner/learn_/main/install.sh | bash -s -- -y
 #
 # Installs the Learn educational platform on Debian 13 (Trixie).
-# Includes: Node.js, Python TTS engine, systemd service, optional nginx + SSL.
-#
-# License: MIT | https://github.com/damessner/learn_/raw/main/LICENSE
+# License: MIT
 
 set -e
-trap 'error_handler $LINENO "$BASH_COMMAND"' ERR
-trap cleanup EXIT
-trap 'echo -e "\n${CROSS}${RD}Installation interrupted${CL}\n"; exit 130' INT
-trap 'echo -e "\n${CROSS}${RD}Installation terminated${CL}\n"; exit 143' TERM
 
-# ==============================================================================
-# COLOR / ICON VARIABLES
-# ==============================================================================
+# ----- Colors -----
 YW=$(echo "\033[33m")
 BL=$(echo "\033[36m")
 RD=$(echo "\033[01;31m")
-BGN=$(echo "\033[4;92m")
 GN=$(echo "\033[1;92m")
 DGN=$(echo "\033[32m")
 CL=$(echo "\033[m")
 BOLD=$(echo "\033[1m")
 BFR="\\r\\033[K"
-HOLD=" "
-TAB="  "
+OFF="  "
+CHECK="${OFF}✔️${OFF}"
+CROSS="${OFF}✖️${OFF}"
+INFO="${OFF}💡${OFF}"
 
-CM="${TAB}✔️${TAB}${CL}"
-CROSS="${TAB}✖️${TAB}${CL}"
-INFO="${TAB}💡${TAB}${CL}"
-GEAR="${TAB}⚙️${TAB}${CL}"
-OK="${TAB}✅${TAB}${CL}"
-
-# ==============================================================================
-# CONFIGURATION (user-overridable via environment variables)
-# ==============================================================================
+# ----- Defaults (override via env) -----
 INSTALL_DIR="${INSTALL_DIR:-/opt/learn}"
-REPO_URL="${REPO_URL:-https://github.com/damessner/learn_.git}"
 BRANCH="${BRANCH:-main}"
 APP_PORT="${APP_PORT:-3000}"
 LEARN_USER="${LEARN_USER:-learn}"
-LEARN_GROUP="${LEARN_GROUP:-learn}"
 NODE_MAJOR="${NODE_MAJOR:-22}"
-# For private repos: pass GITHUB_TOKEN env var to authenticate curl + git clone
-GITHUB_TOKEN="${GITHUB_TOKEN:-}"
+SKIP_PROMPTS=false
 
-# Non-interactive mode (skip whiptail, use defaults)
-SKIP_PROMPTS="${SKIP_PROMPTS:-false}"
-# Parse --yes / -y flag
 for arg in "$@"; do
-  case "$arg" in
-    -y|--yes) SKIP_PROMPTS="true" ;;
-  esac
+  [[ "$arg" == "-y" || "$arg" == "--yes" ]] && SKIP_PROMPTS=true
 done
 
 TEMP_DIR=$(mktemp -d)
 export DEBIAN_FRONTEND=noninteractive
 
-# ==============================================================================
-# ASCII HEADER
-# ==============================================================================
-function header_info {
+# ----- Cleanup -----
+cleanup() {
+  rm -rf "$TEMP_DIR" 2>/dev/null || true
+}
+trap cleanup EXIT
+
+err() {
+  echo -e "\n${CROSS}${RD}Error: $*${CL}\n" >&2
+  exit 1
+}
+
+msg()  { echo -ne "${OFF}${YW}${*}${CL}"; }
+ok()   { echo -e "${BFR}${CHECK}${GN}${*}${CL}"; }
+fail() { echo -e "${BFR}${CROSS}${RD}${*}${CL}"; }
+note() { echo -e "${OFF}${INFO}${CL}${*}"; }
+
+# ----- Header -----
+header() {
   clear
   cat <<"EOF"
 
-    __                   
+    __
    / /   ___  ____  _____
   / /   / _ \/ __ \/ ___/
- / /___/  __/ / / / /__  
-/_____/\___/_/ /_/\___/  
+ / /___/  __/ / / / /__
+/_____/\___/_/ /_/\___/
                    v0.1.0
-===================================
+===============================
   Learn Platform Installer
   Debian 13 (Trixie)
-===================================
+===============================
 EOF
 }
 
-# ==============================================================================
-# HELPER FUNCTIONS
-# ==============================================================================
-function msg_info() {
-  local msg="$1"
-  echo -ne "${TAB}${YW}${HOLD}${msg}${HOLD}"
+# ----- Pre-flight checks -----
+check_root() {
+  [[ "$EUID" -eq 0 ]] || err "Must run as root (use sudo)."
 }
 
-function msg_ok() {
-  local msg="$1"
-  echo -e "${BFR}${CM}${GN}${msg}${CL}"
+check_debian() {
+  [[ -f /etc/debian_version ]] || err "Only Debian-based systems supported."
+  local ver
+  ver=$(cut -d'.' -f1 < /etc/debian_version)
+  [[ "$ver" == "13" ]] || err "Designed for Debian 13 (Trixie). Detected: $(cat /etc/debian_version)"
 }
 
-function msg_error() {
-  local msg="$1"
-  echo -e "${BFR}${CROSS}${RD}${msg}${CL}"
+check_arch() {
+  [[ "$(dpkg --print-architecture)" == "amd64" ]] || err "Only amd64 architecture supported."
 }
 
-function notify() {
-  local msg="$1"
-  echo -e "${TAB}${INFO}${CL}${msg}"
-}
-
-function exit_script() {
-  header_info
-  echo -e "\n${CROSS}${RD}Installation cancelled by user${CL}\n"
-  exit
-}
-
-function error_handler() {
-  local exit_code="$?"
-  local line_number="$1"
-  local command="$2"
-  echo -e "\n${CROSS}${RD}Error on line ${line_number}: exit code ${exit_code}${CL}"
-  echo -e "${INFO}Command: ${YW}${command}${CL}\n"
-}
-
-function cleanup() {
-  rm -rf "$TEMP_DIR" 2>/dev/null || true
-}
-
-# ==============================================================================
-# PREREQUISITE CHECKS
-# ==============================================================================
-function check_root() {
-  if [[ "$(id -u)" -ne 0 ]]; then
-    clear
-    msg_error "This script must be run as root (use sudo)."
-    echo -e "\nExiting..."
-    exit 1
+check_ram() {
+  local mem
+  mem=$(awk '/MemTotal/ {printf "%d", $2/1024}' /proc/meminfo)
+  if [[ "$mem" -lt 1024 ]]; then
+    note "Warning: ${mem}MB RAM detected. Build may be slow."
   fi
 }
 
-function check_debian() {
-  if [ ! -f /etc/debian_version ]; then
-    msg_error "This script only supports Debian-based systems."
-    exit 1
-  fi
-
-  local DEBIAN_VERSION
-  DEBIAN_VERSION=$(cat /etc/debian_version | cut -d'.' -f1)
-  if [[ "$DEBIAN_VERSION" != "13" ]]; then
-    msg_error "This script is designed for Debian 13 (Trixie)."
-    msg_error "Detected version: $(cat /etc/debian_version)"
-    exit 1
-  fi
+check_disk() {
+  local free_kb
+  free_kb=$(df "$(dirname "$INSTALL_DIR")" --output=avail 2>/dev/null | tail -1)
+  [[ -z "$free_kb" || "$free_kb" -ge 2097152 ]] || err "Need at least 2GB free disk space."
 }
 
-function arch_check() {
-  local ARCH
-  ARCH=$(dpkg --print-architecture 2>/dev/null)
-  if [[ "$ARCH" != "amd64" ]]; then
-    msg_error "This script only supports amd64 architecture."
-    msg_error "Detected: ${ARCH:-unknown}"
-    exit 1
+# ----- Prompt helpers (whiptail with fallback) -----
+prompt_yesno() {
+  local title="$1" msg="$2" rc answer
+  [[ "$SKIP_PROMPTS" == "true" ]] && return 0
+
+  # Try whiptail (it opens /dev/tty directly — works with pipes)
+  if command -v whiptail &>/dev/null; then
+    whiptail --backtitle "Learn Platform Installer" \
+      --title "$title" --yesno "$msg" 14 68 0</dev/tty 2>/dev/null
+    rc=$?
+    # 0=Yes, 1=No, other=failed (no /dev/tty etc.) — if it worked, return result
+    [[ $rc -le 1 ]] && return $rc
   fi
+
+  # Fallback: read from /dev/tty
+  if exec <>/dev/tty 2>/dev/null; then
+    echo ""
+    echo "=== $title ==="
+    echo -e "$msg"
+    echo -n "[Y/n] "
+    read -r answer
+    [[ "${answer,,}" != "n" && "${answer,,}" != "no" ]]
+    return $?
+  fi
+
+  # No terminal — auto-yes for non-interactive
+  return 0
 }
 
-function check_system() {
-  # Check minimum RAM (2GB recommended for build)
-  local TOTAL_RAM_MB
-  TOTAL_RAM_MB=$(awk '/MemTotal/ {printf "%d", $2/1024}' /proc/meminfo)
-  if [[ "$TOTAL_RAM_MB" -lt 1024 ]]; then
-    notify "Warning: Less than 1GB RAM detected (${TOTAL_RAM_MB}MB). Build may fail."
-    if (whiptail --backtitle "Learn Platform Installer" --title "LOW MEMORY" \
-      --yesno "Your system has less than 1GB RAM (${TOTAL_RAM_MB}MB).\n\nThe Next.js production build may fail or be extremely slow.\n\nDo you want to continue anyway?" 12 60); then
-      :
-    else
-      exit_script
-    fi
+prompt_input() {
+  local title="$1" msg="$2" default="$3" rc val
+  [[ "$SKIP_PROMPTS" == "true" ]] && { echo "$default"; return 0; }
+
+  if command -v whiptail &>/dev/null; then
+    val=$(whiptail --backtitle "Learn Platform Installer" --title "$title" \
+      --inputbox "$msg" 10 60 "$default" 0</dev/tty 3>&1 1>&2 2>&3)
+    rc=$?
+    # 0=OK with input, 1=Cancel/Skip — return whatever was entered
+    [[ $rc -le 1 ]] && { echo "$val"; return 0; }
   fi
 
-  # Check disk space (minimum 2GB free)
-  local FREE_KB
-  FREE_KB=$(df "$(dirname "$INSTALL_DIR")" --output=avail 2>/dev/null | tail -1)
-  if [[ -n "$FREE_KB" && "$FREE_KB" -lt 2097152 ]]; then
-    msg_error "Insufficient disk space. At least 2GB free required."
-    exit 1
-  fi
-}
-
-# ==============================================================================
-# INTERACTIVE INSTALL FLOW (whiptail)
-# ==============================================================================
-function prompt_yesno() {
-  local title="$1" msg="$2"
-  if [[ "$SKIP_PROMPTS" == "true" ]]; then
+  if exec <>/dev/tty 2>/dev/null; then
+    echo ""
+    echo "=== $title ==="
+    echo -e "$msg"
+    echo -n "[$default] "
+    read -r val
+    echo "${val:-$default}"
     return 0
   fi
-  whiptail --backtitle "Learn Platform Installer" --title "$title" --yesno "$msg" 0 0
+
+  echo "$default"
 }
 
-function prompt_input() {
-  local title="$1" msg="$2" default="$3"
-  if [[ "$SKIP_PROMPTS" == "true" ]]; then
-    echo "$default"
-    return 0
-  fi
-  whiptail --backtitle "Learn Platform Installer" --title "$title" \
-    --inputbox "$msg" 10 60 "$default" \
-    --cancel-button Skip 3>&1 1>&2 2>&3
-}
+# ----- Guided config -----
+get_config() {
+  local USE_NGINX=false DOMAIN="" USE_SSL=false
 
-function check_whiptail() {
-  if ! command -v whiptail &>/dev/null; then
-    if [[ "$SKIP_PROMPTS" != "true" ]]; then
-      echo -e "${INFO}whiptail not found — installing..."
-      apt-get install -y -qq whiptail >/dev/null 2>&1 || {
-        echo -e "${INFO}Could not install whiptail. Falling back to non-interactive mode."
-        SKIP_PROMPTS="true"
-      }
-    fi
-  fi
-}
+  if prompt_yesno "Welcome" \
+    "This will install the Learn Platform on your Debian 13 system.
 
-function guided_install() {
-  # Ensure whiptail is available before we start
-  check_whiptail
-
-  header_info
-
-  # -- Welcome prompt --
-  if [[ "$SKIP_PROMPTS" != "true" ]]; then
-    if ! (whiptail --backtitle "Learn Platform Installer" --title "Welcome" \
-      --yesno "This will install the Learn Platform on your Debian 13 system.
-
-Components to install:
+Components:
   - Node.js ${NODE_MAJOR}.x + npm
   - Python 3 + TTS engine (kokoro-onnx)
   - Git clone from GitHub
@@ -240,209 +172,149 @@ Components to install:
 
 Target directory: ${INSTALL_DIR}
 
-Proceed with installation?" 16 68); then
-      exit_script
-    fi
+Proceed with installation?"; then
+    :
+  else
+    header
+    echo -e "\n${CROSS}${RD}Installation cancelled by user${CL}\n"
+    exit
   fi
 
-  # -- nginx prompt --
-  local USE_NGINX=false
-  if [[ "$SKIP_PROMPTS" == "true" ]]; then
-    USE_NGINX=false
-  elif (whiptail --backtitle "Learn Platform Installer" --title "REVERSE PROXY" \
-    --yesno "Set up nginx as a reverse proxy?
+  if prompt_yesno "Reverse Proxy" \
+    "Set up nginx as a reverse proxy?
 
-This will proxy traffic from port 80/443 to the app on port ${APP_PORT}.
-Recommended for production deployments." 11 60); then
+This proxies port 80/443 to the app on port ${APP_PORT}.
+Recommended for production."; then
     USE_NGINX=true
   fi
 
-  # -- domain + SSL prompts --
-  local DOMAIN=""
-  local USE_SSL=false
   if [[ "$USE_NGINX" == true ]]; then
-    if DOMAIN=$(whiptail --backtitle "Learn Platform Installer" --title "DOMAIN NAME" \
-      --inputbox "Enter your domain name (e.g., learn.example.com)
-Leave blank to use the server IP address." 10 60 \
-      --cancel-button Skip 3>&1 1>&2 2>&3); then
-      DOMAIN=$(echo "$DOMAIN" | tr -d ' ' | tr '[:upper:]' '[:lower:]')
-      if [[ -n "$DOMAIN" ]]; then
-        if (whiptail --backtitle "Learn Platform Installer" --title "SSL CERTIFICATE" \
-          --yesno "Set up Let's Encrypt SSL certificate for ${DOMAIN}?
+    local d
+    d=$(prompt_input "Domain Name" \
+      "Enter your domain name (e.g., learn.example.com)
+Leave blank to use the server IP address." "")
+    DOMAIN=$(echo "$d" | tr -d ' ' | tr '[:upper:]' '[:lower:]')
 
-Requires the domain to be publicly resolvable and port 80 to be reachable." 11 60); then
-          USE_SSL=true
-        fi
+    if [[ -n "$DOMAIN" ]]; then
+      if prompt_yesno "SSL Certificate" \
+        "Set up Let's Encrypt SSL for ${DOMAIN}?
+
+Requires the domain to be publicly resolvable on port 80."; then
+        USE_SSL=true
       fi
     fi
   fi
 
-  # -- summary + confirm --
-  if [[ "$SKIP_PROMPTS" != "true" ]]; then
-    local SUMMARY="Installation Summary:\n\n"
-    SUMMARY+="  - Install Directory: ${INSTALL_DIR}\n"
-    SUMMARY+="  - App Port: ${APP_PORT}\n"
-    SUMMARY+="  - Branch: ${BRANCH}\n"
-    if [[ "$USE_NGINX" == true ]]; then
-      SUMMARY+="  - nginx Reverse Proxy: Yes\n"
-      if [[ -n "$DOMAIN" ]]; then
-        SUMMARY+="  - Domain: ${DOMAIN}\n"
-        if [[ "$USE_SSL" == true ]]; then
-          SUMMARY+="  - Let's Encrypt SSL: Yes\n"
-        else
-          SUMMARY+="  - Let's Encrypt SSL: No\n"
-        fi
-      else
-        SUMMARY+="  - Domain: (server IP)\n"
-      fi
-    else
-      SUMMARY+="  - nginx Reverse Proxy: No\n"
-      SUMMARY+="  - Access: http://<server-ip>:${APP_PORT}\n"
-    fi
-
-    if ! (whiptail --backtitle "Learn Platform Installer" --title "CONFIRM INSTALL" \
-      --yesno "$SUMMARY\n\nProceed with these settings?" 16 68); then
-      exit_script
-    fi
-  fi
-
-  # Export for use in install steps
+  # Export for downstream steps
   export USE_NGINX DOMAIN USE_SSL
 }
 
-# ==============================================================================
-# INSTALLATION STEPS
-# ==============================================================================
-function step_prerequisites() {
-  msg_info "Updating package lists..."
+# ----- Install steps -----
+step_prereqs() {
+  msg "Updating package lists..."
   apt-get update -qq >/dev/null 2>&1
-  msg_ok "Package lists updated"
+  ok "Package lists updated"
 
-  msg_info "Installing system prerequisites..."
+  msg "Installing system packages..."
   apt-get install -y -qq \
     curl wget git \
     python3 python3-pip python3-venv \
     build-essential pkg-config \
-    libsystemd-dev \
-    >/dev/null 2>&1
-  msg_ok "System prerequisites installed"
+    whiptail >/dev/null 2>&1
+  ok "System packages installed"
 }
 
-function step_nodejs() {
+step_node() {
   if command -v node &>/dev/null; then
-    local NODE_VER
-    NODE_VER=$(node --version 2>/dev/null | cut -d'v' -f2 | cut -d'.' -f1)
-    if [[ "$NODE_VER" -ge 18 ]]; then
-      msg_ok "Node.js $(node --version) already installed"
-      return
-    fi
+    local nv
+    nv=$(node --version 2>/dev/null | cut -d'v' -f2 | cut -d'.' -f1)
+    [[ "$nv" -ge 18 ]] && { ok "Node.js $(node --version) already installed"; return; }
   fi
-
-  msg_info "Installing Node.js ${NODE_MAJOR}.x..."
+  msg "Installing Node.js ${NODE_MAJOR}.x..."
   curl -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR}.x" | bash - >/dev/null 2>&1
   apt-get install -y -qq nodejs >/dev/null 2>&1
-  msg_ok "Node.js $(node --version) installed"
+  ok "Node.js $(node --version) installed"
 }
 
-function step_tts_deps() {
-  msg_info "Installing Python TTS dependencies (kokoro-onnx)..."
-  pip3 install --break-system-packages --quiet \
-    kokoro-onnx numpy \
-    >/dev/null 2>&1
-  msg_ok "Python TTS dependencies installed"
+step_tts() {
+  msg "Installing Python TTS engine (kokoro-onnx)..."
+  pip3 install --break-system-packages --quiet kokoro-onnx numpy >/dev/null 2>&1
+  ok "TTS dependencies installed"
 }
 
-function step_create_user() {
-  msg_info "Creating system user '${LEARN_USER}'..."
+step_user() {
+  msg "Creating system user '${LEARN_USER}'..."
   if ! id -u "$LEARN_USER" &>/dev/null; then
-    groupadd -f "$LEARN_GROUP"
-    useradd -r -g "$LEARN_GROUP" -d "$INSTALL_DIR" -s /usr/sbin/nologin "$LEARN_USER" 2>/dev/null || true
+    groupadd -f "$LEARN_USER"
+    useradd -r -g "$LEARN_USER" -d "$INSTALL_DIR" -s /usr/sbin/nologin "$LEARN_USER"
   fi
-  msg_ok "System user '${LEARN_USER}' ready"
+  ok "User '${LEARN_USER}' ready"
 }
 
-function step_clone_repo() {
-  local CLONE_URL="$REPO_URL"
-
-  # Inject token into clone URL for private repos
-  if [[ -n "$GITHUB_TOKEN" ]]; then
-    CLONE_URL="https://${GITHUB_TOKEN}@github.com/damessner/learn_.git"
-  fi
-
+step_clone() {
+  local url="https://github.com/damessner/learn_.git"
   if [[ -d "$INSTALL_DIR/.git" ]]; then
-    msg_info "Repository already exists, updating..."
+    msg "Updating existing repository..."
     cd "$INSTALL_DIR"
-    # Update remote URL in case token changed
-    git remote set-url origin "$CLONE_URL" >/dev/null 2>&1
     git fetch origin "$BRANCH" >/dev/null 2>&1
     git reset --hard "origin/$BRANCH" >/dev/null 2>&1
     cd - >/dev/null
-    msg_ok "Repository updated"
+    ok "Repository updated"
   else
-    msg_info "Cloning repository from GitHub..."
+    msg "Cloning repository..."
     mkdir -p "$(dirname "$INSTALL_DIR")"
-    git clone --branch "$BRANCH" --depth 1 "$CLONE_URL" "$INSTALL_DIR" >/dev/null 2>&1
-    msg_ok "Repository cloned to ${INSTALL_DIR}"
+    git clone --branch "$BRANCH" --depth 1 "$url" "$INSTALL_DIR" >/dev/null 2>&1
+    ok "Repository cloned"
   fi
 }
 
-function step_env_file() {
-  msg_info "Configuring environment (.env)..."
+step_env() {
+  msg "Configuring environment..."
   cd "$INSTALL_DIR"
-
   if [[ ! -f .env ]]; then
-    local SESSION_SECRET
-    SESSION_SECRET=$(openssl rand -hex 32)
-
+    local secret
+    secret=$(openssl rand -hex 32)
     cat > .env <<EOF
 DATABASE_URL="file:./dev.db"
-SESSION_SECRET="${SESSION_SECRET}"
+SESSION_SECRET="${secret}"
 EOF
-
-    # Ensure exercise content directory exists (included in repo)
     mkdir -p content/exercises
   else
-    notify "Existing .env found, preserving settings"
+    note "Existing .env preserved"
   fi
-
-  # Ensure proper ownership
-  chown -R "$LEARN_USER":"$LEARN_GROUP" "$INSTALL_DIR"
-  msg_ok "Environment configured"
+  chown -R "$LEARN_USER":"$LEARN_USER" "$INSTALL_DIR"
+  ok "Environment configured"
 }
 
-function step_npm_install() {
-  msg_info "Installing npm dependencies..."
+step_npm() {
+  msg "Installing npm packages..."
   cd "$INSTALL_DIR"
-  sudo -u "$LEARN_USER" bash -c "npm install --no-audit --no-fund" >/dev/null 2>&1
-  msg_ok "npm dependencies installed"
+  sudo -u "$LEARN_USER" npm install --no-audit --no-fund >/dev/null 2>&1
+  ok "npm packages installed"
 
-  msg_info "Generating Prisma client..."
-  cd "$INSTALL_DIR"
+  msg "Generating Prisma client..."
   sudo -u "$LEARN_USER" npx prisma generate >/dev/null 2>&1
-  msg_ok "Prisma client generated"
+  ok "Prisma client generated"
 
-  msg_info "Pushing database schema..."
-  cd "$INSTALL_DIR"
+  msg "Pushing database schema..."
   sudo -u "$LEARN_USER" npx prisma db push --accept-data-loss >/dev/null 2>&1
-  msg_ok "Database schema pushed"
+  ok "Database schema pushed"
 
-  msg_info "Seeding database..."
-  cd "$INSTALL_DIR"
-  sudo -u "$LEARN_USER" npx prisma db seed >/dev/null 2>&1 || notify "Seed skipped (may already have data)"
-  msg_ok "Database seeded"
+  msg "Seeding database..."
+  sudo -u "$LEARN_USER" npx prisma db seed >/dev/null 2>&1 || note "Seed skipped (data exists)"
+  ok "Database seeded"
 }
 
-function step_build() {
-  msg_info "Building Next.js production bundle..."
+step_build() {
+  msg "Building Next.js production bundle..."
   cd "$INSTALL_DIR"
   sudo -u "$LEARN_USER" npm run build >/dev/null 2>&1
-  msg_ok "Next.js production build complete"
+  ok "Production build complete"
 }
 
-function step_systemd() {
-  msg_info "Configuring systemd service..."
-
-  cat > /etc/systemd/system/learn.service <<EOF
+step_systemd() {
+  msg "Setting up systemd service..."
+  cat > /etc/systemd/system/learn.service <<UNIT
 [Unit]
 Description=Learn Platform
 After=network.target network-online.target
@@ -451,7 +323,7 @@ Wants=network-online.target
 [Service]
 Type=exec
 User=${LEARN_USER}
-Group=${LEARN_GROUP}
+Group=${LEARN_USER}
 WorkingDirectory=${INSTALL_DIR}
 Environment=NODE_ENV=production
 Environment=HOST=0.0.0.0
@@ -463,51 +335,37 @@ LimitNOFILE=65536
 
 [Install]
 WantedBy=multi-user.target
-EOF
-
+UNIT
   systemctl daemon-reload >/dev/null 2>&1
   systemctl enable learn.service >/dev/null 2>&1
-  msg_ok "systemd service 'learn' configured"
+  ok "systemd service configured"
 }
 
-function step_nginx() {
-  if [[ "$USE_NGINX" != "true" ]]; then
-    return
-  fi
+step_nginx() {
+  [[ "${USE_NGINX:-false}" != "true" ]] && return
 
-  msg_info "Installing nginx..."
+  msg "Installing nginx..."
   apt-get install -y -qq nginx >/dev/null 2>&1
-  msg_ok "nginx installed"
+  ok "nginx installed"
 
-  local SERVER_NAME="_"
+  local sname="${DOMAIN:-_}"
 
-  if [[ -n "$DOMAIN" ]]; then
-    SERVER_NAME="$DOMAIN"
-  fi
-
-  msg_info "Configuring nginx reverse proxy..."
-  cat > /etc/nginx/sites-available/learn <<NGINX_CONF
-upstream learn_backend {
-    server 127.0.0.1:${APP_PORT};
-}
+  msg "Writing nginx config..."
+  cat > /etc/nginx/sites-available/learn <<NGX
+upstream learn { server 127.0.0.1:${APP_PORT}; }
 
 server {
     listen 80;
     listen [::]:80;
-    server_name ${SERVER_NAME};
+    server_name ${sname};
 
-    # HSTS (commented until SSL is active)
-    # add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-
-    # Security headers
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-XSS-Protection "1; mode=block" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
 
-    # Reverse proxy
     location / {
-        proxy_pass http://learn_backend;
+        proxy_pass http://learn;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -519,9 +377,8 @@ server {
         proxy_buffering off;
     }
 
-    # Static asset caching
     location /_next/static {
-        proxy_pass http://learn_backend;
+        proxy_pass http://learn;
         expires max;
         add_header Cache-Control "public, immutable";
     }
@@ -532,47 +389,37 @@ server {
         add_header Cache-Control "public";
     }
 }
-NGINX_CONF
-
-  if [[ -f /etc/nginx/sites-enabled/default ]]; then
-    rm -f /etc/nginx/sites-enabled/default
-  fi
+NGX
+  rm -f /etc/nginx/sites-enabled/default
   ln -sf /etc/nginx/sites-available/learn /etc/nginx/sites-enabled/
-  msg_ok "nginx reverse proxy configured"
+  ok "nginx config written"
 
-  # -- Let's Encrypt SSL --
-  if [[ "$USE_SSL" == true && -n "$DOMAIN" ]]; then
-    msg_info "Installing Certbot and setting up SSL..."
+  if [[ "${USE_SSL:-false}" == "true" && -n "${DOMAIN:-}" ]]; then
+    msg "Installing Certbot..."
     apt-get install -y -qq certbot python3-certbot-nginx >/dev/null 2>&1
-    # First ensure nginx is running so certbot can validate
     systemctl start nginx >/dev/null 2>&1
     certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos \
-      --email "admin@${DOMAIN}" --redirect >/dev/null 2>&1 || {
-      msg_error "SSL certificate setup failed. You can run later: certbot --nginx -d ${DOMAIN}"
-    }
-    msg_ok "SSL certificate configured for ${DOMAIN}"
+      --email "admin@${DOMAIN}" --redirect >/dev/null 2>&1 || \
+      note "SSL setup failed. Fix later: certbot --nginx -d ${DOMAIN}"
+    ok "SSL configured"
   fi
 }
 
-function step_start_services() {
-  msg_info "Starting Learn Platform service..."
+step_start() {
+  msg "Starting learn.service..."
   systemctl start learn.service >/dev/null 2>&1
-  msg_ok "learn.service started"
+  ok "learn.service started"
 
-  if [[ "$USE_NGINX" == "true" ]]; then
-    msg_info "Starting nginx..."
+  if [[ "${USE_NGINX:-false}" == "true" ]]; then
     systemctl start nginx >/dev/null 2>&1
-    systemctl reload nginx >/dev/null 2>&1
-    msg_ok "nginx started"
+    systemctl reload nginx >/dev/null 2>&1 || true
   fi
 }
 
-# ==============================================================================
-# SUMMARY OUTPUT
-# ==============================================================================
-function print_summary() {
-  local IP
-  IP=$(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '127.0.0.1' | head -1)
+# ----- Summary -----
+summary() {
+  local ip
+  ip=$(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '127.0.0.1' | head -1)
 
   echo ""
   echo -e "${BOLD}${GN}============================================${CL}"
@@ -580,80 +427,58 @@ function print_summary() {
   echo -e "${BOLD}${GN}============================================${CL}"
   echo ""
 
-  if [[ "$USE_NGINX" == "true" && -n "$DOMAIN" ]]; then
-    local PROTO="http"
-    [[ "$USE_SSL" == "true" ]] && PROTO="https"
-    echo -e "  ${OK} URL:       ${BGN}${PROTO}://${DOMAIN}${CL}"
-  elif [[ "$USE_NGINX" == "true" ]]; then
-    echo -e "  ${OK} URL:       ${BGN}http://${IP}${CL}"
+  if [[ "${USE_NGINX:-false}" == "true" && -n "${DOMAIN:-}" ]]; then
+    local proto="http"
+    [[ "${USE_SSL:-false}" == "true" ]] && proto="https"
+    echo -e "  ${CHECK} URL:     ${DGN}${proto}://${DOMAIN}${CL}"
+  elif [[ "${USE_NGINX:-false}" == "true" ]]; then
+    echo -e "  ${CHECK} URL:     ${DGN}http://${ip}${CL}"
   else
-    echo -e "  ${OK} URL:       ${BGN}http://${IP}:${APP_PORT}${CL}"
+    echo -e "  ${CHECK} URL:     ${DGN}http://${ip}:${APP_PORT}${CL}"
   fi
 
+  echo -e "  ${INFO} Install: ${DGN}${INSTALL_DIR}${CL}"
+  echo -e "  ${INFO} Config:  ${DGN}${INSTALL_DIR}/.env${CL}"
+  echo -e "  ${INFO} Service: ${DGN}learn.service${CL}"
   echo ""
-  echo -e "  ${INFO} Install:   ${DGN}${INSTALL_DIR}${CL}"
-  echo -e "  ${INFO} Config:    ${DGN}${INSTALL_DIR}/.env${CL}"
-  echo -e "  ${INFO} Service:   ${DGN}learn.service${CL}"
+  note "Commands:"
+  echo -e "    ${DGN}systemctl status learn${CL}"
+  echo -e "    ${DGN}journalctl -u learn -f${CL}"
   echo ""
-  echo -e "  ${INFO} Commands:"
-  echo -e "     Status:  ${DGN}systemctl status learn${CL}"
-  echo -e "     Logs:    ${DGN}journalctl -u learn -f${CL}"
-  echo -e "     Restart: ${DGN}systemctl restart learn${CL}"
-  echo -e "     Stop:    ${DGN}systemctl stop learn${CL}"
-  echo ""
-
-  if [[ "$USE_SSL" != "true" && "$USE_NGINX" == "true" && -n "$DOMAIN" ]]; then
-    echo -e "  ${INFO} To enable SSL later:"
-    echo -e "     ${DGN}certbot --nginx -d ${DOMAIN}${CL}"
-    echo ""
-  fi
-
-  echo -e "  ${INFO} First steps:"
-  echo -e "     1. Open the URL in your browser"
-  echo -e "     2. Register a ${BOLD}TEACHER${CL} account"
-  echo -e "     3. Create classrooms and invite students"
-  echo ""
-  echo -e "  ${INFO} Documentation:"
-  echo -e "     ${DGN}https://github.com/damessner/learn_${CL}"
-  echo ""
+  note "Open the URL, register a TEACHER account, then create classrooms."
   echo -e "${GN}============================================${CL}"
   echo ""
 }
 
-# ==============================================================================
-# MAIN
-# ==============================================================================
-function main() {
-  header_info
-  echo -e "\n ${INFO}${BOLD}Learn Platform Installer for Debian 13${CL}\n"
+# ----- Main -----
+main() {
+  header
+  echo -e "\n${INFO}${BOLD}Learn Platform Installer for Debian 13${CL}\n"
 
-  # -- Pre-flight checks --
   check_root
   check_debian
-  arch_check
-  check_system
+  check_arch
+  check_ram
+  check_disk
 
-  # -- Guided configuration --
-  guided_install
+  get_config
 
-  header_info
-  echo -e "\n ${INFO}${BOLD}Beginning installation...${CL}\n"
+  header
+  echo -e "\n${INFO}${BOLD}Beginning installation...${CL}\n"
 
-  # -- Execute steps --
-  step_prerequisites
-  step_nodejs
-  step_tts_deps
-  step_create_user
-  step_clone_repo
-  step_env_file
-  step_npm_install
+  step_prereqs
+  step_node
+  step_tts
+  step_user
+  step_clone
+  step_env
+  step_npm
   step_build
   step_systemd
   step_nginx
-  step_start_services
+  step_start
 
-  # -- Done --
-  print_summary
+  summary
 }
 
 main "$@"
