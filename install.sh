@@ -27,7 +27,7 @@ INSTALL_DIR="${INSTALL_DIR:-/opt/learn}"
 BRANCH="${BRANCH:-main}"
 APP_PORT="${APP_PORT:-3000}"
 LEARN_USER="${LEARN_USER:-learn}"
-NODE_MAJOR="${NODE_MAJOR:-22}"
+NODE_MAJOR="${NODE_MAJOR:-24}"
 SKIP_PROMPTS=false
 
 for arg in "$@"; do

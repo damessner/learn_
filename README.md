@@ -186,7 +186,7 @@ This installs the platform to `/opt/learn` with a systemd service, Python TTS en
 
 #### Prerequisites
 
-- Node.js 18+
+- Node.js 18+ (Node.js 24 LTS recommended)
 - npm 9+
 
 #### Installation
