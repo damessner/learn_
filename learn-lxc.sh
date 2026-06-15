@@ -217,49 +217,66 @@ Proceed?"; then
   fi
 }
 
+# Global: cached template path
+CT_TPL_PATH=""
+
 # ----- LXC template -----
 download_template() {
+  local templatestore tpl_name
+
+  # Determine which storage holds templates (usually the 'local' storage)
+  templatestore=$(pvesm status -content vztmpl 2>/dev/null | awk 'NR>1 {print $1}' | head -1)
+  if [[ -z "$templatestore" ]]; then
+    templatestore=$(pvesm status -content rootdir 2>/dev/null | awk 'NR>1 {print $1}' | head -1)
+  fi
+  [[ -z "$templatestore" ]] && templatestore="$CT_STORAGE"
+
   msg "Updating Proxmox template list..."
   pveam update >/dev/null 2>&1 || true
 
-  # Find latest Debian 13 template
-  local tpl
-  tpl=$(pveam available 2>/dev/null | grep "debian-13" | awk '{print $2}' | head -1)
-
-  if [[ -z "$tpl" ]]; then
-    # Fallback: known template name
-    tpl="debian-13-standard_13.0-1_amd64.tar.zst"
+  # Find latest Debian 13 template name
+  tpl_name=$(pveam available 2>/dev/null | grep "debian-13" | awk '{print $2}' | head -1)
+  if [[ -z "$tpl_name" ]]; then
+    tpl_name="debian-13-standard_13.1-2_amd64.tar.zst"
   fi
 
-  # Check if already cached
-  if pveam list "$CT_STORAGE" 2>/dev/null | grep -q "debian-13"; then
-    ok "Template already cached"
+  # Check if already cached somewhere
+  local existing
+  existing=$(find /var/lib/vz/template/cache /var/tmp/pve* -name "*debian-13*" 2>/dev/null | head -1)
+  if [[ -n "$existing" ]]; then
+    CT_TPL_PATH="$existing"
+    ok "Template already cached: $(basename "$existing")"
     return
   fi
 
-  msg "Downloading Debian 13 template (${tpl})..."
-  if pveam download "$CT_STORAGE" "$tpl" >/dev/null 2>&1; then
+  # Try pveam download (works for directory-based storages)
+  msg "Downloading Debian 13 template..."
+  if pveam download "$templatestore" "$tpl_name" >/dev/null 2>&1; then
+    CT_TPL_PATH="/var/lib/vz/template/cache/${tpl_name}"
+    # Check if pveam put it elsewhere
+    local found
+    found=$(find /var/lib/vz /var/tmp -path "*/template/cache/${tpl_name}" 2>/dev/null | head -1)
+    [[ -n "$found" ]] && CT_TPL_PATH="$found"
     ok "Template downloaded"
     return
   fi
 
-  # Fallback: direct download into Proxmox template cache
-  local cache_dir
-  cache_dir=$(pvesm path "$CT_STORAGE" 2>/dev/null || echo "/var/lib/vz")
-  local url="http://download.proxmox.com/images/system/${tpl}"
+  # Fallback: direct download to /var/lib/vz/template/cache/
+  local url="http://download.proxmox.com/images/system/${tpl_name}"
   msg "Direct download from: ${url}..."
-  curl -fsSL -o "${cache_dir}/template/cache/${tpl}" "$url" >/dev/null 2>&1 || {
-    fail "Template download failed"
-    err "Could not fetch Debian 13 template. Check: ${url}"
+  mkdir -p /var/lib/vz/template/cache
+  curl -fsSL -o "/var/lib/vz/template/cache/${tpl_name}" "$url" >/dev/null 2>&1 || {
+    fail "Download failed"
+    err "Could not fetch Debian 13 template. Check URL: ${url}"
   }
+  CT_TPL_PATH="/var/lib/vz/template/cache/${tpl_name}"
   ok "Template downloaded"
 }
 
 # ----- Container creation -----
 create_container() {
-  local tpl
-  tpl=$(pveam list "$CT_STORAGE" 2>/dev/null | grep "debian-13" | awk '{print $2}' | head -1)
-  [[ -z "$tpl" ]] && err "Debian 13 template not found in storage ${CT_STORAGE}"
+  [[ -z "$CT_TPL_PATH" ]] && err "No template found."
+  [[ ! -f "$CT_TPL_PATH" ]] && err "Template file missing: ${CT_TPL_PATH}"
 
   # Check if CT ID is in use
   if pct status "$CT_ID" &>/dev/null; then
@@ -267,7 +284,7 @@ create_container() {
   fi
 
   msg "Creating LXC container ${CT_ID}..."
-  pct create "$CT_ID" "${CT_STORAGE}:vztmpl/${tpl}" \
+  pct create "$CT_ID" "$CT_TPL_PATH" \
     --hostname "$CT_HOSTNAME" \
     --cores "$CT_CORES" \
     --memory "$CT_RAM" \
