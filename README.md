@@ -186,6 +186,8 @@ bash -c "$(curl -fsSL https://cdn.jsdelivr.net/gh/damessner/learn_@main/learn-lx
 
 This installs the platform to `/opt/learn` with a systemd service, Python TTS engine, and optional nginx reverse proxy with Let's Encrypt SSL.
 
+> **Default credentials after install:** `teacher` / `password` (Teacher) and `student` / `password` (Student). Classroom join code: `CLASS1`.
+
 ---
 
 ### Manual Setup
@@ -216,17 +218,21 @@ This installs the platform to `/opt/learn` with a systemd service, Python TTS en
 
 4. **Configuration (`.env`)**:
    Create a `.env` file in the root directory. SQLite is configured by default:
-   ```env
-   DATABASE_URL="file:./dev.db"
-   SESSION_SECRET="your_secure_32_character_session_secret_key"
-   
-   # Optional: Gemini API Configuration
-   GEMINI_API_KEY="AIzaSy..."
-   GEMINI_MODEL="gemini-3.5-flash-latest"
+    ```env
+    DATABASE_URL="file:./dev.db"
+    SESSION_SECRET="your_secure_32_character_session_secret_key"
+    
+    # Set SECURE_COOKIE=true only if you have HTTPS configured.
+    # Leave unset (or false) for plain HTTP.
+    # SECURE_COOKIE="true"
 
-   # Optional: Pixabay API Configuration
-   PIXABAY_API_KEY="your_pixabay_api_key"
-   ```
+    # Optional: Gemini API Configuration
+    GEMINI_API_KEY="AIzaSy..."
+    GEMINI_MODEL="gemini-3.5-flash-latest"
+
+    # Optional: Pixabay API Configuration
+    PIXABAY_API_KEY="your_pixabay_api_key"
+    ```
 
 5. **Start Development Server**:
    ```bash
