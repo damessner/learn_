@@ -228,7 +228,7 @@ This installs the platform to `/opt/learn` with a systemd service, Python TTS en
 
     # Optional: Gemini API Configuration
     GEMINI_API_KEY="AIzaSy..."
-    GEMINI_MODEL="gemini-3.5-flash-latest"
+    GEMINI_MODEL="gemini-3.5-flash"
 
     # Optional: Pixabay API Configuration
     PIXABAY_API_KEY="your_pixabay_api_key"

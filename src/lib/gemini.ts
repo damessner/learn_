@@ -25,7 +25,7 @@ export async function fetchWritingCoachFeedback(
     throw new Error("AI Writing Coach is currently unavailable: GEMINI_API_KEY is not configured.");
   }
 
-  const model = GEMINI_MODEL || "gemini-3.5-flash-latest";
+  const model = GEMINI_MODEL || "gemini-3.5-flash";
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
 
   const criteriaText = criteria
@@ -182,7 +182,7 @@ export async function fetchImprovedCriterion(
     throw new Error("AI Writing Coach is currently unavailable: GEMINI_API_KEY is not configured.");
   }
 
-  const model = GEMINI_MODEL || "gemini-3.5-flash-latest";
+  const model = GEMINI_MODEL || "gemini-3.5-flash";
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
 
   const systemInstructionText = `
@@ -274,7 +274,7 @@ export async function fetchVocabContextChallenge(
     throw new Error("AI services are currently unavailable: GEMINI_API_KEY is not configured.");
   }
 
-  const model = GEMINI_MODEL || "gemini-3.5-flash-latest";
+  const model = GEMINI_MODEL || "gemini-3.5-flash";
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
 
   const systemInstructionText = `
