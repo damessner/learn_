@@ -172,12 +172,24 @@ The application has been hardened to prevent tampering, unauthorized access, and
 
 ## 🚀 Getting Started
 
-### Prerequisites
+### Quick Install (Debian 13)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/damessner/learn_/main/install.sh | bash
+```
+
+This installs the platform to `/opt/learn` with a systemd service, Python TTS engine, and optional nginx reverse proxy with Let's Encrypt SSL.
+
+---
+
+### Manual Setup
+
+#### Prerequisites
 
 - Node.js 18+
 - npm 9+
 
-### Installation
+#### Installation
 
 1. **Clone the repository**:
    ```bash
