@@ -178,6 +178,12 @@ The application has been hardened to prevent tampering, unauthorized access, and
 curl -fsSL https://raw.githubusercontent.com/damessner/learn_/main/install.sh | bash
 ```
 
+### Proxmox LXC (one-command container)
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/damessner/learn_/main/learn-lxc.sh)"
+```
+
 This installs the platform to `/opt/learn` with a systemd service, Python TTS engine, and optional nginx reverse proxy with Let's Encrypt SSL.
 
 ---
