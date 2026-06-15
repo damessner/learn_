@@ -157,14 +157,15 @@ Proceed?"; then
   CT_ID=$(echo "$cid" | tr -cd '0-9')
   [[ -z "$CT_ID" ]] && CT_ID="$default_id"
 
-  # Hostname (LXC requires valid DNS name)
+  # Hostname (LXC requires valid DNS name, must not end with hyphen)
   local hn
   hn=$(prompt_input "Hostname" "Container hostname (letters, numbers, hyphens only)" "$CT_HOSTNAME")
-  if [[ "$hn" =~ ^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$ ]]; then
-    CT_HOSTNAME="$hn"
-  else
-    CT_HOSTNAME="learn"
+  # Strip anything not alphanumeric or hyphen, then trim leading/trailing hyphens
+  hn=$(printf '%s' "$hn" | tr -cs 'a-zA-Z0-9-' '-' | sed 's/^-//; s/-$//')
+  if [[ -z "$hn" || "${#hn}" -gt 63 ]]; then
+    hn="learn"
   fi
+  CT_HOSTNAME="$hn"
 
   # Password
   local pw
