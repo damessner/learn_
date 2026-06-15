@@ -4,6 +4,9 @@
 # ========================
 # curl -fsSL https://raw.githubusercontent.com/damessner/learn_/main/install.sh | bash
 #
+# Non-interactive (no prompts, all defaults):
+# curl -fsSL https://raw.githubusercontent.com/damessner/learn_/main/install.sh | bash -s -- -y
+#
 # Installs the Learn educational platform on Debian 13 (Trixie).
 # Includes: Node.js, Python TTS engine, systemd service, optional nginx + SSL.
 #
@@ -34,7 +37,7 @@ CM="${TAB}✔️${TAB}${CL}"
 CROSS="${TAB}✖️${TAB}${CL}"
 INFO="${TAB}💡${TAB}${CL}"
 GEAR="${TAB}⚙️${TAB}${CL}"
-CHECK="${TAB}✅${TAB}${CL}"
+OK="${TAB}✅${TAB}${CL}"
 
 # ==============================================================================
 # CONFIGURATION (user-overridable via environment variables)
@@ -48,6 +51,15 @@ LEARN_GROUP="${LEARN_GROUP:-learn}"
 NODE_MAJOR="${NODE_MAJOR:-22}"
 # For private repos: pass GITHUB_TOKEN env var to authenticate curl + git clone
 GITHUB_TOKEN="${GITHUB_TOKEN:-}"
+
+# Non-interactive mode (skip whiptail, use defaults)
+SKIP_PROMPTS="${SKIP_PROMPTS:-false}"
+# Parse --yes / -y flag
+for arg in "$@"; do
+  case "$arg" in
+    -y|--yes) SKIP_PROMPTS="true" ;;
+  esac
+done
 
 TEMP_DIR=$(mktemp -d)
 export DEBIAN_FRONTEND=noninteractive
@@ -174,21 +186,74 @@ function check_system() {
 }
 
 # ==============================================================================
-# WHIPTAIL INSTALL FLOW
+# INTERACTIVE INSTALL FLOW (whiptail)
 # ==============================================================================
+function prompt_yesno() {
+  local title="$1" msg="$2"
+  if [[ "$SKIP_PROMPTS" == "true" ]]; then
+    return 0
+  fi
+  whiptail --backtitle "Learn Platform Installer" --title "$title" --yesno "$msg" 0 0
+}
+
+function prompt_input() {
+  local title="$1" msg="$2" default="$3"
+  if [[ "$SKIP_PROMPTS" == "true" ]]; then
+    echo "$default"
+    return 0
+  fi
+  whiptail --backtitle "Learn Platform Installer" --title "$title" \
+    --inputbox "$msg" 10 60 "$default" \
+    --cancel-button Skip 3>&1 1>&2 2>&3
+}
+
+function check_whiptail() {
+  if ! command -v whiptail &>/dev/null; then
+    if [[ "$SKIP_PROMPTS" != "true" ]]; then
+      echo -e "${INFO}whiptail not found — installing..."
+      apt-get install -y -qq whiptail >/dev/null 2>&1 || {
+        echo -e "${INFO}Could not install whiptail. Falling back to non-interactive mode."
+        SKIP_PROMPTS="true"
+      }
+    fi
+  fi
+}
+
 function guided_install() {
+  # Ensure whiptail is available before we start
+  check_whiptail
+
   header_info
 
   # -- Welcome prompt --
-  if ! (whiptail --backtitle "Learn Platform Installer" --title "Welcome" \
-    --yesno "This will install the Learn Platform on your Debian 13 system.\n\n"`echo -e "Components to install:"`"\n  • Node.js ${NODE_MAJOR}.x + npm\n  • Python 3 + TTS engine (kokoro-onnx)\n  • Git clone from GitHub\n  • Prisma database setup (SQLite)\n  • systemd service (learn)\n  • Optional: nginx reverse proxy + Let's Encrypt SSL\n\n"`echo -e "Target directory: ${BGN}${INSTALL_DIR}${CL}"`"\n\nProceed with installation?" 18 62); then
-    exit_script
+  if [[ "$SKIP_PROMPTS" != "true" ]]; then
+    if ! (whiptail --backtitle "Learn Platform Installer" --title "Welcome" \
+      --yesno "This will install the Learn Platform on your Debian 13 system.
+
+Components to install:
+  - Node.js ${NODE_MAJOR}.x + npm
+  - Python 3 + TTS engine (kokoro-onnx)
+  - Git clone from GitHub
+  - Prisma database setup (SQLite)
+  - systemd service (learn)
+  - Optional: nginx reverse proxy + Let's Encrypt SSL
+
+Target directory: ${INSTALL_DIR}
+
+Proceed with installation?" 16 68); then
+      exit_script
+    fi
   fi
 
   # -- nginx prompt --
   local USE_NGINX=false
-  if (whiptail --backtitle "Learn Platform Installer" --title "REVERSE PROXY" \
-    --yesno "Set up nginx as a reverse proxy?\n\nThis will proxy traffic from port 80/443 to the app on port ${APP_PORT}.\nRecommended for production deployments." 12 60); then
+  if [[ "$SKIP_PROMPTS" == "true" ]]; then
+    USE_NGINX=false
+  elif (whiptail --backtitle "Learn Platform Installer" --title "REVERSE PROXY" \
+    --yesno "Set up nginx as a reverse proxy?
+
+This will proxy traffic from port 80/443 to the app on port ${APP_PORT}.
+Recommended for production deployments." 11 60); then
     USE_NGINX=true
   fi
 
@@ -197,12 +262,15 @@ function guided_install() {
   local USE_SSL=false
   if [[ "$USE_NGINX" == true ]]; then
     if DOMAIN=$(whiptail --backtitle "Learn Platform Installer" --title "DOMAIN NAME" \
-      --inputbox "Enter your domain name (e.g., learn.example.com)\nLeave blank to use the server IP address." 10 60 \
+      --inputbox "Enter your domain name (e.g., learn.example.com)
+Leave blank to use the server IP address." 10 60 \
       --cancel-button Skip 3>&1 1>&2 2>&3); then
       DOMAIN=$(echo "$DOMAIN" | tr -d ' ' | tr '[:upper:]' '[:lower:]')
       if [[ -n "$DOMAIN" ]]; then
         if (whiptail --backtitle "Learn Platform Installer" --title "SSL CERTIFICATE" \
-          --yesno "Set up Let's Encrypt SSL certificate for ${DOMAIN}?\n\nRequires the domain to be publicly resolvable and port 80 to be reachable." 11 60); then
+          --yesno "Set up Let's Encrypt SSL certificate for ${DOMAIN}?
+
+Requires the domain to be publicly resolvable and port 80 to be reachable." 11 60); then
           USE_SSL=true
         fi
       fi
@@ -210,30 +278,32 @@ function guided_install() {
   fi
 
   # -- summary + confirm --
-  local SUMMARY="Installation Summary:\n\n"
-  SUMMARY+="  • Install Directory: ${INSTALL_DIR}\n"
-  SUMMARY+="  • App Port: ${APP_PORT}\n"
-  SUMMARY+="  • Branch: ${BRANCH}\n"
-  if [[ "$USE_NGINX" == true ]]; then
-    SUMMARY+="  • nginx Reverse Proxy: Yes\n"
-    if [[ -n "$DOMAIN" ]]; then
-      SUMMARY+="  • Domain: ${DOMAIN}\n"
-      if [[ "$USE_SSL" == true ]]; then
-        SUMMARY+="  • Let's Encrypt SSL: Yes\n"
+  if [[ "$SKIP_PROMPTS" != "true" ]]; then
+    local SUMMARY="Installation Summary:\n\n"
+    SUMMARY+="  - Install Directory: ${INSTALL_DIR}\n"
+    SUMMARY+="  - App Port: ${APP_PORT}\n"
+    SUMMARY+="  - Branch: ${BRANCH}\n"
+    if [[ "$USE_NGINX" == true ]]; then
+      SUMMARY+="  - nginx Reverse Proxy: Yes\n"
+      if [[ -n "$DOMAIN" ]]; then
+        SUMMARY+="  - Domain: ${DOMAIN}\n"
+        if [[ "$USE_SSL" == true ]]; then
+          SUMMARY+="  - Let's Encrypt SSL: Yes\n"
+        else
+          SUMMARY+="  - Let's Encrypt SSL: No\n"
+        fi
       else
-        SUMMARY+="  • Let's Encrypt SSL: No\n"
+        SUMMARY+="  - Domain: (server IP)\n"
       fi
     else
-      SUMMARY+="  • Domain: (server IP)\n"
+      SUMMARY+="  - nginx Reverse Proxy: No\n"
+      SUMMARY+="  - Access: http://<server-ip>:${APP_PORT}\n"
     fi
-  else
-    SUMMARY+="  • nginx Reverse Proxy: No\n"
-    SUMMARY+="  • Access: http://<server-ip>:${APP_PORT}\n"
-  fi
 
-  if ! (whiptail --backtitle "Learn Platform Installer" --title "CONFIRM INSTALL" \
-    --yesno "$SUMMARY\n\nProceed with these settings?" 18 68); then
-    exit_script
+    if ! (whiptail --backtitle "Learn Platform Installer" --title "CONFIRM INSTALL" \
+      --yesno "$SUMMARY\n\nProceed with these settings?" 16 68); then
+      exit_script
+    fi
   fi
 
   # Export for use in install steps
