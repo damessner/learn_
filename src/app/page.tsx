@@ -21,7 +21,13 @@ export default async function Home() {
         <div className="flex flex-wrap justify-center gap-4 pt-2">
           {session ? (
             <Link
-              href={session.role === "TEACHER" ? "/teacher" : "/student"}
+              href={
+                session.role === "ADMIN"
+                  ? "/admin"
+                  : session.role === "TEACHER"
+                  ? "/teacher"
+                  : "/student"
+              }
               className="bg-black text-white dark:bg-white dark:text-black font-mono text-xs uppercase tracking-wider px-8 py-3.5 border border-black dark:border-white rounded-none hover:bg-transparent hover:text-black dark:hover:bg-transparent dark:hover:text-white transition duration-200"
             >
               GO TO MY DASHBOARD ({session.role})

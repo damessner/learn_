@@ -353,6 +353,20 @@ SESSION_SECRET=\"${secret}\"
 # Pixabay (image search in worksheet creator)
 # Get a free key: https://pixabay.com/api/docs/
 # PIXABAY_API_KEY=\"your_pixabay_api_key\"
+
+# --- Aloys AI (Socratic Tutor) ---
+
+# AI provider: \"opencode\" (default), \"gemini\", or \"ollama\"
+# ALOYS_AI_PROVIDER=\"opencode\"
+
+# OpenCode GO (default provider)
+# Get a key at https://opencode.go
+# OPENCODE_API_KEY=\"your_opencode_api_key\"
+# OPENCODE_MODEL=\"deepseek-v4-flash\"
+
+# Ollama (local alternative)
+# OLLAMA_API_BASE=\"http://localhost:11434\"
+# OLLAMA_MODEL=\"gemma2\"
 EOF"
   ok "Environment configured"
 

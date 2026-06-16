@@ -23,7 +23,13 @@ export async function Navbar() {
           </Link>
           {session && (
             <Link
-              href={session.role === "TEACHER" ? "/teacher" : "/student"}
+              href={
+                session.role === "ADMIN"
+                  ? "/admin"
+                  : session.role === "TEACHER"
+                  ? "/teacher"
+                  : "/student"
+              }
               className="text-[10px] font-mono uppercase border border-neutral-200 dark:border-neutral-800 px-2.5 py-0.5 rounded-none text-neutral-600 dark:text-neutral-400 hover:text-black dark:hover:text-white transition duration-150"
             >
               Dashboard

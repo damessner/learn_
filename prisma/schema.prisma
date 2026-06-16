@@ -11,13 +11,22 @@ model User {
   id               String             @id @default(uuid())
   username         String             @unique
   passwordHash     String
-  role             String             // "TEACHER" or "STUDENT"
+  role             String             // "ADMIN", "TEACHER", or "STUDENT"
   createdAt        DateTime           @default(now())
+
+  // AI helping contingents (quotas)
+  dailyLimit       Int                @default(15)
+  dailyRemaining   Int                @default(15)
+  weeklyLimit      Int                @default(60)
+  weeklyRemaining  Int                @default(60)
+  lastDailyReset   DateTime           @default(now())
+  lastWeeklyReset  DateTime           @default(now())
   
   // Relations
   classroomsTaught Classroom[]        @relation("TeacherClassrooms")
   classroomsJoined ClassroomStudent[]
   submissions      Submission[]
+  aloysConversations AloysConversation[]
 }
 
 model Classroom {
@@ -169,4 +178,29 @@ model LiveResponse {
   // Relations
   session       LiveQuizSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   participant   LiveParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+}
+
+model AloysConversation {
+  id          String         @id @default(uuid())
+  studentId   String
+  title       String
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  
+  // Relations
+  student     User           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  messages    AloysMessage[]
+}
+
+model AloysMessage {
+  id             String            @id @default(uuid())
+  conversationId String
+  role           String            // "user" or "assistant"
+  content        String
+  type           String            @default("CHAT") // "CHAT", "LEARN_TEXT", "LEARN_QUESTIONS", "LEARN_ANSWERS"
+  metadataJson   String?           // For options or extra grading details
+  createdAt      DateTime          @default(now())
+  
+  // Relations
+  conversation   AloysConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 }

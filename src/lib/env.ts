@@ -36,3 +36,11 @@ export const GEMINI_MODEL = optionalEnv("GEMINI_MODEL", "gemini-3.5-flash");
 
 // Pixabay API (optional)
 export const PIXABAY_API_KEY = optionalEnv("PIXABAY_API_KEY");
+
+// Aloys AI Configuration
+export const ALOYS_AI_PROVIDER = optionalEnv("ALOYS_AI_PROVIDER", "opencode") as "opencode" | "gemini" | "ollama";
+export const OPENCODE_API_KEY = optionalEnv("OPENCODE_API_KEY");
+export const OPENCODE_MODEL = optionalEnv("OPENCODE_MODEL", "deepseek-v4-flash");
+export const OLLAMA_API_BASE = optionalEnv("OLLAMA_API_BASE", "http://localhost:11434");
+export const OLLAMA_MODEL = optionalEnv("OLLAMA_MODEL", "gemma2");
+

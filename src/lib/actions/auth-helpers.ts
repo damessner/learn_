@@ -25,6 +25,28 @@ export async function requireTeacher() {
 }
 
 /**
+ * Checks if current user is an Admin.
+ */
+export async function requireAdmin() {
+  const session = await requireAuth();
+  if (session.role !== "ADMIN") {
+    throw new Error("Unauthorized: Admin role required");
+  }
+  return session;
+}
+
+/**
+ * Checks if current user is a Teacher or Admin.
+ */
+export async function requireTeacherOrAdmin() {
+  const session = await requireAuth();
+  if (session.role !== "TEACHER" && session.role !== "ADMIN") {
+    throw new Error("Unauthorized: Teacher or Admin role required");
+  }
+  return session;
+}
+
+/**
  * Generates a random 6-character alphanumeric classroom join code using crypto.
  */
 export function generateJoinCode(): string {

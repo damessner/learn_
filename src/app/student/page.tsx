@@ -44,9 +44,14 @@ function renderDueDateBadge(dueDate: Date | null, isCompleted: boolean) {
 
 export default async function StudentDashboard() {
   const session = await getSession();
-
-  if (!session || session.role !== "STUDENT") {
+  if (!session) {
     redirect("/login");
+  }
+  if (session.role === "ADMIN") {
+    redirect("/admin");
+  }
+  if (session.role === "TEACHER") {
+    redirect("/teacher");
   }
 
   // Fetch classrooms the student has joined, with all submissions per assignment
@@ -223,6 +228,25 @@ export default async function StudentDashboard() {
           <p className="text-sm text-neutral-500">
             View your classrooms, active assignments, and review your scores.
           </p>
+        </div>
+
+        {/* Aloys Socratic AI Assistant Callout */}
+        <div className="border border-black dark:border-white p-6 bg-white dark:bg-black/20 rounded-none flex flex-col md:flex-row md:items-center md:justify-between gap-4 select-none">
+          <div className="space-y-1">
+            <h2 className="text-xs font-bold font-mono uppercase tracking-widest text-[#ff2a2e] flex items-center">
+              <span className="inline-block w-2 h-2 bg-[#ff2a2e] mr-2 animate-pulse" />
+              Socratic Assistant: Dr. Aloys
+            </h2>
+            <p className="text-xs text-neutral-500 max-w-xl">
+              Stuck on a concept? Consult Dr. Aloys, our school founder, for Socratic guidance. Ask questions, explore topic areas in Learning Mode, and solve interactive assessments.
+            </p>
+          </div>
+          <Link
+            href="/student/aloys"
+            className="border border-black dark:border-white bg-black dark:bg-white text-white dark:text-black font-mono text-xs uppercase tracking-wider py-2.5 px-6 rounded-none text-center hover:bg-transparent hover:text-black dark:hover:bg-transparent dark:hover:text-white transition duration-200 shrink-0"
+          >
+            Consult Aloys
+          </Link>
         </div>
 
         {/* Notifications Alert Center */}

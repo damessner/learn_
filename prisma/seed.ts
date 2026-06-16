@@ -80,6 +80,30 @@ async function main() {
   });
   console.log("Seeded Teacher user: teacher / password");
 
+  // 2a. Seed default Admins
+  const adminPasswordHash = await bcrypt.hash("Aloys2026!", 10);
+  const admin1 = await prisma.user.upsert({
+    where: { username: "da.messner" },
+    update: {},
+    create: {
+      username: "da.messner",
+      passwordHash: adminPasswordHash,
+      role: "ADMIN",
+    },
+  });
+  console.log("Seeded Admin user: da.messner / Aloys2026!");
+
+  const admin2 = await prisma.user.upsert({
+    where: { username: "weissenbach" },
+    update: {},
+    create: {
+      username: "weissenbach",
+      passwordHash: adminPasswordHash,
+      role: "ADMIN",
+    },
+  });
+  console.log("Seeded Admin user: weissenbach / Aloys2026!");
+
   // 3. Seed default Classroom
   const classroom = await prisma.classroom.upsert({
     where: { joinCode: "CLASS1" },

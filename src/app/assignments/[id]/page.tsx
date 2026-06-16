@@ -112,7 +112,7 @@ export default async function AssignmentPage({
           exerciseJson={JSON.stringify(exercise)}
           assetsPath={assetsPath}
           savedAnswersJson={JSON.stringify(savedAnswers)}
-          role={session.role}
+          role={session.role === "ADMIN" ? "TEACHER" : session.role}
           attemptNumber={nextAttemptNumber}
           multiplier={nextMultiplier}
           priorAttemptCount={priorAttemptCount}

@@ -11,7 +11,7 @@ const key = crypto.scryptSync(SESSION_SECRET, "learn-platform-salt", 32);
 export interface SessionData {
   userId: string;
   username: string;
-  role: "TEACHER" | "STUDENT";
+  role: "ADMIN" | "TEACHER" | "STUDENT";
 }
 
 function encrypt(text: string): string {
@@ -53,7 +53,7 @@ export async function getSession(): Promise<SessionData | null> {
     if (
       typeof parsed?.userId !== "string" ||
       typeof parsed?.username !== "string" ||
-      (parsed?.role !== "TEACHER" && parsed?.role !== "STUDENT")
+      (parsed?.role !== "ADMIN" && parsed?.role !== "TEACHER" && parsed?.role !== "STUDENT")
     ) {
       return null;
     }

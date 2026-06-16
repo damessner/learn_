@@ -30,7 +30,9 @@ export default function LoginPage() {
       }
 
       router.refresh();
-      if (data.user.role === "TEACHER") {
+      if (data.user.role === "ADMIN") {
+        router.push("/admin");
+      } else if (data.user.role === "TEACHER") {
         router.push("/teacher");
       } else {
         router.push("/student");

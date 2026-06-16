@@ -77,7 +77,7 @@ export async function POST(request: Request) {
     await setSession({
       userId: user.id,
       username: user.username,
-      role: user.role as "TEACHER" | "STUDENT",
+      role: user.role as "ADMIN" | "TEACHER" | "STUDENT",
     });
 
     return NextResponse.json({

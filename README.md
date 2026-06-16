@@ -46,11 +46,13 @@ Designed around the **MORE!** textbook series for Austrian 1st-grade English cla
 
 ### 👩‍🏫 For Teachers
 
+- **Admin Panel** — Full administrator dashboard for managing users (create, edit, delete), classrooms, and auditing all Aloys AI conversations across the system. Admins can reset passwords, adjust usage quotas, and view conversation transcripts.
 - **Worksheet Creator** — Build mixed-modality exercises in a single worksheet (e.g. multiple-choice, gap-fill, drag-and-drop, categorization, matching, ordering, open questions, media embeds, instruction cards).
 - **Pixabay Image Search Integration** — Search, preview, and download copyright-free public images directly into worksheets or vocabulary flashcards via a secure server proxy.
 - **Text-to-Speech (TTS) Engine** — Automatically generate spoken pronunciation audio for vocabulary items (English & German) via an inline Python-based TTS pipeline. Integrated into the Vocabulary and Oral Vocabulary Quiz builders so audio prompts are created during exercise authoring.
 - **Oral Vocabulary Quiz Creator** — Dedicated builder for audio-driven vocabulary tests where students hear a word and must type the correct translation. TTS audio is generated server-side at exercise build time.
 - **Live Quiz Host** — Create and host Kahoot-like real-time synchronous quizzes supporting single choice, multiple choice, word ordering, and text inputs with live charts and a student leaderboard.
+- **Aloys AI Socratic Tutor** — Monitor student conversations with Aloys, an AI tutor persona that guides learning through Socratic questioning rather than giving direct answers. View full transcripts of student chats, lesson completions, and quiz results.
 - **Master Course Organizer** — Arrange exercises into units and courses with drag-and-drop reordering and assign them to classrooms in bulk.
 - **Roster & Class Gradebook Matrix** — View a unified grid of student performance per assignment, drill down into student profiles to inspect attempts, and reset student passwords directly.
 - **Bulk Import/Export** — Add students in bulk using CSV/JSON formatted lists, and export the entire classroom gradebook to CSV for external school records.
@@ -60,6 +62,7 @@ Designed around the **MORE!** textbook series for Austrian 1st-grade English cla
 
 ### 🧑‍🎓 For Students
 
+- **Aloys AI Socratic Tutor** — Chat with Aloys, an AI-powered historical doctor and founder of the school who helps you learn through guided Socratic dialogue. Start free-form conversations or structured lessons with AI-generated reading texts and comprehension quizzes. Daily/weekly usage quotas apply.
 - **PWA / Offline Support** — Installable as a Progressive Web App on mobile and desktop. The service worker caches core assets for offline access, and a dedicated offline page is shown when the network is unavailable. Supports notched mobile displays via `viewport-fit: cover`.
 - **Interactive Player** — Responsive, dark-mode friendly workspace for solving drag-and-drop, clickable choice, categorization, and hotspot-based exercises.
 - **Vocabulary Picture Supplementation** — Reinforce spelling retention with an experimental **Picture Match Stage** (Stage 4) grid quiz showing target words and distractors.
@@ -138,7 +141,8 @@ The application has been hardened to prevent tampering, unauthorized access, and
 - **Database**: SQLite via Prisma 7
 - **Authentication**: Encrypted session cookies (AES-256-GCM)
 - **Validation**: Zod Schemas
-- **TTS Engine**: Python (gTTS/pyttsx3) + Node.js child-process bridge
+- **Aloys AI Tutor**: OpenCode GO / Gemini / Ollama (configurable provider)
+- **TTS Engine**: Python (kokoro-onnx) + Node.js child-process bridge
 - **PWA**: Service Worker, Web App Manifest, offline fallback
 - **Test Runner**: Vitest 3
 
@@ -203,7 +207,7 @@ bash -c "$(curl -fsSL https://cdn.jsdelivr.net/gh/damessner/learn_@main/learn-lx
 
 This installs the platform to `/opt/learn` with a systemd service, Python TTS engine, and optional nginx reverse proxy with Let's Encrypt SSL.
 
-> **Default credentials after install:** `teacher` / `password` (Teacher) and `student` / `password` (Student). Classroom join code: `CLASS1`.
+> **Default credentials after install:** `teacher` / `password` (Teacher), `student` / `password` (Student), `da.messner` / `Aloys2026!` (Admin), `weissenbach` / `Aloys2026!` (Admin). Classroom join code: `CLASS1`.
 
 ---
 
@@ -258,6 +262,20 @@ This installs the platform to `/opt/learn` with a systemd service, Python TTS en
     # Pixabay — image search inside the worksheet creator
     # Get a free key: https://pixabay.com/api/docs/
     # PIXABAY_API_KEY="your_pixabay_api_key"
+
+    # --- Aloys AI (Socratic Tutor) ---
+
+    # AI provider: "opencode" (default), "gemini", or "ollama"
+    # ALOYS_AI_PROVIDER="opencode"
+
+    # OpenCode GO (default provider)
+    # Get a key at https://opencode.go
+    # OPENCODE_API_KEY="your_opencode_api_key"
+    # OPENCODE_MODEL="deepseek-v4-flash"
+
+    # Ollama (local alternative, no API key needed)
+    # OLLAMA_API_BASE="http://localhost:11434"
+    # OLLAMA_MODEL="gemma2"
     ```
 
 5. **Start Development Server**:

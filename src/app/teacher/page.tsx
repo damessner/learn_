@@ -30,8 +30,14 @@ export default async function TeacherDashboard({
 }) {
   const session = await getSession();
 
-  if (!session || session.role !== "TEACHER") {
+  if (!session) {
     redirect("/login");
+  }
+  if (session.role === "ADMIN") {
+    redirect("/admin");
+  }
+  if (session.role === "STUDENT") {
+    redirect("/student");
   }
 
   const totalSubmissions = await prisma.submission.count({
@@ -118,6 +124,12 @@ export default async function TeacherDashboard({
             </p>
           </div>
           <div className="flex items-center gap-3">
+            <Link
+              href="/teacher/aloys"
+              className="border border-neutral-300 dark:border-neutral-800 bg-transparent text-black dark:text-white font-mono text-xs uppercase tracking-wider py-1.5 px-4 rounded-none hover:border-black dark:hover:border-white transition"
+            >
+              🩺 Aloys Logs
+            </Link>
             <SyncButton />
           </div>
         </div>
