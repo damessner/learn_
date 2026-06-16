@@ -57,8 +57,8 @@ export function TeacherClientPage({
         })),
       });
       setActiveConvId(id);
-    } catch (err: any) {
-      setError(err.message || "Failed to retrieve conversation logs");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to retrieve conversation logs");
     } finally {
       setLoading(false);
     }
@@ -88,7 +88,7 @@ export function TeacherClientPage({
         {/* Left Side: Conversation log select */}
         <div className="md:col-span-1 border border-black dark:border-white p-5 bg-white dark:bg-black/10 flex flex-col min-h-0">
           <h2 className="font-mono text-xs font-bold uppercase tracking-widest mb-3 select-none">
-            // ACTIVE DIALOGUE ENTRIES
+            {'// ACTIVE DIALOGUE ENTRIES'}
           </h2>
           <div className="overflow-y-auto flex-1 space-y-2 pr-1">
             {conversations.length === 0 ? (

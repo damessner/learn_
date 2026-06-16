@@ -117,8 +117,8 @@ export function SocraticClientPage({
         })),
       });
       setActiveConversationId(id);
-    } catch (err: any) {
-      setError(err.message || "Failed to load conversation details");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to load conversation details");
     } finally {
       setLoadingMessages(false);
     }
@@ -149,8 +149,8 @@ export function SocraticClientPage({
         setConversations(list);
         await refreshQuota();
         await loadConversation(result.conversationId);
-      } catch (err: any) {
-        setError(err.message || "Failed to start chat session");
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "Failed to start chat session");
       }
     });
   };
@@ -169,8 +169,8 @@ export function SocraticClientPage({
         setConversations(list);
         await refreshQuota();
         await loadConversation(result.conversationId);
-      } catch (err: any) {
-        setError(err.message || "Failed to start learning session");
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "Failed to start learning session");
       }
     });
   };
@@ -214,8 +214,8 @@ export function SocraticClientPage({
           messages: [...filtered, { ...tempUserMsg, id: "actual-user" }, { ...responseMsg, createdAt: new Date(responseMsg.createdAt) }],
         };
       });
-    } catch (err: any) {
-      setError(err.message || "Failed to send message");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to send message");
       // Remove optimistic user message on error
       setActiveConversation((prev) => {
         if (!prev) return null;
@@ -235,16 +235,16 @@ export function SocraticClientPage({
 
     startTransition(async () => {
       try {
-        const responseMsg = await submitLearningAnswersAction(
+          await submitLearningAnswersAction(
           activeConversationId,
           messageId,
           answers
         );
         // Reload details to display assessment and feedback
         await loadConversation(activeConversationId);
-      } catch (err: any) {
-        setError(err.message || "Failed to submit answers");
-      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to submit answers");
+    }
     });
   };
 
@@ -258,8 +258,8 @@ export function SocraticClientPage({
         setConversations(list);
         await refreshQuota();
         await loadConversation(result.conversationId);
-      } catch (err: any) {
-        setError(err.message || "Failed to start suggested learning session");
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "Failed to start suggested learning session");
       }
     });
   };
@@ -525,7 +525,6 @@ export function SocraticClientPage({
                         return (
                           <div className="space-y-6">
                             {questions.map((q, qIdx) => {
-                              const qKey = `${m.id}-${qIdx}`;
                               const userSelection =
                                 selectedAnswers[m.id]?.[qIdx];
                               

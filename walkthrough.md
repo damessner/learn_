@@ -1,57 +1,81 @@
-# Walkthrough: Curl-to-Bash Install Script
+# Walkthrough: Pre-existing Bug Sweep + Prisma Runtime Fix
 
-## Created: `install.sh` (579 lines)
+## Completed work
 
-A self-contained Debian 13 install script modeled after the Proxmox VE Helper Script pattern. Runnable via:
+### 1) Resolved the runtime Prisma crash root cause
 
-```bash
-# Public repo:
-curl -fsSL https://raw.githubusercontent.com/damessner/learn_/main/install.sh | bash
+- The runtime crash (`The column main.User.windowInputTimestamps does not exist`) was caused by DB/schema drift.
+- I synced the local SQLite schema to the current Prisma schema and verified `User` now contains:
+  - `dailyLimit`
+  - `dailyRemaining`
+  - `lastDailyReset`
+  - `windowInputTimestamps`
+  - `windowQuizTimestamps`
 
-# Private repo (with GitHub personal access token):
-curl -H "Authorization: token $GITHUB_TOKEN" -fsSL \
-  https://raw.githubusercontent.com/damessner/learn_/main/install.sh | bash
-```
+Safety step taken:
+- Created DB backup before schema sync: `dev.db.bak_2026-06-16_1`
 
-### Script Architecture
+### 2) Captured migration state in-repo
 
-| Section | Lines | Purpose |
-|---------|-------|---------|
-| Header & Colors | 1–51 | Proxmox-style color/icon variables, error traps |
-| ASCII Art | 53–71 | "Learn" logo header |
-| Helpers | 73–112 | `msg_info`, `msg_ok`, `msg_error`, `error_handler`, `cleanup` |
-| Prerequisite Checks | 114–172 | root, Debian 13, amd64 arch, min RAM/disk |
-| Guided Install | 174–239 | whiptail flow: welcome → nginx? → domain? → SSL? → confirm |
-| Install Steps | 241–488 | 10 sequential steps (see below) |
-| Summary Output | 490–540 | URL, config path, management commands, first steps |
+- Added migration file to reflect current schema history alignment:
+  - `prisma/migrations/20260616165000_sync_schema_with_quota_and_aloys/migration.sql`
+- Marked it as applied for the current local DB using Prisma migrate resolve.
 
-### Installation Pipeline
+### 3) Fixed pre-existing lint/runtime defects across backend and UI
 
-1. **`step_prerequisites`** — apt update, install git, curl, python3, build-essential, etc.
-2. **`step_nodejs`** — Install Node.js 22.x via NodeSource (skips if 18+ already present)
-3. **`step_tts_deps`** — `pip3 install kokoro-onnx numpy` (with `--break-system-packages` for Debian 13's PEP 668)
-4. **`step_create_user`** — Creates `learn:learn` system user (no login shell)
-5. **`step_clone_repo`** — `git clone` to `/opt/learn` (or `git pull` if already exists)
-6. **`step_env_file`** — Generate `.env` with `openssl rand -hex 32` for `SESSION_SECRET`
-7. **`step_npm_install`** — `npm install`, `prisma generate`, `prisma db push`, `prisma db seed`
-8. **`step_build`** — `npm run build` (Next.js production bundle)
-9. **`step_systemd`** — Register `learn.service` (runs as `learn` user, auto-restart)
-10. **`step_nginx`** — nginx reverse proxy config + optional Certbot SSL
+Key areas fixed:
 
-### Configurable via Environment Variables
+- **Quota + action files**
+  - Removed unsafe `any` usage
+  - Replaced `catch (err: any)` with `unknown` + safe guards
+  - Resolved `prefer-const` and unused variables
 
-| Variable | Default | Purpose |
-|----------|---------|---------|
-| `INSTALL_DIR` | `/opt/learn` | App installation path |
-| `REPO_URL` | GitHub repo | Git remote URL |
-| `BRANCH` | `main` | Git branch |
-| `APP_PORT` | `3000` | Next.js listen port |
-| `LEARN_USER` | `learn` | System service user |
-| `NODE_MAJOR` | `22` | Node.js major version |
+- **UI files**
+  - Fixed JSX comment textnode violations
+  - Fixed unescaped quote entities in JSX
+  - Removed unused vars/imports
+  - Replaced `any` catch blocks and casts with concrete typing/safe narrowing
 
-### Files Changed
+- **React hooks correctness**
+  - Fixed conditional hooks violation in `OralVocabulary`
+  - Removed sync `setState` calls inside effects by moving resets to event-driven paths and safe state flow
 
-| File | Action |
-|------|--------|
-| `install.sh` | Created (579 lines, executable) |
-| `implementation_plan.md` | Updated with script design |
+### 4) Smoke-verified key routes
+
+Using a local production start on isolated port:
+
+- `/teacher` → `200`
+- `/student/aloys` → `200`
+- `/admin` → `307` (expected redirect behavior)
+
+## Files changed
+
+- `prisma/migrations/20260616165000_sync_schema_with_quota_and_aloys/migration.sql` (new)
+- `prisma/seed.ts`
+- `src/lib/actions/quota.ts`
+- `src/lib/actions/aloys.ts`
+- `src/lib/tts/generator.ts`
+- `src/app/manifest.ts`
+- `src/app/admin/AdminClientPage.tsx`
+- `src/app/student/aloys/SocraticClientPage.tsx`
+- `src/app/teacher/aloys/TeacherClientPage.tsx`
+- `src/app/teacher/create/WorksheetCreator.tsx`
+- `src/app/teacher/create/components/ImageHotspotQuizBuilder.tsx`
+- `src/app/teacher/create/components/VocabularyBuilder.tsx`
+- `src/app/teacher/page.tsx`
+- `src/components/widgets/OralVocabulary.tsx`
+- `implementation_plan.md`
+- `task.md`
+
+## Verification results
+
+All verification commands pass:
+
+1. `npx prisma migrate status` → up to date
+2. `npx prisma generate` → success
+3. `npm run build` → success
+4. `npm run test` → **101/101 tests passed**
+5. `npm run lint` → success (no errors)
+
+Additional query-path check:
+- Prisma query matching teacher dashboard include path executed successfully after fix.

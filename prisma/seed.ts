@@ -82,7 +82,7 @@ async function main() {
 
   // 2a. Seed default Admins
   const adminPasswordHash = await bcrypt.hash("Aloys2026!", 10);
-  const admin1 = await prisma.user.upsert({
+  await prisma.user.upsert({
     where: { username: "da.messner" },
     update: {},
     create: {
@@ -93,7 +93,7 @@ async function main() {
   });
   console.log("Seeded Admin user: da.messner / Aloys2026!");
 
-  const admin2 = await prisma.user.upsert({
+  await prisma.user.upsert({
     where: { username: "weissenbach" },
     update: {},
     create: {

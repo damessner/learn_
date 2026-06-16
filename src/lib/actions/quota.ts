@@ -70,7 +70,7 @@ export async function processUserQuota(
     const shouldResetDaily = lastResetMs < today0755.getTime() && isAfterReset;
 
     let dailyRemaining = shouldResetDaily ? user.dailyLimit : user.dailyRemaining;
-    let lastDailyReset = shouldResetDaily ? now : user.lastDailyReset;
+    const lastDailyReset = shouldResetDaily ? now : user.lastDailyReset;
 
     if (dailyRemaining <= 0) {
       throw new Error("You have used up your daily Socratic helping quota. Please wait for the daily refill.");
@@ -106,7 +106,7 @@ export async function processUserQuota(
       dailyRemaining -= 1;
       validTimestamps.push(nowMs);
 
-      const updateData: Record<string, any> = {
+      const updateData: Record<string, string | number | Date> = {
         dailyRemaining,
         lastDailyReset,
       };

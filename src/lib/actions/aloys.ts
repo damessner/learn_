@@ -94,14 +94,14 @@ export async function startSocraticChatAction(topic: string) {
   // Socratic Doctor persona initial greeting
   const greeting = `Greetings, young scholar. I am Aloys. As a doctor and the founder of our school, I'd be delighted to assist your learning journey. Let's discuss "${trimmedTopic}". Tell me, what do you already know about this topic, or what specific question has sparked your curiosity?`;
 
-  const assistantMessage = await prisma.aloysMessage.create({
-    data: {
-      conversationId: conversation.id,
-      role: "assistant",
-      content: greeting,
-      type: "CHAT",
-    },
-  });
+  await prisma.aloysMessage.create({
+      data: {
+        conversationId: conversation.id,
+        role: "assistant",
+        content: greeting,
+        type: "CHAT",
+      },
+    });
 
   return { conversationId: conversation.id };
 }
@@ -170,9 +170,10 @@ export async function sendChatMessageAction(
     });
 
     return savedMsg;
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Aloys Socratic Response Error:", err);
-    throw new Error(err.message || "Failed to generate AI response");
+    const message = err instanceof Error ? err.message : "Failed to generate AI response";
+    throw new Error(message);
   }
 }
 
@@ -224,9 +225,10 @@ export async function startLearningSessionAction(topic: string) {
     });
 
     return { conversationId: conversation.id };
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Aloys Socratic Learning Error:", err);
-    throw new Error(err.message || "Failed to generate Socratic learning lesson");
+    const message = err instanceof Error ? err.message : "Failed to generate Socratic learning lesson";
+    throw new Error(message);
   }
 }
 
@@ -239,7 +241,7 @@ export async function submitLearningAnswersAction(
   messageId: string,
   selectedOptions: Record<number, number>
 ) {
-  const session = await requireAuth();
+  await requireAuth();
 
   // Load the questions message
   const questionMessage = await prisma.aloysMessage.findUnique({
@@ -424,7 +426,7 @@ export async function adminUpdateUserAction(
   await requireAdmin();
 
   return await prisma.$transaction(async (tx) => {
-    const data: any = {};
+    const data: Record<string, string | number> = {};
     if (passwordPlain) {
       data.passwordHash = await bcrypt.hash(passwordPlain, 10);
     }
@@ -498,7 +500,7 @@ export async function adminGetConversationsAction(
 ) {
   await requireAdmin();
 
-  const where: any = {};
+  const where: Record<string, string | { in: string[] }> = {};
   if (studentId) {
     where.studentId = studentId;
   } else if (classroomId) {

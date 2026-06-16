@@ -1,208 +1,122 @@
-# Implementation Plan: Curl-to-Bash Install Script for Learn Platform
+# Implementation Plan: Pre-existing Bug Sweep + Prisma Runtime Fix
 
-**Date:** 2026-06-15  
-**Target:** Debian 13 (Trixie)  
-**Script:** `install.sh` — runnable via `curl -fsSL https://raw.githubusercontent.com/damessner/learn_/main/install.sh | bash`
-
----
-
-## Script Design Overview
-
-One single `install.sh` in the repo root, following the Proxmox VE Helper Script pattern:
-
-1. **Header & UI** — ASCII art "Learn" logo, color-coded output, emoji indicators
-2. **Prerequisite checks** — root check, Debian 13 check, arch check
-3. **Guided whiptail flow** — simple "Proceed?" → configure key options
-4. **Automatic install** — Node.js, Python/TTS deps, git clone to `/opt/learn`, `.env` generation, build, systemd service, nginx reverse proxy (optional SSL)
-5. **Error handling** — trap-based cleanup on SIGINT/SIGTERM/ERR, temp dir management
+**Date:** 2026-06-16  
+**Status:** Planning (no source edits yet)  
+**Primary incident:** `PrismaClientKnownRequestError` due to missing DB column `User.windowInputTimestamps`
 
 ---
 
-## Flow Diagram
+## 1) Refined Objective
 
-```
-curl ... | bash
-    │
-    ├─ header_info() ─── ASCII art
-    ├─ check_root()
-    ├─ check_debian13()
-    ├─ arch_check()
-    │
-    ├─ whiptail: "Install Learn Platform?"
-    │   └─ Exit if No
-    │
-    ├─ whiptail: "Install nginx + Let's Encrypt?"
-    │   ├─ No  → systemd only on port 3000
-    │   └─ Yes → optionally set up SSL domain
-    │
-    ├─ whiptail (if SSL): Domain name input
-    │   └─ Validates domain format
-    │
-    ├─ msg_info/msg_ok pipeline:
-    │   1. Update apt & install prerequisites (git, curl, python3-pip, nginx, certbot...)
-    │   2. Install Node.js 18+ via NodeSource
-    │   3. Clone repo to /opt/learn
-    │   4. Generate .env with random SESSION_SECRET
-    │   5. npm install
-    │   6. npx prisma db push && npx prisma db seed
-    │   7. npm run build
-    │   8. Install Python TTS deps (kokoro-onnx, numpy)
-    │   9. Create systemd service (learn.service)
-    │  10. (Optional) Configure nginx reverse proxy + certbot SSL
-    │  11. Start & enable services
-    │
-    └─ msg_ok + print summary (URL, credentials note, etc.)
-```
+Stabilize the app by fixing schema/runtime drift and resolving high-impact pre-existing bugs, starting with the Prisma runtime crash on teacher dashboard queries.
 
 ---
 
-## File to Create
+## 2) What was confirmed during read-only investigation
 
-### `install.sh` — Root of the repo
+### A. Root cause of reported runtime crash
 
-Single self-contained bash script. Key sections:
+- Prisma schema expects new quota fields:
+  - [`windowInputTimestamps`](file:///home/damessner/opencode/learn/prisma/schema.prisma)
+  - [`windowQuizTimestamps`](file:///home/damessner/opencode/learn/prisma/schema.prisma)
+- Runtime query path that loads `User` rows (via teacher dashboard includes):
+  - [`TeacherDashboard` query](file:///home/damessner/opencode/learn/src/app/teacher/page.tsx)
+- Local SQLite `dev.db` still has legacy columns:
+  - `weeklyLimit`, `weeklyRemaining`, `lastWeeklyReset`
+  - and **does not** have `windowInputTimestamps` / `windowQuizTimestamps`
 
-#### A. Header & Variables
-```bash
-#!/usr/bin/env bash
-# Learn Platform Installer
-# curl -fsSL https://raw.githubusercontent.com/damessner/learn_/main/install.sh | bash
+### B. Why migration status looked “up to date” anyway
 
-YW=$(echo "\033[33m")
-BL=$(echo "\033[36m")
-RD=$(echo "\033[01;31m")
-GN=$(echo "\033[1;92m")
-CL=$(echo "\033[m")
-CM="✔️"
-CROSS="✖️"
-INFO="💡"
-```
+- Existing migration files do **not** contain the quota field transition:
+  - [`prisma/migrations/`](file:///home/damessner/opencode/learn/prisma/migrations)
+- So migration history is “consistent” with itself, but drifted from current schema.
 
-ASCII art logo:
-```
-    __                   
-   / /   ___  ____  _____
-  / /   / _ \/ __ \/ ___/
- / /___/  __/ / / / /__  
-/_____/\___/_/ /_/\___/  
-```
+### C. Additional pre-existing issues found (baseline quality scan)
 
-#### B. Helper Functions
-- `msg_info()`, `msg_ok()`, `msg_error()`
-- `check_root()`
-- `check_debian13()` — verifies `/etc/debian_version` starts with `13`
-- `arch_check()` — verifies `amd64`
-- `exit_script()` — clean exit handler
-- Error trap with `cleanup()`
-
-#### C. Prerequisite Installation
-
-| Package | Source | Purpose |
-|---------|--------|---------|
-| git, curl, wget | apt | Repo clone & download |
-| python3, python3-pip, python3-venv | apt | TTS engine |
-| build-essential | apt | Native npm modules (better-sqlite3) |
-| nginx | apt | Reverse proxy |
-| certbot, python3-certbot-nginx | apt (if SSL) | Let's Encrypt |
-| Node.js 18+ | NodeSource setup script | Runtime |
-
-#### D. Node.js Installation (via NodeSource)
-
-```bash
-curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
-apt-get install -y nodejs
-```
-
-#### E. App Setup (`/opt/learn`)
-
-```bash
-git clone https://github.com/damessner/learn_.git /opt/learn
-cd /opt/learn
-SESSION_SECRET=$(openssl rand -hex 32)
-cat > .env <<EOF
-DATABASE_URL="file:./dev.db"
-SESSION_SECRET="${SESSION_SECRET}"
-EOF
-npm install
-npx prisma db push --accept-data-loss
-npx prisma db seed
-npm run build
-```
-
-#### F. Python TTS Dependencies
-
-```bash
-python3 -m venv /opt/learn/venv
-source /opt/learn/venv/bin/activate
-pip install kokoro-onnx numpy
-```
-
-Update the TTS generator.ts to use this venv Python path if needed (or make the venv discoverable globally).
-
-**Actually**, let me look at `generator.ts` to see how it calls Python.
-
-Let me check this.
-
-Actually, I know from the earlier exploration that it uses a child process to call Python. Let me check the path it uses. I'll look when I'm writing the script. For the plan, I'll note that we need to ensure the Python path is set correctly.
-
-#### G. Systemd Service (`/etc/systemd/system/learn.service`)
-
-```ini
-[Unit]
-Description=Learn Platform
-After=network.target
-
-[Service]
-Type=exec
-User=learn
-Group=learn
-WorkingDirectory=/opt/learn
-Environment=NODE_ENV=production
-Environment=HOST=0.0.0.0
-ExecStart=/usr/bin/npm start
-Restart=always
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-```
-
-#### H. Nginx Reverse Proxy (Config)
-
-```
-/etc/nginx/sites-available/learn
-```
-
-Proxy to `http://localhost:3000`, with WebSocket support, static asset caching, and security headers.
-
-#### I. Certbot SSL (Optional)
-
-If the user provides a domain, run `certbot --nginx -d <domain>` after nginx is configured.
-
-#### J. Summary Output
-
-```
-✅ Learn Platform installed successfully!
-   URL:    http://<server-ip>:3000  (or https://<domain> if SSL)
-   Config: /opt/learn/.env
-   Logs:   journalctl -u learn -f
-```
+- `npm run lint` currently reports multiple errors/warnings (hooks misuse, `any`, JSX issues), including:
+  - Hook-order/effect issues in [`OralVocabulary.tsx`](file:///home/damessner/opencode/learn/src/components/widgets/OralVocabulary.tsx)
+  - `set-state-in-effect` rule violation in [`ImageHotspotQuizBuilder.tsx`](file:///home/damessner/opencode/learn/src/app/teacher/create/components/ImageHotspotQuizBuilder.tsx)
+  - Type-safety issues in [`quota.ts`](file:///home/damessner/opencode/learn/src/lib/actions/quota.ts), [`aloys.ts`](file:///home/damessner/opencode/learn/src/lib/actions/aloys.ts), and others.
 
 ---
 
-## Files Modified
+## 3) Implementation plan (phased)
 
-| File | Action | Purpose |
-|------|--------|---------|
-| `install.sh` | **Create** | The install script |
-| `implementation_plan.md` | Update | Replace with this plan |
+## Phase 0 — Safety prep
+
+1. Confirm current branch/clean tree.
+2. Snapshot DB file before migration work (`dev.db` backup).
+
+## Phase 1 — Fix schema/runtime drift (critical)
+
+1. Create Prisma migration for quota model transition:
+   - **From legacy:** `weeklyLimit`, `weeklyRemaining`, `lastWeeklyReset`
+   - **To current:** `windowInputTimestamps`, `windowQuizTimestamps`
+2. Apply migration locally.
+3. Regenerate Prisma client.
+4. Verify DB columns match schema.
+
+Target files/paths:
+- Schema: [prisma/schema.prisma](file:///home/damessner/opencode/learn/prisma/schema.prisma)
+- New migration file (to create): [prisma/migrations/<timestamp>_quota_window_transition/migration.sql](file:///home/damessner/opencode/learn/prisma/migrations)
+- Prisma client usage: [src/lib/db.ts](file:///home/damessner/opencode/learn/src/lib/db.ts)
+
+## Phase 2 — Runtime robustness for quota code path
+
+1. Tighten quota action typing and remove unsafe `any` in update payload.
+2. Ensure daily reset + window counters compute against post-update values consistently.
+3. Keep admin/teacher unlimited behavior intact.
+
+Target files:
+- [src/lib/actions/quota.ts](file:///home/damessner/opencode/learn/src/lib/actions/quota.ts)
+- [src/lib/actions/aloys.ts](file:///home/damessner/opencode/learn/src/lib/actions/aloys.ts)
+
+## Phase 3 — Pre-existing bug cleanup (high-value lint/runtime defects)
+
+1. Fix hook-order and effect anti-patterns in oral vocabulary widget.
+2. Fix effect-driven state reset pattern in hotspot builder.
+3. Resolve type/JSX issues in manifest/admin/student/teacher UI files that are currently lint-blocking.
+
+Target files:
+- [src/components/widgets/OralVocabulary.tsx](file:///home/damessner/opencode/learn/src/components/widgets/OralVocabulary.tsx)
+- [src/app/teacher/create/components/ImageHotspotQuizBuilder.tsx](file:///home/damessner/opencode/learn/src/app/teacher/create/components/ImageHotspotQuizBuilder.tsx)
+- [src/app/admin/AdminClientPage.tsx](file:///home/damessner/opencode/learn/src/app/admin/AdminClientPage.tsx)
+- [src/app/student/aloys/SocraticClientPage.tsx](file:///home/damessner/opencode/learn/src/app/student/aloys/SocraticClientPage.tsx)
+- [src/app/teacher/aloys/TeacherClientPage.tsx](file:///home/damessner/opencode/learn/src/app/teacher/aloys/TeacherClientPage.tsx)
+- [src/app/manifest.ts](file:///home/damessner/opencode/learn/src/app/manifest.ts)
+- [src/lib/tts/generator.ts](file:///home/damessner/opencode/learn/src/lib/tts/generator.ts)
+
+## Phase 4 — Verification
+
+Run, in order:
+
+1. `npx prisma migrate status`
+2. `npx prisma migrate dev` (or equivalent migration apply for current environment)
+3. `npx prisma generate`
+4. `npm run build`
+5. `npm run test`
+6. `npm run lint`
+7. Smoke test key routes:
+   - `/teacher`
+   - `/student/aloys`
+   - `/admin`
 
 ---
 
-## Out of Scope
+## 4) Expected outcome
 
-- Docker containerization (deferred)
-- PostgreSQL support (SQLite only for now)
-- Multi-instance / high-availability setup
-- Migration from older installs
-- Monitoring/alerting integration
+1. No Prisma runtime crash caused by missing quota columns.
+2. Teacher dashboard loads reliably.
+3. Quota system works with current schema fields.
+4. Lint error count reduced to zero (or documented residuals if explicitly deferred).
+
+---
+
+## 5) Risks and mitigations
+
+- **Risk:** SQLite migration can require table redefinition.
+  - **Mitigation:** DB backup before migration.
+- **Risk:** Broad bug sweep may touch many UI files.
+  - **Mitigation:** Execute in phases; verify after each phase.
+- **Risk:** “All pre-existing bugs” can be open-ended.
+  - **Mitigation:** Treat lint/runtime/build failures as concrete closure criteria unless scope is narrowed.

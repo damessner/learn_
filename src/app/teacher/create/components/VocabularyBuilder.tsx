@@ -53,8 +53,8 @@ export function VocabularyBuilder({
   const [searchQuery, setSearchQuery] = useState("");
 
   // Upload state
-  const [uploadStatusIdx, setUploadStatusIdx] = useState<number | null>(null);
-  const [uploadStatusText, setUploadStatusText] = useState("");
+  const [, setUploadStatusIdx] = useState<number | null>(null);
+  const [, setUploadStatusText] = useState("");
 
   // Auto-supplement state
   const [autoLoading, setAutoLoading] = useState(false);

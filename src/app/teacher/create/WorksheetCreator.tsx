@@ -111,7 +111,7 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
           ? "live-quiz"
           : "worksheet")
       : (typeParam === "image-hotspot-quiz" || typeParam === "interactive-reading" || typeParam === "vocabulary" || typeParam === "oral-vocabulary" || typeParam === "writing-coach" || typeParam === "live-quiz"
-          ? (typeParam as any)
+          ? typeParam
           : "worksheet")
   );
 

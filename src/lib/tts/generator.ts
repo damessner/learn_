@@ -32,7 +32,7 @@ export function generateTTS(req: TTSRequest): Promise<{ success: boolean; error?
       try {
         const res = JSON.parse(stdout.trim());
         resolve(res);
-      } catch (err) {
+      } catch {
         resolve({ success: false, error: `Failed to parse Python output: ${stdout}` });
       }
     });
@@ -46,11 +46,40 @@ export function generateTTS(req: TTSRequest): Promise<{ success: boolean; error?
  * Walks an exercise content JSON structure and generates necessary TTS files.
  * Modifies the contentJson structure to point to the generated files.
  */
+interface TTSWorksheetQuestion {
+  id: string;
+  question?: string;
+  ttsEnabled?: boolean;
+  media?: string;
+  mediaStatus?: string;
+}
+
+interface TTSVocabItem {
+  ttsEnabled?: boolean;
+  word?: string;
+  translation?: string;
+  wordAudio?: string;
+  translationAudio?: string;
+}
+
+interface TTSReadingPage {
+  text?: string;
+  ttsEnabled?: boolean;
+  media?: string;
+  mediaStatus?: string;
+}
+
+interface TTSContentJson {
+  questions?: TTSWorksheetQuestion[];
+  vocabList?: TTSVocabItem[];
+  pages?: Record<string, TTSReadingPage>;
+}
+
 export async function generateTTSForExercise(
   exerciseId: string,
   type: string,
-  contentJson: any
-): Promise<any> {
+  contentJson: TTSContentJson
+): Promise<TTSContentJson> {
   const cleanId = exerciseId.toLowerCase().trim();
   const assetsDir = path.join(process.cwd(), "content", "exercises", cleanId, "assets");
   if (!fs.existsSync(assetsDir)) {

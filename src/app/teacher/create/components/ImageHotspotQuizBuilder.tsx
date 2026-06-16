@@ -75,13 +75,6 @@ export function ImageHotspotQuizBuilder({
   }
   const [dragState, setDragState] = useState<DragState | null>(null);
 
-  // Clear selections on task change
-  useEffect(() => {
-    setSelectedHotspotId(null);
-    setRectCorner1(null);
-    setTempMousePos(null);
-  }, [expandedTaskId]);
-
   // Pointer drag event handlers for moving and resizing
   useEffect(() => {
     if (!dragState) return;
@@ -304,6 +297,9 @@ export function ImageHotspotQuizBuilder({
       },
     ]);
     setExpandedTaskId(newId);
+    setSelectedHotspotId(null);
+    setRectCorner1(null);
+    setTempMousePos(null);
   };
 
   const removeHotspotTask = (taskId: string) => {
@@ -315,6 +311,9 @@ export function ImageHotspotQuizBuilder({
 
     if (expandedTaskId === taskId) {
       setExpandedTaskId(null);
+      setSelectedHotspotId(null);
+      setRectCorner1(null);
+      setTempMousePos(null);
     }
   };
 
@@ -441,6 +440,9 @@ export function ImageHotspotQuizBuilder({
                       type="button"
                       onClick={() => {
                         setExpandedTaskId(isExpanded ? null : task.id);
+                        setSelectedHotspotId(null);
+                        setRectCorner1(null);
+                        setTempMousePos(null);
                       }}
                       className="flex items-center gap-2 text-left cursor-pointer group"
                     >
@@ -458,6 +460,9 @@ export function ImageHotspotQuizBuilder({
                         type="button"
                         onClick={() => {
                           setExpandedTaskId(isExpanded ? null : task.id);
+                          setSelectedHotspotId(null);
+                          setRectCorner1(null);
+                          setTempMousePos(null);
                         }}
                         className="text-[10px] font-mono font-bold uppercase text-neutral-450 hover:text-black dark:hover:text-white transition cursor-pointer"
                       >

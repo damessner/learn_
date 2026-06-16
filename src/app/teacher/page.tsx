@@ -11,7 +11,6 @@ import {
   ExternalLink,
   Users,
   BookOpen,
-  Clock,
   Calendar,
   Sparkles,
   FileText,

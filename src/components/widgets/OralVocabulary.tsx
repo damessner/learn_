@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { WidgetProps, VocabularyConfig } from "./types";
 import { Check, X, Award, Volume2, ArrowRight } from "lucide-react";
 
@@ -41,7 +41,11 @@ export const OralVocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
 
   // Feedback status for active question: "idle" | "correct" | "incorrect"
   const [feedback, setFeedback] = useState<"idle" | "correct" | "incorrect">("idle");
-  const [currentInput, setCurrentInput] = useState("");
+  const [currentInput, setCurrentInput] = useState(() => {
+    const savedAnswers = savedState?.answers || {};
+    const startIdx = savedState?.activeIdx || 0;
+    return (savedAnswers[startIdx] as string) || "";
+  });
 
   const activeWord = vocabList[activeIdx];
 
@@ -71,16 +75,8 @@ export const OralVocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
     );
   }, [answers, correctItems, activeIdx, isCompleted, vocabList, feedback]);
 
-  if (vocabList.length === 0) {
-    return (
-      <div className="text-center py-6 text-neutral-500 italic">
-        No vocabulary words configured.
-      </div>
-    );
-  }
-
   // Play pronunciation
-  const handlePlayAudio = () => {
+  const handlePlayAudio = useCallback(() => {
     if (!activeWord) return;
     // The German translation audio file: e.g. "tts-vocab-0-trans.wav"
     const audioFile = activeWord.translationAudio || `tts-vocab-${activeIdx}-trans.wav`;
@@ -95,16 +91,22 @@ export const OralVocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
         window.speechSynthesis.speak(utterance);
       }
     });
-  };
+  }, [activeWord, activeIdx, assetsPath]);
 
   // Auto-play audio when active index changes
   useEffect(() => {
     if (!isReadOnly && !isCompleted && activeIdx < vocabList.length) {
       handlePlayAudio();
     }
-    setFeedback("idle");
-    setCurrentInput(answers[activeIdx] || "");
-  }, [activeIdx, isCompleted, isReadOnly]);
+  }, [activeIdx, isCompleted, isReadOnly, handlePlayAudio, vocabList.length]);
+
+  if (vocabList.length === 0) {
+    return (
+      <div className="text-center py-6 text-neutral-500 italic">
+        No vocabulary words configured.
+      </div>
+    );
+  }
 
   const handleSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -128,6 +130,8 @@ export const OralVocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
     const nextIdx = activeIdx + 1;
     if (nextIdx < vocabList.length) {
       setActiveIdx(nextIdx);
+      setFeedback("idle");
+      setCurrentInput(answers[nextIdx] || "");
     } else {
       setIsCompleted(true);
     }

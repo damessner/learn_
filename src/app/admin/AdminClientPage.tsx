@@ -121,8 +121,8 @@ export function AdminClientPage({
         setRole("STUDENT");
         setSelectedClassrooms([]);
         await refreshUsers();
-      } catch (err: any) {
-        setError(err.message || "Failed to create user");
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "Failed to create user");
       }
     });
   };
@@ -147,8 +147,8 @@ export function AdminClientPage({
         setEditingUserId(null);
         setEditPassword("");
         await refreshUsers();
-      } catch (err: any) {
-        setError(err.message || "Failed to update user");
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "Failed to update user");
       }
     });
   };
@@ -164,8 +164,8 @@ export function AdminClientPage({
         await adminDeleteUserAction(userId);
         setSuccess(`User "${name}" deleted.`);
         await refreshUsers();
-      } catch (err: any) {
-        setError(err.message || "Failed to delete user");
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "Failed to delete user");
       }
     });
   };
@@ -186,8 +186,8 @@ export function AdminClientPage({
         })),
       });
       setActiveConvId(id);
-    } catch (err: any) {
-      setError(err.message || "Failed to retrieve conversation logs");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to retrieve conversation logs");
     } finally {
       setLoadingConv(false);
     }
@@ -214,7 +214,7 @@ export function AdminClientPage({
             ADMINISTRATOR CENTER
           </h1>
           <p className="text-[10px] font-mono text-neutral-400 mt-1 uppercase">
-            School Founder AI "Aloys" Control Panel
+            School Founder AI &ldquo;Aloys&rdquo; Control Panel
           </p>
         </div>
         <div className="flex space-x-2">
@@ -254,7 +254,7 @@ export function AdminClientPage({
             {!editingUserId ? (
               <>
                 <h2 className="font-mono text-xs font-bold uppercase tracking-widest text-[#ff2a2e]">
-                  // CREATE ACCOUNT
+                  {'// CREATE ACCOUNT'}
                 </h2>
                 <form onSubmit={handleCreateUser} className="space-y-4">
                   <div>
@@ -339,7 +339,7 @@ export function AdminClientPage({
             ) : (
               <>
                 <h2 className="font-mono text-xs font-bold uppercase tracking-widest text-[#ff2a2e]">
-                  // EDIT ACCOUNT
+                  {'// EDIT ACCOUNT'}
                 </h2>
                 <form onSubmit={handleUpdateUser} className="space-y-4">
                   <div className="font-mono text-xs">
@@ -424,7 +424,7 @@ export function AdminClientPage({
           {/* User List Table */}
           <div className="lg:col-span-2 border border-black dark:border-white p-5 bg-white dark:bg-black/10 flex flex-col min-h-[400px]">
             <h2 className="font-mono text-xs font-bold uppercase tracking-widest mb-4">
-              // REGISTERED USER DATABASE
+              {'// REGISTERED USER DATABASE'}
             </h2>
             <div className="overflow-x-auto flex-1">
               <table className="w-full border-collapse font-mono text-xs">
@@ -501,7 +501,7 @@ export function AdminClientPage({
       {activeTab === "classrooms" && (
         <div className="border border-black dark:border-white p-5 bg-white dark:bg-black/10 flex-1 overflow-y-auto">
           <h2 className="font-mono text-xs font-bold uppercase tracking-widest mb-4">
-            // ACTIVE CLASSROOM REGISTER
+            {'// ACTIVE CLASSROOM REGISTER'}
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {classrooms.length === 0 ? (
@@ -537,7 +537,7 @@ export function AdminClientPage({
           {/* Conversation list */}
           <div className="md:col-span-1 border border-black dark:border-white p-5 bg-white dark:bg-black/10 flex flex-col min-h-0">
             <h2 className="font-mono text-xs font-bold uppercase tracking-widest mb-3 select-none">
-              // ACTIVE DIALOGUE ENTRIES
+              {'// ACTIVE DIALOGUE ENTRIES'}
             </h2>
             <div className="overflow-y-auto flex-1 space-y-2 pr-1">
               {conversations.length === 0 ? (
