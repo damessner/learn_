@@ -31,10 +31,12 @@ interface Message {
 interface QuotaInfo {
   dailyRemaining: number;
   dailyLimit: number;
-  weeklyRemaining: number;
-  weeklyLimit: number;
   dailyResetInMs: number;
-  weeklyResetInMs: number;
+  windowInputRemaining: number;
+  windowInputLimit: number;
+  windowQuizRemaining: number;
+  windowQuizLimit: number;
+  windowResetInMs: number;
   role: string;
 }
 
@@ -69,11 +71,11 @@ export function SocraticClientPage({
 
   // Poll quota and time remaining calculations
   const [dailyTimeText, setDailyTimeText] = useState("");
-  const [weeklyTimeText, setWeeklyTimeText] = useState("");
+  const [windowTimeText, setWindowTimeText] = useState("");
 
   useEffect(() => {
     let dailyMs = quota.dailyResetInMs;
-    let weeklyMs = quota.weeklyResetInMs;
+    let windowMs = quota.windowResetInMs;
 
     const updateTimers = () => {
       if (dailyMs > 0) {
@@ -85,18 +87,18 @@ export function SocraticClientPage({
         setDailyTimeText("resetting daily quota...");
       }
 
-      if (weeklyMs > 0) {
-        const d = Math.floor(weeklyMs / (1000 * 60 * 60 * 24));
-        const h = Math.floor((weeklyMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        setWeeklyTimeText(`resets in ${d}d ${h}h`);
-        weeklyMs -= 60000;
+      if (windowMs > 0) {
+        const m = Math.floor(windowMs / (1000 * 60));
+        const s = Math.floor((windowMs % (1000 * 60)) / 1000);
+        setWindowTimeText(`resets in ${m}m ${s}s`);
+        windowMs -= 1000;
       } else {
-        setWeeklyTimeText("resetting weekly quota...");
+        setWindowTimeText("window slot available");
       }
     };
 
     updateTimers();
-    const interval = setInterval(updateTimers, 60000);
+    const interval = setInterval(updateTimers, 1000);
     return () => clearInterval(interval);
   }, [quota]);
 
@@ -303,11 +305,11 @@ export function SocraticClientPage({
 
             <div>
               <div className="flex justify-between items-center text-xs font-mono mb-1">
-                <span>WEEKLY CONTINGENT</span>
+                <span>WINDOW INPUT CONTINGENT</span>
                 <span className="font-bold">
                   {quota.role === "TEACHER" || quota.role === "ADMIN"
                     ? "UNLIMITED"
-                    : `${quota.weeklyRemaining} / ${quota.weeklyLimit}`}
+                    : `${quota.windowInputRemaining} / ${quota.windowInputLimit}`}
                 </span>
               </div>
               <div className="h-1.5 w-full bg-neutral-200 dark:bg-neutral-900 overflow-hidden">
@@ -317,13 +319,35 @@ export function SocraticClientPage({
                     width:
                       quota.role === "TEACHER" || quota.role === "ADMIN"
                         ? "100%"
-                        : `${(quota.weeklyRemaining / quota.weeklyLimit) * 100}%`,
+                        : `${(quota.windowInputRemaining / quota.windowInputLimit) * 100}%`,
+                  }}
+                />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex justify-between items-center text-xs font-mono mb-1">
+                <span>WINDOW QUIZ CONTINGENT</span>
+                <span className="font-bold">
+                  {quota.role === "TEACHER" || quota.role === "ADMIN"
+                    ? "UNLIMITED"
+                    : `${quota.windowQuizRemaining} / ${quota.windowQuizLimit}`}
+                </span>
+              </div>
+              <div className="h-1.5 w-full bg-neutral-200 dark:bg-neutral-900 overflow-hidden">
+                <div
+                  className="h-full bg-black dark:bg-white transition-all duration-300"
+                  style={{
+                    width:
+                      quota.role === "TEACHER" || quota.role === "ADMIN"
+                        ? "100%"
+                        : `${(quota.windowQuizRemaining / quota.windowQuizLimit) * 100}%`,
                   }}
                 />
               </div>
               {quota.role !== "TEACHER" && quota.role !== "ADMIN" && (
                 <span className="text-[10px] font-mono text-neutral-400 block mt-1">
-                  {weeklyTimeText}
+                  {windowTimeText}
                 </span>
               )}
             </div>

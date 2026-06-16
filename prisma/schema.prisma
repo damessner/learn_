@@ -15,12 +15,11 @@ model User {
   createdAt        DateTime           @default(now())
 
   // AI helping contingents (quotas)
-  dailyLimit       Int                @default(15)
-  dailyRemaining   Int                @default(15)
-  weeklyLimit      Int                @default(60)
-  weeklyRemaining  Int                @default(60)
-  lastDailyReset   DateTime           @default(now())
-  lastWeeklyReset  DateTime           @default(now())
+  dailyLimit            Int      @default(160)
+  dailyRemaining        Int      @default(160)
+  lastDailyReset        DateTime @default(now())
+  windowInputTimestamps String   @default("[]")
+  windowQuizTimestamps  String   @default("[]")
   
   // Relations
   classroomsTaught Classroom[]        @relation("TeacherClassrooms")

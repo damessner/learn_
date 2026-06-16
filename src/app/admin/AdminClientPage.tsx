@@ -16,8 +16,6 @@ interface UserListItem {
   createdAt: Date;
   dailyLimit: number;
   dailyRemaining: number;
-  weeklyLimit: number;
-  weeklyRemaining: number;
   classroomsJoined: Array<{
     classroom: {
       id: string;
@@ -75,8 +73,7 @@ export function AdminClientPage({
 
   // Update Quotas / Password State
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
-  const [editDailyLimit, setEditDailyLimit] = useState(15);
-  const [editWeeklyLimit, setEditWeeklyLimit] = useState(60);
+  const [editDailyLimit, setEditDailyLimit] = useState(160);
   const [editPassword, setEditPassword] = useState("");
   const [editClassrooms, setEditClassrooms] = useState<string[]>([]);
 
@@ -144,7 +141,6 @@ export function AdminClientPage({
           editPassword.trim() || undefined,
           undefined,
           editDailyLimit,
-          editWeeklyLimit,
           editClassrooms
         );
         setSuccess("User updated successfully.");
@@ -367,29 +363,16 @@ export function AdminClientPage({
 
                   {users.find((u) => u.id === editingUserId)?.role === "STUDENT" && (
                     <>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="text-[10px] font-mono uppercase tracking-wider text-neutral-400 block mb-1">
-                            Daily Contingent Limit:
-                          </label>
-                          <input
-                            type="number"
-                            value={editDailyLimit}
-                            onChange={(e) => setEditDailyLimit(parseInt(e.target.value) || 0)}
-                            className="w-full bg-neutral-50 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-800 p-2.5 font-mono text-xs focus:outline-none focus:border-black dark:focus:border-white rounded-none"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-[10px] font-mono uppercase tracking-wider text-neutral-400 block mb-1">
-                            Weekly Contingent Limit:
-                          </label>
-                          <input
-                            type="number"
-                            value={editWeeklyLimit}
-                            onChange={(e) => setEditWeeklyLimit(parseInt(e.target.value) || 0)}
-                            className="w-full bg-neutral-50 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-800 p-2.5 font-mono text-xs focus:outline-none focus:border-black dark:focus:border-white rounded-none"
-                          />
-                        </div>
+                      <div>
+                        <label className="text-[10px] font-mono uppercase tracking-wider text-neutral-400 block mb-1">
+                          Daily Contingent Limit:
+                        </label>
+                        <input
+                          type="number"
+                          value={editDailyLimit}
+                          onChange={(e) => setEditDailyLimit(parseInt(e.target.value) || 0)}
+                          className="w-full bg-neutral-50 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-800 p-2.5 font-mono text-xs focus:outline-none focus:border-black dark:focus:border-white rounded-none"
+                        />
                       </div>
 
                       <div>
@@ -450,8 +433,8 @@ export function AdminClientPage({
                     <th className="pb-3 pr-2">Username</th>
                     <th className="pb-3 pr-2">Role</th>
                     <th className="pb-3 pr-2">Classes</th>
-                    <th className="pb-3 pr-2">Daily Quota</th>
-                    <th className="pb-3 pr-2">Weekly Quota</th>
+                        <th className="pb-3 pr-2">Daily Quota</th>
+                        <th className="pb-3 pr-2">Window Quota</th>
                     <th className="pb-3 text-right">Actions</th>
                   </tr>
                 </thead>
@@ -481,14 +464,13 @@ export function AdminClientPage({
                           {u.role === "STUDENT" ? `${u.dailyRemaining}/${u.dailyLimit}` : "Unlimited"}
                         </td>
                         <td className="py-3.5 pr-2">
-                          {u.role === "STUDENT" ? `${u.weeklyRemaining}/${u.weeklyLimit}` : "Unlimited"}
+                          {u.role === "STUDENT" ? "30 inp / 5 quiz per 45m" : "Unlimited"}
                         </td>
                         <td className="py-3.5 text-right space-x-2">
                           <button
                             onClick={() => {
                               setEditingUserId(u.id);
                               setEditDailyLimit(u.dailyLimit);
-                              setEditWeeklyLimit(u.weeklyLimit);
                               setEditClassrooms(u.classroomsJoined.map((cj) => cj.classroom.id));
                               setEditPassword("");
                               setError(null);

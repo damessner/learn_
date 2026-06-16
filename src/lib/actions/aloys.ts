@@ -59,7 +59,7 @@ export async function getConversationDetail(conversationId: string) {
  */
 export async function getUserQuotaAction() {
   const session = await requireAuth();
-  return await processUserQuota(session.userId, false);
+  return await processUserQuota(session.userId, false, "input");
 }
 
 /**
@@ -72,7 +72,7 @@ export async function startSocraticChatAction(topic: string) {
   if (!trimmedTopic) throw new Error("Topic cannot be empty");
 
   // Verify and deduct quota
-  await processUserQuota(session.userId, true);
+  await processUserQuota(session.userId, true, "input");
 
   const conversation = await prisma.aloysConversation.create({
     data: {
@@ -118,7 +118,7 @@ export async function sendChatMessageAction(
   if (!trimmed) throw new Error("Message cannot be empty");
 
   // Verify and deduct quota
-  await processUserQuota(session.userId, true);
+  await processUserQuota(session.userId, true, "input");
 
   // Verify conversation ownership
   const conversation = await prisma.aloysConversation.findUnique({
@@ -187,7 +187,7 @@ export async function startLearningSessionAction(topic: string) {
   if (!trimmedTopic) throw new Error("Topic cannot be empty");
 
   // Verify and deduct quota
-  await processUserQuota(session.userId, true);
+  await processUserQuota(session.userId, true, "quiz");
 
   try {
     const content = await generateLearningContent(trimmedTopic);
@@ -345,8 +345,6 @@ export async function adminGetUsersAction() {
       createdAt: true,
       dailyLimit: true,
       dailyRemaining: true,
-      weeklyLimit: true,
-      weeklyRemaining: true,
       classroomsJoined: {
         select: {
           classroom: {
@@ -390,10 +388,8 @@ export async function adminCreateUserAction(
         username: normalizedUsername,
         passwordHash,
         role,
-        dailyLimit: role === "STUDENT" ? 15 : 999,
-        dailyRemaining: role === "STUDENT" ? 15 : 999,
-        weeklyLimit: role === "STUDENT" ? 60 : 999,
-        weeklyRemaining: role === "STUDENT" ? 60 : 999,
+        dailyLimit: role === "STUDENT" ? 160 : 999,
+        dailyRemaining: role === "STUDENT" ? 160 : 999,
       },
     });
 
@@ -423,7 +419,6 @@ export async function adminUpdateUserAction(
   passwordPlain?: string,
   role?: string,
   dailyLimit?: number,
-  weeklyLimit?: number,
   classroomIds?: string[]
 ) {
   await requireAdmin();
@@ -440,11 +435,6 @@ export async function adminUpdateUserAction(
       data.dailyLimit = dailyLimit;
       data.dailyRemaining = dailyLimit; // Reset remaining to limit on update
     }
-    if (weeklyLimit !== undefined) {
-      data.weeklyLimit = weeklyLimit;
-      data.weeklyRemaining = weeklyLimit;
-    }
-
     const updated = await tx.user.update({
       where: { id: userId },
       data,
