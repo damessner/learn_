@@ -3,10 +3,22 @@
 # curl -fsSL https://cdn.jsdelivr.net/gh/damessner/learn_@main/install.sh | bash
 # curl -fsSL https://cdn.jsdelivr.net/gh/damessner/learn_@main/install.sh | bash -s -- -y
 #
-# Installs the Learn educational platform on Debian 13 (Trixie).
+# Bootstraps curl if missing, then installs the Learn educational platform
+# on Debian 13 (Trixie).
 # License: MIT
 
 set -e
+
+# ----- Bootstrap: ensure curl is available -----
+# When piped to bash (curl ... | bash), the script is already in memory,
+# so we can install curl here before any other step.
+if ! command -v curl >/dev/null 2>&1; then
+  if command -v apt-get >/dev/null 2>&1; then
+    apt-get update -qq
+    apt-get install -y -qq curl
+  fi
+fi
+# ----- Bootstrap done -----
 
 # ----- Colors -----
 YW=$(echo "\033[33m")
