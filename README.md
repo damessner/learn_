@@ -275,7 +275,15 @@ sudo systemctl start learn-auto-update
    ```
 
 4. **Configuration (`.env`)**:
-   Create a `.env` file in the project root directory with these values (uncomment and add your keys as needed):
+   Create a `.env` file in the project root directory with these values. Edit it with any text editor:
+
+   ```bash
+   nano /opt/learn/.env              # production (install.sh path)
+   nano .env                          # development (project root)
+   sudo systemctl restart learn       # restart after editing in production
+   ```
+
+   Required and optional keys:
 
     ```env
     # Database (SQLite — relative to project root)
@@ -353,6 +361,7 @@ Encrypts the session cookie (AES-256-GCM). Rotating this value invalidates **eve
 openssl rand -hex 32
 
 # Edit .env, replace SESSION_SECRET, then restart the app
+sudo nano /opt/learn/.env
 sudo systemctl restart learn
 ```
 
@@ -362,7 +371,7 @@ sudo systemctl restart learn
 Rotating an API key is non-disruptive for the server but **does** invalidate any in-flight requests. Rotate at the provider's portal first, then update `.env` and restart.
 
 ```bash
-sudo systemctl edit learn   # or edit /opt/learn/.env directly
+sudo nano /opt/learn/.env
 sudo systemctl restart learn
 ```
 
