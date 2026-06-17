@@ -14,7 +14,7 @@ set -e
 # so we can install curl here before any other step.
 if ! command -v curl >/dev/null 2>&1; then
   if command -v apt-get >/dev/null 2>&1; then
-    apt-get update -qq
+    apt-get update -qq 2>/dev/null
     apt-get install -y -qq curl
   fi
 fi
@@ -224,7 +224,7 @@ Requires the domain to be publicly resolvable on port 80."; then
 # ----- Install steps -----
 step_prereqs() {
   msg "Updating package lists..."
-  apt-get update -qq
+  apt-get update -qq 2>/dev/null
   ok "Package lists updated"
 
   msg "Installing system packages..."

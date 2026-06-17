@@ -311,7 +311,7 @@ create_container() {
 # ----- Install Learn platform inside container -----
 install_learn() {
   msg "Installing prerequisites inside container..."
-  pct exec "$CT_ID" -- bash -c "apt-get update -qq && apt-get install -y -qq curl wget git python3 python3-pip python3-venv build-essential"
+  pct exec "$CT_ID" -- bash -c "apt-get update -qq 2>/dev/null && apt-get install -y -qq curl wget git python3 python3-pip python3-venv build-essential"
   ok "Prerequisites installed"
 
   # Install Node.js 24 LTS
