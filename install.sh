@@ -463,6 +463,49 @@ step_start() {
   fi
 }
 
+step_configure_env() {
+  if ! prompt_yesno "Configure .env" \
+    "Would you like to configure optional API keys now?\n\nYou can always edit ${INSTALL_DIR}/.env later."; then
+    return
+  fi
+
+  local gemini_key pixabay_key provider opencode_key opencode_model ollama_base ollama_model
+  local secure_cookie
+
+  gemini_key=$(prompt_input "Gemini API Key" "Google Gemini (AI writing coach, cloze generation)\nGet a free key: https://aistudio.google.com/apikey\nLeave empty to skip" "")
+  pixabay_key=$(prompt_input "Pixabay API Key" "Pixabay (image search in worksheet creator)\nGet a free key: https://pixabay.com/api/docs/\nLeave empty to skip" "")
+  provider=$(prompt_input "Aloys AI Provider" "AI tutor provider: opencode (default), gemini, or ollama\nLeave empty for default" "")
+  opencode_key=$(prompt_input "OpenCode API Key" "OpenCode GO API key (default AI provider)\nGet a key at https://opencode.go\nLeave empty to skip" "")
+  opencode_model=$(prompt_input "OpenCode Model" "Model name (default: deepseek-v4-flash)\nLeave empty for default" "")
+  ollama_base=$(prompt_input "Ollama API Base" "Ollama server URL (default: http://localhost:11434)\nLeave empty for default" "")
+  ollama_model=$(prompt_input "Ollama Model" "Ollama model (default: gemma2)\nLeave empty for default" "")
+
+  if prompt_yesno "Secure Cookie" "Enable secure cookies?\nOnly set YES if you have HTTPS behind a reverse proxy."; then
+    secure_cookie="true"
+  else
+    secure_cookie=""
+  fi
+
+  msg "Writing configuration to ${INSTALL_DIR}/.env..."
+  cd "$INSTALL_DIR"
+
+  [[ -n "$gemini_key" ]]    && sed -i "s|^# GEMINI_API_KEY=.*|GEMINI_API_KEY=\"${gemini_key}\"|" .env
+  [[ -n "$pixabay_key" ]]   && sed -i "s|^# PIXABAY_API_KEY=.*|PIXABAY_API_KEY=\"${pixabay_key}\"|" .env
+  [[ -n "$provider" ]]      && sed -i "s|^# ALOYS_AI_PROVIDER=.*|ALOYS_AI_PROVIDER=\"${provider}\"|" .env
+  [[ -n "$opencode_key" ]]  && sed -i "s|^# OPENCODE_API_KEY=.*|OPENCODE_API_KEY=\"${opencode_key}\"|" .env
+  [[ -n "$opencode_model" ]] && sed -i "s|^# OPENCODE_MODEL=.*|OPENCODE_MODEL=\"${opencode_model}\"|" .env
+  [[ -n "$ollama_base" ]]   && sed -i "s|^# OLLAMA_API_BASE=.*|OLLAMA_API_BASE=\"${ollama_base}\"|" .env
+  [[ -n "$ollama_model" ]]  && sed -i "s|^# OLLAMA_MODEL=.*|OLLAMA_MODEL=\"${ollama_model}\"|" .env
+  [[ -n "$secure_cookie" ]] && sed -i "s|^# SECURE_COOKIE=.*|SECURE_COOKIE=\"true\"|" .env
+
+  if systemctl is-active --quiet learn.service 2>/dev/null; then
+    systemctl restart learn.service
+    ok "Configuration saved — learn.service restarted"
+  else
+    ok "Configuration saved in ${INSTALL_DIR}/.env"
+  fi
+}
+
 # ----- Summary -----
 summary() {
   local ip
@@ -525,6 +568,7 @@ main() {
   step_nginx
   step_start
 
+  step_configure_env
   summary
 }
 

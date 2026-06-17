@@ -448,6 +448,44 @@ systemctl start nginx"
   fi
 }
 
+configure_env() {
+  if ! prompt_yesno "Configure .env" \
+    "Would you like to configure optional API keys now?\n\nYou can always edit /opt/learn/.env later."; then
+    return
+  fi
+
+  local gemini_key pixabay_key provider opencode_key opencode_model ollama_base ollama_model
+  local secure_cookie
+
+  gemini_key=$(prompt_input "Gemini API Key" "Google Gemini (AI writing coach, cloze generation)\nGet a free key: https://aistudio.google.com/apikey\nLeave empty to skip" "")
+  pixabay_key=$(prompt_input "Pixabay API Key" "Pixabay (image search in worksheet creator)\nGet a free key: https://pixabay.com/api/docs/\nLeave empty to skip" "")
+  provider=$(prompt_input "Aloys AI Provider" "AI tutor provider: opencode (default), gemini, or ollama\nLeave empty for default" "")
+  opencode_key=$(prompt_input "OpenCode API Key" "OpenCode GO API key (default AI provider)\nGet a key at https://opencode.go\nLeave empty to skip" "")
+  opencode_model=$(prompt_input "OpenCode Model" "Model name (default: deepseek-v4-flash)\nLeave empty for default" "")
+  ollama_base=$(prompt_input "Ollama API Base" "Ollama server URL (default: http://localhost:11434)\nLeave empty for default" "")
+  ollama_model=$(prompt_input "Ollama Model" "Ollama model (default: gemma2)\nLeave empty for default" "")
+
+  if prompt_yesno "Secure Cookie" "Enable secure cookies?\nOnly set YES if you have HTTPS behind a reverse proxy."; then
+    secure_cookie="true"
+  else
+    secure_cookie=""
+  fi
+
+  msg "Writing configuration to /opt/learn/.env..."
+
+  [[ -n "$gemini_key" ]]    && pct exec "$CT_ID" -- sed -i "s|^# GEMINI_API_KEY=.*|GEMINI_API_KEY=\"${gemini_key}\"|" /opt/learn/.env
+  [[ -n "$pixabay_key" ]]   && pct exec "$CT_ID" -- sed -i "s|^# PIXABAY_API_KEY=.*|PIXABAY_API_KEY=\"${pixabay_key}\"|" /opt/learn/.env
+  [[ -n "$provider" ]]      && pct exec "$CT_ID" -- sed -i "s|^# ALOYS_AI_PROVIDER=.*|ALOYS_AI_PROVIDER=\"${provider}\"|" /opt/learn/.env
+  [[ -n "$opencode_key" ]]  && pct exec "$CT_ID" -- sed -i "s|^# OPENCODE_API_KEY=.*|OPENCODE_API_KEY=\"${opencode_key}\"|" /opt/learn/.env
+  [[ -n "$opencode_model" ]] && pct exec "$CT_ID" -- sed -i "s|^# OPENCODE_MODEL=.*|OPENCODE_MODEL=\"${opencode_model}\"|" /opt/learn/.env
+  [[ -n "$ollama_base" ]]   && pct exec "$CT_ID" -- sed -i "s|^# OLLAMA_API_BASE=.*|OLLAMA_API_BASE=\"${ollama_base}\"|" /opt/learn/.env
+  [[ -n "$ollama_model" ]]  && pct exec "$CT_ID" -- sed -i "s|^# OLLAMA_MODEL=.*|OLLAMA_MODEL=\"${ollama_model}\"|" /opt/learn/.env
+  [[ -n "$secure_cookie" ]] && pct exec "$CT_ID" -- sed -i "s|^# SECURE_COOKIE=.*|SECURE_COOKIE=\"true\"|" /opt/learn/.env
+
+  pct exec "$CT_ID" -- systemctl restart learn.service 2>/dev/null || true
+  ok "Configuration saved — learn.service restarted"
+}
+
 # ----- Summary -----
 summary() {
   local ct_ip
@@ -478,9 +516,10 @@ summary() {
   echo -e "    ${DGN}pct start ${CT_ID}${CL}  — start container"
   echo ""
   note "Inside the container:"
-  echo -e "    ${DGN}journalctl -u learn -f${CL}  — app logs"
-  echo -e "    ${DGN}systemctl restart learn${CL} — restart app"
-  echo -e "    ${DGN}cat /opt/learn/.env${CL}     — config"
+  echo -e "    ${DGN}journalctl -u learn -f${CL}         — app logs"
+  echo -e "    ${DGN}systemctl restart learn${CL}        — restart app"
+  echo -e "    ${DGN}nano /opt/learn/.env${CL}            — edit config"
+  echo -e "    ${DGN}systemctl restart learn${CL}        — apply config changes"
   echo ""
   echo -e "${GN}============================================${CL}"
   echo ""
@@ -504,6 +543,7 @@ main() {
   download_template
   create_container
   install_learn
+  configure_env
 
   summary
 }
