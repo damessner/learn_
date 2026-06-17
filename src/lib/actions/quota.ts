@@ -103,6 +103,66 @@ async function readUserQuota(tx: Prisma.TransactionClient, userId: string) {
 }
 
 /**
+ * Computes the public quota snapshot object from a `readUserQuota` result.
+ * Pure function — does NOT open any Prisma transaction, so it's safe to
+ * call inside an existing transaction without nesting.
+ */
+function buildSnapshotFromRead(
+  snap: Awaited<ReturnType<typeof readUserQuota>>
+) {
+  const nowMs = Date.now();
+  const todayReset = getTodayAtReset();
+  const isAfterReset = nowMs >= todayReset.getTime();
+
+  const nextReset = new Date(
+    todayReset.getFullYear(),
+    todayReset.getMonth(),
+    todayReset.getDate() + (isAfterReset ? 1 : 0),
+    DAILY_RESET_HOUR,
+    DAILY_RESET_MINUTE,
+    0,
+    0
+  );
+  const dailyResetInMs = nextReset.getTime() - nowMs;
+
+  // Window reset = when oldest timestamp in the valid window falls out
+  let windowResetInMs = 0;
+  const oldestSet = [...(snap.validInput ?? []), ...(snap.validQuiz ?? [])];
+  if (oldestSet.length > 0) {
+    const oldest = Math.min(...oldestSet);
+    const slotFreeAt = oldest + WINDOW_MS;
+    windowResetInMs = Math.max(0, slotFreeAt - nowMs);
+  }
+
+  return {
+    dailyRemaining: snap.dailyRemaining,
+    dailyLimit: snap.dailyLimit,
+    dailyResetInMs,
+    windowInputRemaining: snap.windowInputRemaining,
+    windowInputLimit: snap.windowInputLimit,
+    windowQuizRemaining: snap.windowQuizRemaining,
+    windowQuizLimit: snap.windowQuizLimit,
+    windowResetInMs,
+    role: snap.user.role,
+  };
+}
+
+// ----- Teacher/admin unlimited response -----
+function unlimitedSnapshot(role: string) {
+  return {
+    dailyRemaining: 999,
+    dailyLimit: 999,
+    dailyResetInMs: 0,
+    windowInputRemaining: 999,
+    windowInputLimit: 999,
+    windowQuizRemaining: 999,
+    windowQuizLimit: 999,
+    windowResetInMs: 0,
+    role,
+  };
+}
+
+/**
  * Returns the public quota view for a user.
  */
 export async function getUserQuotaSnapshot(userId: string) {
@@ -110,53 +170,10 @@ export async function getUserQuotaSnapshot(userId: string) {
     const snap = await readUserQuota(tx, userId);
 
     if (snap.isTeacherOrAdmin) {
-      return {
-        dailyRemaining: 999,
-        dailyLimit: 999,
-        dailyResetInMs: 0,
-        windowInputRemaining: 999,
-        windowInputLimit: 999,
-        windowQuizRemaining: 999,
-        windowQuizLimit: 999,
-        windowResetInMs: 0,
-        role: snap.user.role,
-      };
+      return unlimitedSnapshot(snap.user.role);
     }
 
-    const nowMs = Date.now();
-    const todayReset = getTodayAtReset();
-    const isAfterReset = nowMs >= todayReset.getTime();
-    const nextReset = new Date(
-      todayReset.getFullYear(),
-      todayReset.getMonth(),
-      todayReset.getDate() + (isAfterReset ? 1 : 0),
-      DAILY_RESET_HOUR,
-      DAILY_RESET_MINUTE,
-      0,
-      0
-    );
-    const dailyResetInMs = nextReset.getTime() - nowMs;
-
-    // Window reset = when oldest timestamp in the valid window falls out
-    let windowResetInMs = 0;
-    const oldestSet = [...snap.validInput, ...snap.validQuiz];
-    if (oldestSet.length > 0) {
-      const oldest = Math.min(...oldestSet);
-      const slotFreeAt = oldest + WINDOW_MS;
-      windowResetInMs = Math.max(0, slotFreeAt - nowMs);
-    }
-
-    return {
-      dailyRemaining: snap.dailyRemaining,
-      dailyLimit: snap.dailyLimit,
-      dailyResetInMs,
-      windowInputRemaining: snap.windowInputRemaining,
-      windowInputLimit: snap.windowInputLimit,
-      windowQuizRemaining: snap.windowQuizRemaining,
-      windowQuizLimit: snap.windowQuizLimit,
-      windowResetInMs,
-      role: snap.user.role,
-    };
+    return buildSnapshotFromRead(snap);
   });
 }
 
@@ -193,7 +210,7 @@ export async function consumeUserQuota(
 
     if (snap.isTeacherOrAdmin) {
       // No-op: unlimited
-      return await getUserQuotaSnapshot(userId);
+      return unlimitedSnapshot(snap.user.role);
     }
 
     if (snap.dailyRemaining <= 0) {
@@ -223,18 +240,19 @@ export async function consumeUserQuota(
     const newDailyRemaining = snap.dailyRemaining - 1;
     const newLastReset = shouldResetDaily ? new Date() : snap.user.lastDailyReset;
 
-    const newInput = [...snap.validInput, nowMs];
-    const newQuiz = [...snap.validQuiz, nowMs];
+    // Only add the new timestamp to the relevant window type.
+    const updatedInput = type === "input" ? [...snap.validInput, nowMs] : snap.validInput;
+    const updatedQuiz = type === "quiz" ? [...snap.validQuiz, nowMs] : snap.validQuiz;
 
     const updateData: Record<string, string | number | Date> = {
       dailyRemaining: newDailyRemaining,
       lastDailyReset: newLastReset,
-      windowInputTimestamps: JSON.stringify(newInput),
-      windowQuizTimestamps: JSON.stringify(newQuiz),
+      windowInputTimestamps: JSON.stringify(updatedInput),
+      windowQuizTimestamps: JSON.stringify(updatedQuiz),
     };
 
-    // If a new day reset, also clear the opposite window so the
-    // student doesn't carry any stale timestamps into a new period.
+    // When a daily reset happens, also clear the opposite window so the
+    // student doesn't carry stale timestamps into a new day.
     if (shouldResetDaily) {
       if (type === "input") {
         updateData.windowQuizTimestamps = "[]";
@@ -248,6 +266,16 @@ export async function consumeUserQuota(
       data: updateData,
     });
 
-    return await getUserQuotaSnapshot(userId);
+    // Build response from the updated snap — do NOT call getUserQuotaSnapshot
+    // here (which would open a nested transaction). Instead use the pure
+    // helper that requires no DB round-trip.
+    const finalInput = updateData.windowInputTimestamps === "[]" ? [] : updatedInput;
+    const finalQuiz = updateData.windowQuizTimestamps === "[]" ? [] : updatedQuiz;
+    return buildSnapshotFromRead({
+      ...snap,
+      dailyRemaining: newDailyRemaining,
+      validInput: finalInput,
+      validQuiz: finalQuiz,
+    });
   });
 }
