@@ -206,9 +206,29 @@ curl -fsSL https://cdn.jsdelivr.net/gh/damessner/learn_@main/install.sh | bash
 bash -c "$(curl -fsSL https://cdn.jsdelivr.net/gh/damessner/learn_@main/learn-lxc.sh)"
 ```
 
-This installs the platform to `/opt/learn` with a systemd service, Python TTS engine, and optional nginx reverse proxy with Let's Encrypt SSL.
+This installs the platform to `/opt/learn` with:
+- A **systemd service** (`learn.service`) running as the `learn` user, auto-restart on failure
+- **Python TTS engine** (kokoro-onnx) for vocabulary pronunciation
+- Optional **nginx reverse proxy** with Let's Encrypt SSL via Certbot
 
 > **Default credentials after install:** `teacher` / `password` (Teacher), `student` / `password` (Student), `da.messner` / `Aloys2026!` (Admin), `weissenbach` / `Aloys2026!` (Admin). Classroom join code: `CLASS1`.
+
+---
+
+### Auto-Updates (via systemd timer)
+
+The install script can optionally set up a daily update check:
+
+```bash
+# Add a systemd timer that checks for updates at 04:00 daily:
+sudo systemctl enable --now learn-auto-update.timer
+```
+
+The timer runs `git pull`, re-runs `npm install`, re-builds, and restarts the service only if there are new commits. To manually trigger an update check:
+
+```bash
+sudo systemctl start learn-auto-update
+```
 
 ---
 
@@ -233,13 +253,21 @@ This installs the platform to `/opt/learn` with a systemd service, Python TTS en
    ```
 
 3. **Set up the Database**:
+
+   For **development** (auto-sync schema without migration history):
    ```bash
    npx prisma db push
    npx prisma db seed
    ```
 
+   For **production** (use migration files for controlled upgrades):
+   ```bash
+   npx prisma migrate deploy
+   npx prisma db seed
+   ```
+
 4. **Configuration (`.env`)**:
-   Create a `.env` file in the project root directory. All optional keys are commented out by default — uncomment and add your keys as needed:
+   Create a `.env` file in the project root directory with these values (uncomment and add your keys as needed):
 
     ```env
     # Database (SQLite — relative to project root)
@@ -255,28 +283,30 @@ This installs the platform to `/opt/learn` with a systemd service, Python TTS en
 
     # --- Optional API Keys ---
 
-    # Google Gemini — AI writing coach feedback & cloze generation
+    # Google Gemini — AI writing coach & Aloys fallback provider
     # Get a free key: https://aistudio.google.com/apikey
-    # GEMINI_API_KEY="your_gemini_api_key"
+    GEMINI_API_KEY=""
+
+    # Google Gemini model name (default: gemini-3.5-flash)
     # GEMINI_MODEL="gemini-3.5-flash"
 
     # Pixabay — image search inside the worksheet creator
     # Get a free key: https://pixabay.com/api/docs/
-    # PIXABAY_API_KEY="your_pixabay_api_key"
+    PIXABAY_API_KEY="your_pixabay_api_key"
 
     # --- Aloys AI (Socratic Tutor) ---
 
     # AI provider: "opencode" (default), "gemini", or "ollama"
-    # ALOYS_AI_PROVIDER="opencode"
+    ALOYS_AI_PROVIDER="opencode"
 
     # OpenCode GO (default provider)
     # Get a key at https://opencode.go
-    # OPENCODE_API_KEY="your_opencode_api_key"
-    # OPENCODE_MODEL="deepseek-v4-flash"
+    OPENCODE_API_KEY=""
+    OPENCODE_MODEL="deepseek-v4-flash"
 
     # Ollama (local alternative, no API key needed)
-    # OLLAMA_API_BASE="http://localhost:11434"
-    # OLLAMA_MODEL="gemma2"
+    OLLAMA_API_BASE="http://localhost:11434"
+    OLLAMA_MODEL="gemma2"
     ```
 
 5. **Start Development Server**:
