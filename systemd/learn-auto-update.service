@@ -1,0 +1,38 @@
+[Unit]
+Description=Learn Platform Auto-Update
+Documentation=https://github.com/damessner/learn_/blob/main/systemd/learn-auto-update.service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+
+# Runs as root so it can restart learn.service.
+# All git/npm work is done as the 'learn' user via runuser.
+#
+# Flow:
+#   1. Fetch origin (no-op if offline)
+#   2. Compare HEAD vs origin/main — exit early if up to date
+#   3. Pull, npm install, build as 'learn' user
+#   4. Restart learn.service with the new build
+
+ExecStart=/usr/bin/bash -c '\
+  cd /opt/learn; \
+  git fetch origin 2>/dev/null || exit 0; \
+  UNPUBLISHED=$(git log HEAD..origin/main --oneline); \
+  if [ -z "$UNPUBLISHED" ]; then \
+    exit 0; \
+  fi; \
+  echo "=== New commits ==="; \
+  echo "$UNPUBLISHED"; \
+  echo "=== Pulling ==="; \
+  runuser -u learn -g learn -- git pull origin main; \
+  echo "=== Installing dependencies ==="; \
+  runuser -u learn -g learn -- npm install --no-audit --no-fund; \
+  echo "=== Building ==="; \
+  runuser -u learn -g learn -- npm run build; \
+  echo "=== Restarting learn.service ==="; \
+  systemctl restart learn.service'
+
+[Install]
+WantedBy=multi-user.target

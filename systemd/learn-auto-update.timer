@@ -1,0 +1,14 @@
+[Unit]
+Description=Check for Learn Platform updates every 15 minutes
+Documentation=https://github.com/damessner/learn_/blob/main/systemd/learn-auto-update.timer
+RefersTo=learn-auto-update.service
+
+[Timer]
+# Fire 15 minutes after boot, then every 15 minutes thereafter
+OnBootSec=15min
+OnUnitActiveSec=15min
+# Jitter spreads the load across the interval when many machines boot simultaneously
+RandomizedDelaySec=30
+
+[Install]
+WantedBy=timers.target

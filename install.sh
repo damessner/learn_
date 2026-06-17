@@ -388,6 +388,25 @@ UNIT
   ok "systemd service configured"
 }
 
+step_auto_update() {
+  info "You can enable auto-updates later with:"
+  info "  sudo cp ${INSTALL_DIR}/systemd/learn-auto-update.* /etc/systemd/system/"
+  info "  sudo systemctl daemon-reload && sudo systemctl enable --now learn-auto-update.timer"
+  info "This checks every 15 minutes for new git commits, and pulls+rebuilds only when needed."
+
+  local yn
+  read -p "$(echo -e "${YW}Enable auto-update timer (every 15 min)? [y/N]: ${CL}")" -n 1 yn
+  echo
+  if [[ "${yn:-}" =~ ^[Yy]$ ]]; then
+    msg "Installing auto-update units..."
+    cp "${INSTALL_DIR}/systemd/learn-auto-update.service" /etc/systemd/system/
+    cp "${INSTALL_DIR}/systemd/learn-auto-update.timer" /etc/systemd/system/
+    systemctl daemon-reload
+    systemctl enable --now learn-auto-update.timer
+    ok "Auto-update timer enabled (every 15 min)"
+  fi
+}
+
 step_nginx() {
   [[ "${USE_NGINX:-false}" != "true" ]] && return
 
@@ -566,6 +585,7 @@ main() {
   step_build
   step_systemd
   step_nginx
+  step_auto_update
   step_start
 
   step_configure_env

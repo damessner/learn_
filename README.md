@@ -217,14 +217,22 @@ This installs the platform to `/opt/learn` with:
 
 ### Auto-Updates (via systemd timer)
 
-The install script can optionally set up a daily update check:
+The repo ships with two systemd unit files that automatically check for new git commits, pull, rebuild, and restart:
+
+- [`systemd/learn-auto-update.service`](systemd/learn-auto-update.service) — the update logic
+- [`systemd/learn-auto-update.timer`](systemd/learn-auto-update.timer) — fires every 15 minutes
+
+The install script (`install.sh`) will prompt you to enable this during installation. To set it up manually on an existing install:
 
 ```bash
-# Add a systemd timer that checks for updates at 04:00 daily:
+sudo cp systemd/learn-auto-update.* /etc/systemd/system/
+sudo systemctl daemon-reload
 sudo systemctl enable --now learn-auto-update.timer
 ```
 
-The timer runs `git pull`, re-runs `npm install`, re-builds, and restarts the service only if there are new commits. To manually trigger an update check:
+The timer runs `git fetch`, compares HEAD to `origin/main`, and only pulls+rebuilds when there are actual new commits — so 99% of the polls are a lightweight no-op.
+
+To manually trigger an update check:
 
 ```bash
 sudo systemctl start learn-auto-update
