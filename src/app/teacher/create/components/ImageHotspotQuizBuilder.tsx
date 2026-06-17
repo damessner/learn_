@@ -65,6 +65,7 @@ export function ImageHotspotQuizBuilder({
   const [drawingTool, setDrawingTool] = useState<"select" | "circle" | "rect">("select");
   const [rectCorner1, setRectCorner1] = useState<[number, number] | null>(null);
   const [tempMousePos, setTempMousePos] = useState<[number, number] | null>(null);
+  const [isEnlarged, setIsEnlarged] = useState(false);
 
   interface DragState {
     hsId: string;
@@ -300,6 +301,8 @@ export function ImageHotspotQuizBuilder({
     setSelectedHotspotId(null);
     setRectCorner1(null);
     setTempMousePos(null);
+    // Auto-enlarge the editor so the user can immediately draw click zones.
+    setIsEnlarged(true);
   };
 
   const removeHotspotTask = (taskId: string) => {
@@ -314,6 +317,7 @@ export function ImageHotspotQuizBuilder({
       setSelectedHotspotId(null);
       setRectCorner1(null);
       setTempMousePos(null);
+      setIsEnlarged(false);
     }
   };
 
@@ -439,10 +443,13 @@ export function ImageHotspotQuizBuilder({
                     <button
                       type="button"
                       onClick={() => {
-                        setExpandedTaskId(isExpanded ? null : task.id);
+                        const next = isExpanded ? null : task.id;
+                        setExpandedTaskId(next);
                         setSelectedHotspotId(null);
                         setRectCorner1(null);
                         setTempMousePos(null);
+                        // Auto-enlarge the image canvas on edit, auto-collapse on close.
+                        setIsEnlarged(next !== null);
                       }}
                       className="flex items-center gap-2 text-left cursor-pointer group"
                     >
@@ -459,10 +466,12 @@ export function ImageHotspotQuizBuilder({
                       <button
                         type="button"
                         onClick={() => {
-                          setExpandedTaskId(isExpanded ? null : task.id);
+                          const next = isExpanded ? null : task.id;
+                          setExpandedTaskId(next);
                           setSelectedHotspotId(null);
                           setRectCorner1(null);
                           setTempMousePos(null);
+                          setIsEnlarged(next !== null);
                         }}
                         className="text-[10px] font-mono font-bold uppercase text-neutral-450 hover:text-black dark:hover:text-white transition cursor-pointer"
                       >
@@ -552,12 +561,46 @@ export function ImageHotspotQuizBuilder({
                             <Focus className="w-3.5 h-3.5 text-purple-500" />
                             Coordinate Click Targets for this question
                           </span>
+                          <button
+                            type="button"
+                            onClick={() => setIsEnlarged(!isEnlarged)}
+                            className="text-[10px] font-bold font-mono uppercase border border-neutral-350 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-600 dark:text-neutral-400 px-2 py-1 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 transition cursor-pointer flex items-center gap-1 shadow-sm"
+                          >
+                            🔍 {isEnlarged ? "Collapse Editor" : "Enlarge Editor"}
+                          </button>
                         </div>
+
+                        {isEnlarged && (
+                          <div
+                            className="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 cursor-pointer"
+                            onClick={() => setIsEnlarged(false)}
+                          />
+                        )}
 
                         {hotspotBg ? (
                           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
                             {/* Canvas Drawing Area */}
-                            <div className="lg:col-span-7 space-y-2 max-w-sm mx-auto w-full">
+                            <div
+                              className={
+                                isEnlarged
+                                  ? "fixed inset-4 md:inset-10 z-50 bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-800 rounded-2xl shadow-2xl p-6 flex flex-col gap-4 overflow-y-auto max-w-5xl mx-auto"
+                                  : "lg:col-span-7 space-y-2 w-full max-w-2xl mx-auto"
+                              }
+                            >
+                              {isEnlarged && (
+                                <div className="flex items-center justify-between border-b pb-2">
+                                  <span className="font-mono font-bold text-xs uppercase text-purple-650 dark:text-purple-400">
+                                    Enlarged Editor (Wimmelbild Mode)
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => setIsEnlarged(false)}
+                                    className="text-[10px] font-bold font-mono uppercase border border-neutral-300 dark:border-neutral-700 bg-neutral-50 hover:bg-neutral-100 dark:bg-neutral-800 dark:hover:bg-neutral-700 px-2 py-1 rounded cursor-pointer"
+                                  >
+                                    Close Editor [X]
+                                  </button>
+                                </div>
+                              )}
                               {/* Drawing Tool Selector Button Group */}
                               <div className="flex items-center gap-1 bg-neutral-100 dark:bg-neutral-800 p-1 rounded-lg">
                                 <button
