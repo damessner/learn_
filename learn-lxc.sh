@@ -311,7 +311,8 @@ create_container() {
 # ----- Install Learn platform inside container -----
 install_learn() {
   msg "Installing prerequisites inside container..."
-  pct exec "$CT_ID" -- bash -c "apt-get update -qq 2>/dev/null && apt-get install -y -qq curl wget git python3 python3-pip python3-venv build-essential"
+  pct exec "$CT_ID" -- bash -c "apt-get update -qq 2>/dev/null && apt-get install -y -qq curl wget git python3 python3-pip python3-venv build-essential locales"
+  pct exec "$CT_ID" -- locale-gen en_US.UTF-8 2>/dev/null || true
   ok "Prerequisites installed"
 
   # Install Node.js 24 LTS
@@ -321,7 +322,7 @@ install_learn() {
 
   # Install TTS dependencies
   msg "Installing TTS engine..."
-  pct exec "$CT_ID" -- pip3 install --break-system-packages --quiet kokoro-onnx numpy
+  pct exec "$CT_ID" -- pip3 install --break-system-packages --quiet --root-user-action=ignore --no-warn-script-location kokoro-onnx numpy
   ok "TTS dependencies installed"
 
   # Clone the repository
@@ -372,7 +373,7 @@ EOF"
 
   # Install npm deps, build
   msg "Installing npm packages (this may take a few minutes)..."
-  pct exec "$CT_ID" -- bash -c "cd /opt/learn && npm install --no-audit --no-fund"
+  pct exec "$CT_ID" -- bash -c "cd /opt/learn && npm install --no-audit --no-fund --loglevel=error"
   ok "npm packages installed"
 
   msg "Generating Prisma client..."

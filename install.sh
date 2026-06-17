@@ -232,8 +232,12 @@ step_prereqs() {
     curl wget git \
     python3 python3-pip python3-venv \
     build-essential pkg-config \
-    whiptail
+    whiptail locales
   ok "System packages installed"
+
+  msg "Generating locales..."
+  locale-gen en_US.UTF-8 2>/dev/null || true
+  ok "Locales generated"
 }
 
 step_node() {
@@ -250,7 +254,7 @@ step_node() {
 
 step_tts() {
   msg "Installing Python TTS engine (kokoro-onnx)..."
-  pip3 install --break-system-packages --quiet kokoro-onnx numpy
+  pip3 install --break-system-packages --quiet --root-user-action=ignore --no-warn-script-location kokoro-onnx numpy
   ok "TTS dependencies installed"
 }
 
@@ -332,7 +336,7 @@ EOF
 step_npm() {
   msg "Installing npm packages..."
   cd "$INSTALL_DIR"
-  sudo -u "$LEARN_USER" npm install --no-audit --no-fund
+  sudo -u "$LEARN_USER" npm install --no-audit --no-fund --loglevel=error
   ok "npm packages installed"
 
   msg "Generating Prisma client..."
