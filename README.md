@@ -62,7 +62,7 @@ Designed around the **MORE!** textbook series for Austrian 1st-grade English cla
 
 ### 🧑‍🎓 For Students
 
-- **Aloys AI Socratic Tutor** — Chat with Aloys, an AI-powered historical doctor and founder of the school who helps you learn through guided Socratic dialogue. Start free-form conversations or structured lessons with AI-generated reading texts and comprehension quizzes. Daily/weekly usage quotas apply.
+- **Aloys AI Socratic Tutor** — Chat with Aloys, an AI-powered historical doctor and founder of the school who helps you learn through guided Socratic dialogue. Start free-form conversations or structured lessons with AI-generated reading texts and comprehension quizzes. Per-type sliding window usage quotas (30 chat inputs / 5 quiz generations per 45-minute window) plus a daily combined cap of 160, resetting automatically at 07:55.
 - **PWA / Offline Support** — Installable as a Progressive Web App on mobile and desktop. The service worker caches core assets for offline access, and a dedicated offline page is shown when the network is unavailable. Supports notched mobile displays via `viewport-fit: cover`.
 - **Interactive Player** — Responsive, dark-mode friendly workspace for solving drag-and-drop, clickable choice, categorization, and hotspot-based exercises.
 - **Vocabulary Picture Supplementation** — Reinforce spelling retention with an experimental **Picture Match Stage** (Stage 4) grid quiz showing target words and distractors.
@@ -185,6 +185,7 @@ The application has been hardened to prevent tampering, unauthorized access, and
 │       ├── rateLimit.ts       # Brute-force credentials rate-limiter
 │       ├── session.ts         # Cookie encryption and session authorization utilities
 │       ├── submissionScoring.ts # Server-side answers evaluation and grading logic
+│       ├── actions/quota.ts   # Sliding-window AI usage quota enforcement (30 inputs / 5 quizzes per 45 min, 160/day at 07:55)
 │       └── points.ts          # Core points calculation logic
 └── vitest.config.ts           # Vitest unit test suite configuration
 ```
@@ -288,9 +289,9 @@ This installs the platform to `/opt/learn` with a systemd service, Python TTS en
 
 ## 🧪 Testing
 
-The repository includes a comprehensive unit testing suite using Vitest that verifies rate limiting, join codes, points multipliers, server-authoritative scoring, Live Quiz answer evaluation across all four question types, drag-drop answer normalization, and interactive-reading question-ID validation.
+The repository includes a comprehensive unit testing suite using Vitest that verifies rate limiting, join code generation, sliding-window AI quota enforcement, points multipliers, server-authoritative scoring, Live Quiz answer evaluation across all four question types, drag-drop answer normalization, and interactive-reading question-ID validation.
 
-Run the test suite once:
+Run the test suite once (101 tests across 7 test files):
 ```bash
 npm run test
 ```
