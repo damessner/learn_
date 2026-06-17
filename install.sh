@@ -212,7 +212,7 @@ Requires the domain to be publicly resolvable on port 80."; then
 # ----- Install steps -----
 step_prereqs() {
   msg "Updating package lists..."
-  apt-get update -qq >/dev/null 2>&1
+  apt-get update -qq
   ok "Package lists updated"
 
   msg "Installing system packages..."
@@ -220,7 +220,7 @@ step_prereqs() {
     curl wget git \
     python3 python3-pip python3-venv \
     build-essential pkg-config \
-    whiptail >/dev/null 2>&1
+    whiptail
   ok "System packages installed"
 }
 
@@ -231,14 +231,14 @@ step_node() {
     [[ "$nv" -ge 18 ]] && { ok "Node.js $(node --version) already installed"; return; }
   fi
   msg "Installing Node.js ${NODE_MAJOR}.x..."
-  curl -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR}.x" | bash - >/dev/null 2>&1
-  apt-get install -y -qq nodejs >/dev/null 2>&1
+  curl -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR}.x" | bash -
+  apt-get install -y -qq nodejs
   ok "Node.js $(node --version) installed"
 }
 
 step_tts() {
   msg "Installing Python TTS engine (kokoro-onnx)..."
-  pip3 install --break-system-packages --quiet kokoro-onnx numpy >/dev/null 2>&1
+  pip3 install --break-system-packages --quiet kokoro-onnx numpy
   ok "TTS dependencies installed"
 }
 
@@ -256,14 +256,14 @@ step_clone() {
   if [[ -d "$INSTALL_DIR/.git" ]]; then
     msg "Updating existing repository..."
     cd "$INSTALL_DIR"
-    git fetch origin "$BRANCH" >/dev/null 2>&1
-    git reset --hard "origin/$BRANCH" >/dev/null 2>&1
+    git fetch origin "$BRANCH"
+    git reset --hard "origin/$BRANCH"
     cd - >/dev/null
     ok "Repository updated"
   else
     msg "Cloning repository..."
     mkdir -p "$(dirname "$INSTALL_DIR")"
-    git clone --branch "$BRANCH" --depth 1 "$url" "$INSTALL_DIR" >/dev/null 2>&1
+    git clone --branch "$BRANCH" --depth 1 "$url" "$INSTALL_DIR"
     ok "Repository cloned"
   fi
 }
@@ -320,26 +320,26 @@ EOF
 step_npm() {
   msg "Installing npm packages..."
   cd "$INSTALL_DIR"
-  sudo -u "$LEARN_USER" npm install --no-audit --no-fund >/dev/null 2>&1
+  sudo -u "$LEARN_USER" npm install --no-audit --no-fund
   ok "npm packages installed"
 
   msg "Generating Prisma client..."
-  sudo -u "$LEARN_USER" npx prisma generate >/dev/null 2>&1
+  sudo -u "$LEARN_USER" npx prisma generate
   ok "Prisma client generated"
 
   msg "Pushing database schema..."
-  sudo -u "$LEARN_USER" npx prisma db push --accept-data-loss >/dev/null 2>&1
+  sudo -u "$LEARN_USER" npx prisma db push --accept-data-loss
   ok "Database schema pushed"
 
   msg "Seeding database..."
-  sudo -u "$LEARN_USER" npx prisma db seed >/dev/null 2>&1 || note "Seed skipped (data exists)"
+  sudo -u "$LEARN_USER" npx prisma db seed || note "Seed skipped (data exists)"
   ok "Database seeded"
 }
 
 step_build() {
   msg "Building Next.js production bundle..."
   cd "$INSTALL_DIR"
-  sudo -u "$LEARN_USER" npm run build >/dev/null 2>&1
+  sudo -u "$LEARN_USER" npm run build
   ok "Production build complete"
 }
 
@@ -359,7 +359,7 @@ WorkingDirectory=${INSTALL_DIR}
 Environment=NODE_ENV=production
 Environment=HOST=0.0.0.0
 Environment=PORT=${APP_PORT}
-ExecStart=$(which npm) start
+ExecStart=\$(which npm) start
 Restart=always
 RestartSec=10
 LimitNOFILE=65536
@@ -367,8 +367,8 @@ LimitNOFILE=65536
 [Install]
 WantedBy=multi-user.target
 UNIT
-  systemctl daemon-reload >/dev/null 2>&1
-  systemctl enable learn.service >/dev/null 2>&1
+  systemctl daemon-reload
+  systemctl enable learn.service
   ok "systemd service configured"
 }
 
@@ -376,7 +376,7 @@ step_nginx() {
   [[ "${USE_NGINX:-false}" != "true" ]] && return
 
   msg "Installing nginx..."
-  apt-get install -y -qq nginx >/dev/null 2>&1
+  apt-get install -y -qq nginx
   ok "nginx installed"
 
   local sname="${DOMAIN:-_}"
@@ -427,10 +427,10 @@ NGX
 
   if [[ "${USE_SSL:-false}" == "true" && -n "${DOMAIN:-}" ]]; then
     msg "Installing Certbot..."
-    apt-get install -y -qq certbot python3-certbot-nginx >/dev/null 2>&1
-    systemctl start nginx >/dev/null 2>&1
+    apt-get install -y -qq certbot python3-certbot-nginx
+    systemctl start nginx
     certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos \
-      --email "admin@${DOMAIN}" --redirect >/dev/null 2>&1 || \
+      --email "admin@${DOMAIN}" --redirect || \
       note "SSL setup failed. Fix later: certbot --nginx -d ${DOMAIN}"
     ok "SSL configured"
   fi
@@ -438,12 +438,12 @@ NGX
 
 step_start() {
   msg "Starting learn.service..."
-  systemctl start learn.service >/dev/null 2>&1
+  systemctl start learn.service
   ok "learn.service started"
 
   if [[ "${USE_NGINX:-false}" == "true" ]]; then
-    systemctl start nginx >/dev/null 2>&1
-    systemctl reload nginx >/dev/null 2>&1 || true
+    systemctl start nginx
+    systemctl reload nginx || true
   fi
 }
 

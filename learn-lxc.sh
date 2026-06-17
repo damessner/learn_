@@ -311,22 +311,22 @@ create_container() {
 # ----- Install Learn platform inside container -----
 install_learn() {
   msg "Installing prerequisites inside container..."
-  pct exec "$CT_ID" -- bash -c "apt-get update -qq && apt-get install -y -qq curl wget git python3 python3-pip python3-venv build-essential >/dev/null 2>&1"
+  pct exec "$CT_ID" -- bash -c "apt-get update -qq && apt-get install -y -qq curl wget git python3 python3-pip python3-venv build-essential"
   ok "Prerequisites installed"
 
   # Install Node.js 24 LTS
   msg "Installing Node.js 24 LTS..."
-  pct exec "$CT_ID" -- bash -c "curl -fsSL https://deb.nodesource.com/setup_24.x | bash - >/dev/null 2>&1 && apt-get install -y -qq nodejs >/dev/null 2>&1"
+  pct exec "$CT_ID" -- bash -c "curl -fsSL https://deb.nodesource.com/setup_24.x | bash - && apt-get install -y -qq nodejs"
   ok "Node.js $(pct exec "$CT_ID" -- node --version) installed"
 
   # Install TTS dependencies
   msg "Installing TTS engine..."
-  pct exec "$CT_ID" -- pip3 install --break-system-packages --quiet kokoro-onnx numpy >/dev/null 2>&1
+  pct exec "$CT_ID" -- pip3 install --break-system-packages --quiet kokoro-onnx numpy
   ok "TTS dependencies installed"
 
   # Clone the repository
   msg "Cloning Learn platform..."
-  pct exec "$CT_ID" -- git clone --depth 1 https://github.com/damessner/learn_.git /opt/learn >/dev/null 2>&1
+  pct exec "$CT_ID" -- git clone --depth 1 https://github.com/damessner/learn_.git /opt/learn
   ok "Repository cloned"
 
   # Generate .env
@@ -372,23 +372,23 @@ EOF"
 
   # Install npm deps, build
   msg "Installing npm packages (this may take a few minutes)..."
-  pct exec "$CT_ID" -- bash -c "cd /opt/learn && npm install --no-audit --no-fund >/dev/null 2>&1"
+  pct exec "$CT_ID" -- bash -c "cd /opt/learn && npm install --no-audit --no-fund"
   ok "npm packages installed"
 
   msg "Generating Prisma client..."
-  pct exec "$CT_ID" -- bash -c "cd /opt/learn && npx prisma generate >/dev/null 2>&1"
+  pct exec "$CT_ID" -- bash -c "cd /opt/learn && npx prisma generate"
   ok "Prisma client generated"
 
   msg "Pushing database schema..."
-  pct exec "$CT_ID" -- bash -c "cd /opt/learn && npx prisma db push --accept-data-loss >/dev/null 2>&1"
+  pct exec "$CT_ID" -- bash -c "cd /opt/learn && npx prisma db push --accept-data-loss"
   ok "Schema pushed"
 
   msg "Seeding database..."
-  pct exec "$CT_ID" -- bash -c "cd /opt/learn && npx prisma db seed >/dev/null 2>&1" || note "Seed skipped (data may exist)"
+  pct exec "$CT_ID" -- bash -c "cd /opt/learn && npx prisma db seed" || note "Seed skipped (data may exist)"
   ok "Database seeded"
 
   msg "Building Next.js bundle (may take several minutes)..."
-  pct exec "$CT_ID" -- bash -c "cd /opt/learn && npm run build >/dev/null 2>&1"
+  pct exec "$CT_ID" -- bash -c "cd /opt/learn && npm run build"
   ok "Build complete"
 
   # systemd service
@@ -404,25 +404,25 @@ User=root
 WorkingDirectory=/opt/learn
 Environment=NODE_ENV=production
 Environment=HOST=0.0.0.0
-ExecStart=$(which npm) start
+ExecStart=\$(which npm) start
 Restart=always
 RestartSec=10
 
 [Install]
 WantedBy=multi-user.target
 UNIT
-systemctl daemon-reload && systemctl enable learn.service >/dev/null 2>&1"
+systemctl daemon-reload && systemctl enable learn.service"
   ok "systemd service configured"
 
   # Start the app
   msg "Starting Learn platform..."
-  pct exec "$CT_ID" -- systemctl start learn.service >/dev/null 2>&1
+  pct exec "$CT_ID" -- systemctl start learn.service
   ok "Learn platform started"
 
   # nginx (optional, if domain was provided)
   if [[ -n "$CT_DN" ]]; then
     msg "Setting up nginx reverse proxy..."
-    pct exec "$CT_ID" -- bash -c "apt-get install -y -qq nginx >/dev/null 2>&1"
+    pct exec "$CT_ID" -- bash -c "apt-get install -y -qq nginx"
     pct exec "$CT_ID" -- bash -c "cat > /etc/nginx/sites-available/learn <<NGX
 upstream learn { server 127.0.0.1:3000; }
 server {
@@ -442,7 +442,7 @@ server {
 NGX
 rm -f /etc/nginx/sites-enabled/default
 ln -sf /etc/nginx/sites-available/learn /etc/nginx/sites-enabled/
-systemctl start nginx >/dev/null 2>&1"
+systemctl start nginx"
     ok "nginx configured for ${CT_DN}"
   fi
 }
