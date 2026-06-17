@@ -6,7 +6,7 @@ import { Check, X, Award, Volume2, ArrowRight, BookOpen, HelpCircle, FileText, S
 import { getVocabContextChallengeAction } from "@/lib/actions/ai-coach";
 
 // Human-readable level labels
-const LEVEL_LABELS = ["Flashcard", "Choice", "Spelling", "Mastered"];
+const LEVEL_LABELS = ["Multiple Choice", "Hangman", "Spelling", "Mastered"];
 
 export function cleanWordForSentence(word: string): string {
   return word
@@ -55,6 +55,16 @@ function seededShuffle<T>(arr: T[], seed: number): T[] {
   return result;
 }
 
+export function createHangmanDisplay(word: string): { display: string; hiddenCount: number } {
+  const chars = word.split('');
+  const result = chars.map((ch, i) => {
+    if (i === 0 || i === chars.length - 1) return ch; // always show first and last
+    if ('aeiouAEIOU'.includes(ch)) return ch; // always show vowels
+    return '_'; // hide consonants
+  });
+  return { display: result.join(' '), hiddenCount: result.filter(c => c === '_').length };
+}
+
 export const Vocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
   config,
   assetsPath,
@@ -68,7 +78,7 @@ export const Vocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
   const onChangeRef = useRef(onChange);
   useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
 
-  // State: maps word index to level (0: Flashcard, 1: Multiple Choice, 2: Spelling, 3: Mastered)
+  // State: maps word index to level (0: Multiple Choice, 1: Hangman, 2: Spelling, 3: Mastered)
   const [levels, setLevels] = useState<Record<number, number>>(() => {
     if (savedState?.levels) return savedState.levels;
     const initial: Record<number, number> = {};
@@ -83,9 +93,6 @@ export const Vocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
     vocabList.forEach((_, idx) => { initial[idx] = true; });
     return initial;
   });
-
-  // Flip state for Level 0 (Flashcard)
-  const [flipped, setFlipped] = useState(false);
 
   // Active word index - starts at first unmastered word if loading saved state
   const [activeIdx, setActiveIdx] = useState<number>(() => {
@@ -191,7 +198,6 @@ export const Vocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
     if (activeIdx !== prevActiveIdx.current) {
       prevActiveIdx.current = activeIdx;
       setFeedback("idle");
-      setFlipped(false);
       setSelectedOptionIdx(null);
       setSpellingInput("");
     }
@@ -378,28 +384,6 @@ export const Vocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
   const progressPct = vocabList.length > 0 ? (masteredCount / vocabList.length) * 100 : 0;
 
   // Handlers
-  const handleFlip = () => setFlipped(!flipped);
-
-  const handleLevel0Complete = () => {
-    setLevels((prev) => ({ ...prev, [activeIdx]: 1 }));
-    setFlipped(false);
-  };
-
-  const handleSkipFlashcards = () => {
-    const updated = { ...levels };
-    vocabList.forEach((_, idx) => {
-      if ((updated[idx] ?? 0) === 0) {
-        updated[idx] = 1;
-      }
-    });
-    setLevels(updated);
-    setFlipped(false);
-    const nextUnmastered = vocabList.findIndex((_, idx) => (updated[idx] ?? 0) < 3);
-    if (nextUnmastered >= 0) {
-      setActiveIdx(nextUnmastered);
-    }
-  };
-
   const handleMCOptionClick = (option: string, optionIdx: number) => {
     if (feedback !== "idle") return;
     setSelectedOptionIdx(optionIdx);
@@ -414,7 +398,7 @@ export const Vocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
 
   const handleMCNext = () => {
     if (feedback === "correct") {
-      setLevels((prev) => ({ ...prev, [activeIdx]: 2 }));
+      setLevels((prev) => ({ ...prev, [activeIdx]: 1 }));
     } else {
       setLevels((prev) => ({ ...prev, [activeIdx]: 0 }));
     }
@@ -422,10 +406,32 @@ export const Vocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
     setSelectedOptionIdx(null);
   };
 
+  const handleHangmanSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (feedback !== "idle") return;
+    const isCorrect = checkVocabMatch(spellingInput, activeWord.word);
+    if (isCorrect) {
+      setFeedback("correct");
+    } else {
+      setFeedback("incorrect");
+      setFirstTryCorrect((prev) => ({ ...prev, [activeIdx]: false }));
+    }
+  };
+
+  const handleHangmanNext = () => {
+    if (feedback === "correct") {
+      setLevels((prev) => ({ ...prev, [activeIdx]: 2 }));
+    } else {
+      setLevels((prev) => ({ ...prev, [activeIdx]: 1 }));
+    }
+    setFeedback("idle");
+    setSpellingInput("");
+  };
+
   const handleSpellingSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (feedback !== "idle") return;
-    const isCorrect = checkVocabMatch(spellingInput, activeWord.translation);
+    const isCorrect = checkVocabMatch(spellingInput, activeWord.word);
     if (isCorrect) {
       setFeedback("correct");
     } else {
@@ -443,7 +449,7 @@ export const Vocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
         setActiveIdx(nextUnmastered);
       }
     } else {
-      setLevels((prev) => ({ ...prev, [activeIdx]: 1 }));
+      setLevels((prev) => ({ ...prev, [activeIdx]: 2 }));
     }
     setFeedback("idle");
     setSpellingInput("");
@@ -987,11 +993,11 @@ export const Vocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
 
           {/* Level pill counters */}
           <div className="flex flex-wrap gap-1.5 text-[10px] font-mono font-bold uppercase shrink-0">
-            <span className="px-2 py-1 bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-450 rounded border">
-              Cards: {vocabList.filter((_, idx) => levels[idx] === 0).length}
-            </span>
             <span className="px-2 py-1 bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 rounded border border-blue-200/50">
-              Choice: {vocabList.filter((_, idx) => levels[idx] === 1).length}
+              Choice: {vocabList.filter((_, idx) => levels[idx] === 0).length}
+            </span>
+            <span className="px-2 py-1 bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-300 rounded border border-purple-200/50">
+              Hangman: {vocabList.filter((_, idx) => levels[idx] === 1).length}
             </span>
             <span className="px-2 py-1 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 rounded border border-amber-200/50">
               Spelling: {vocabList.filter((_, idx) => levels[idx] === 2).length}
@@ -1013,97 +1019,12 @@ export const Vocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
 
       {/* Study Arena */}
       <div className="max-w-md mx-auto py-2">
-        {/* ---- LEVEL 0: FLASHCARD ---- */}
+        {/* ---- LEVEL 0: MULTIPLE CHOICE ---- */}
         {activeLevel === 0 && (
-          <div className="space-y-6 text-center">
-            <div className="text-xs font-mono font-bold uppercase tracking-wider text-neutral-450 flex items-center justify-center gap-1.5">
-              <BookOpen className="w-3.5 h-3.5" />
-              Stage 1 of 3 — Flashcard
-            </div>
-
-            <div
-              onClick={handleFlip}
-              className={`min-h-[200px] p-6 border rounded-lg shadow-sm flex flex-col justify-center items-center cursor-pointer select-none transition-all duration-200 ${
-                flipped
-                  ? "bg-white dark:bg-neutral-900 border-neutral-400 dark:border-neutral-600"
-                  : "bg-neutral-50 dark:bg-neutral-950 border-neutral-300 dark:border-neutral-800 hover:border-black dark:hover:border-white active:scale-98"
-              }`}
-            >
-              {!flipped ? (
-                <div className="space-y-4">
-                  <span className="text-3xl font-extrabold text-neutral-900 dark:text-neutral-100 block leading-tight">
-                    {activeWord.word}
-                  </span>
-                  <span className="text-[10px] uppercase font-mono font-bold tracking-widest text-neutral-400 bg-neutral-200/50 dark:bg-neutral-800 px-2 py-1 rounded">
-                    Tap to reveal translation
-                  </span>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <span className="text-xs font-mono font-bold text-neutral-400 uppercase tracking-widest block">
-                    Translation
-                  </span>
-                  <span className="text-3xl font-extrabold text-green-700 dark:text-green-400 block leading-tight">
-                    {activeWord.translation}
-                  </span>
-                  <div className="flex justify-center gap-2 flex-wrap">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSpeak(activeWord.word, false);
-                      }}
-                      className="inline-flex items-center gap-1 text-[10px] font-bold font-mono bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 px-2 py-1.5 rounded text-neutral-600 dark:text-neutral-355 transition"
-                    >
-                      <Volume2 className="w-3.5 h-3.5" />
-                      Pronounce (EN)
-                    </button>
-                    {(activeWord.translationAudio || activeWord.ttsEnabled) && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleSpeak(activeWord.translation, true);
-                        }}
-                        className="inline-flex items-center gap-1 text-[10px] font-bold font-mono bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 px-2 py-1.5 rounded text-blue-600 dark:text-blue-355 transition"
-                      >
-                        <Volume2 className="w-3.5 h-3.5 text-blue-500" />
-                        Pronounce (DE)
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="flex flex-col gap-2 mt-2">
-              {flipped && (
-                <button
-                  type="button"
-                  onClick={handleLevel0Complete}
-                  className="w-full bg-black hover:bg-neutral-800 active:bg-neutral-900 text-white dark:bg-white dark:text-black dark:hover:bg-neutral-100 py-4 rounded-md font-sans font-bold text-sm transition flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
-                >
-                  I Memorized It
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={handleSkipFlashcards}
-                className="w-full border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-600 dark:text-neutral-450 py-3 rounded-md font-sans font-bold text-xs transition cursor-pointer uppercase tracking-wider"
-              >
-                Skip Flashcards (Go to Multiple Choice)
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ---- LEVEL 1: MULTIPLE CHOICE ---- */}
-        {activeLevel === 1 && (
           <div className="space-y-5">
             <div className="text-xs font-mono font-bold uppercase tracking-wider text-neutral-450 text-center flex items-center justify-center gap-1.5">
               <HelpCircle className="w-3.5 h-3.5 text-blue-500" />
-              Stage 2 of 3 — Multiple Choice
+              Stage 1 of 3 — Multiple Choice
             </div>
 
             <div className="p-5 border rounded bg-neutral-50 dark:bg-neutral-950 border-neutral-300 dark:border-neutral-800 text-center space-y-2">
@@ -1171,12 +1092,12 @@ export const Vocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
                   {feedback === "correct" ? (
                     <>
                       <Check className="w-4 h-4 text-green-500" />
-                      <span>Correct! Moving to Spelling stage.</span>
+                      <span>Correct! Moving to Hangman stage.</span>
                     </>
                   ) : (
                     <>
                       <X className="w-4 h-4 text-red-500" />
-                      <span>Incorrect. Back to Flashcard to review.</span>
+                      <span>Incorrect. Try again.</span>
                     </>
                   )}
                 </div>
@@ -1194,20 +1115,142 @@ export const Vocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
           </div>
         )}
 
-        {/* ---- LEVEL 2: SPELLING ---- */}
+        {/* ---- LEVEL 1: HANGMAN ---- */}
+        {activeLevel === 1 && (() => {
+          const hangmanInfo = createHangmanDisplay(activeWord.word);
+          return (
+          <div className="space-y-5">
+            <div className="text-xs font-mono font-bold uppercase tracking-wider text-neutral-450 text-center flex items-center justify-center gap-1.5">
+              <BookOpen className="w-3.5 h-3.5 text-purple-500" />
+              Stage 2 of 3 — Hangman / Fill the Gaps
+            </div>
+
+            <div className="p-5 border rounded bg-neutral-50 dark:bg-neutral-950 border-neutral-300 dark:border-neutral-800 text-center space-y-2">
+              <span className="text-xs font-mono text-neutral-500 uppercase tracking-wider">
+                German word:
+              </span>
+              <h2 className="text-3xl font-extrabold text-green-700 dark:text-green-400 leading-tight">
+                {activeWord.translation}
+              </h2>
+              <div className="flex justify-center gap-2 flex-wrap pt-2">
+                <button
+                  type="button"
+                  onClick={() => handleSpeak(activeWord.word, false)}
+                  className="inline-flex items-center gap-1 text-[10px] font-bold font-mono bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 px-2 py-1.5 rounded text-neutral-600 dark:text-neutral-355 transition"
+                >
+                  <Volume2 className="w-3.5 h-3.5" />
+                  Pronounce (EN)
+                </button>
+                {(activeWord.translationAudio || activeWord.ttsEnabled) && (
+                  <button
+                    type="button"
+                    onClick={() => handleSpeak(activeWord.translation, true)}
+                    className="inline-flex items-center gap-1 text-[10px] font-bold font-mono bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 px-2 py-1.5 rounded text-blue-600 dark:text-blue-355 transition"
+                  >
+                    <Volume2 className="w-3.5 h-3.5 text-blue-500" />
+                    Pronounce (DE)
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="p-5 border rounded bg-white dark:bg-neutral-900 border-neutral-300 dark:border-neutral-700 text-center space-y-2">
+              <span className="text-xs font-mono text-neutral-500 uppercase tracking-wider">
+                Fill in the missing letters to complete the English word
+              </span>
+              <div className="text-4xl font-mono font-extrabold tracking-[0.15em] text-neutral-900 dark:text-neutral-100 leading-tight pt-2 pb-1 select-all">
+                {hangmanInfo.display}
+              </div>
+              <div className="text-[10px] font-mono text-neutral-400">
+                {hangmanInfo.hiddenCount} letter{hangmanInfo.hiddenCount !== 1 ? 's' : ''} hidden
+              </div>
+            </div>
+
+            <form onSubmit={handleHangmanSubmit} className="space-y-4">
+              <input
+                type="text"
+                autoFocus
+                autoComplete="off"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                disabled={feedback !== "idle"}
+                value={spellingInput}
+                onChange={(e) => setSpellingInput(e.target.value)}
+                placeholder="Type the complete English word..."
+                className="w-full border border-neutral-350 dark:border-neutral-700 bg-white dark:bg-neutral-950 text-center text-lg font-medium p-4 rounded-md focus:border-purple-500 dark:focus:border-purple-400 focus:ring-1 focus:ring-purple-500 outline-none transition min-h-[52px]"
+              />
+
+              {feedback === "idle" && (
+                <button
+                  type="submit"
+                  className="w-full bg-purple-650 hover:bg-purple-750 active:scale-95 text-white font-mono font-bold text-xs uppercase py-4 rounded-lg shadow transition cursor-pointer"
+                >
+                  Check Answer
+                </button>
+              )}
+            </form>
+
+            {feedback !== "idle" && (
+              <div className="space-y-3">
+                <div
+                  className={`p-3 rounded border text-xs font-medium flex flex-col gap-1.5 ${
+                    feedback === "correct"
+                      ? "border-green-300 bg-green-50/20 text-green-700 dark:text-green-300"
+                      : "border-red-350 bg-red-50/20 text-red-750 dark:text-red-300"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    {feedback === "correct" ? (
+                      <>
+                        <Check className="w-4 h-4 text-green-500" />
+                        <span>Correct! Moving to Full Spelling stage.</span>
+                      </>
+                    ) : (
+                      <>
+                        <X className="w-4 h-4 text-red-500" />
+                        <span>Not quite. Try again.</span>
+                      </>
+                    )}
+                  </div>
+                  {feedback === "incorrect" && (
+                    <span className="text-xs opacity-90 pl-6">
+                      Correct answer:{" "}
+                      <strong className="font-mono bg-white/50 dark:bg-black/20 px-1 rounded">
+                        {activeWord.word}
+                      </strong>
+                    </span>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleHangmanNext}
+                  className="w-full bg-black hover:bg-neutral-800 active:bg-neutral-900 text-white dark:bg-white dark:text-black dark:hover:bg-neutral-100 py-4 rounded-md font-sans font-bold text-sm transition flex items-center justify-center gap-1.5 shadow-sm"
+                >
+                  Continue
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+          </div>
+          );
+        })()}
+
+        {/* ---- LEVEL 2: FULL SPELLING ---- */}
         {activeLevel === 2 && (
           <div className="space-y-5">
             <div className="text-xs font-mono font-bold uppercase tracking-wider text-neutral-450 text-center flex items-center justify-center gap-1.5">
               <FileText className="w-3.5 h-3.5 text-amber-500" />
-              Stage 3 of 3 — Spelling Recall
+              Stage 3 of 3 — Full Spelling
             </div>
 
             <div className="p-5 border rounded bg-neutral-50 dark:bg-neutral-955 border-neutral-300 dark:border-neutral-800 text-center space-y-2">
               <span className="text-xs font-mono text-neutral-500 uppercase tracking-wider">
-                Write the translation for:
+                Write the English word for:
               </span>
-              <h2 className="text-3xl font-extrabold text-neutral-900 dark:text-neutral-100 leading-tight">
-                {activeWord.word}
+              <h2 className="text-3xl font-extrabold text-green-700 dark:text-green-400 leading-tight">
+                {activeWord.translation}
               </h2>
             </div>
 
@@ -1222,7 +1265,7 @@ export const Vocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
                 disabled={feedback !== "idle"}
                 value={spellingInput}
                 onChange={(e) => setSpellingInput(e.target.value)}
-                placeholder="Type the translation here..."
+                placeholder="Type the English word here..."
                 className="w-full border border-neutral-350 dark:border-neutral-700 bg-white dark:bg-neutral-950 text-center text-lg font-medium p-4 rounded-md focus:border-black dark:focus:border-white focus:ring-1 focus:ring-black outline-none transition min-h-[52px]"
               />
 
@@ -1254,7 +1297,7 @@ export const Vocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
                     ) : (
                       <>
                         <X className="w-4 h-4 text-red-500" />
-                        <span>Spelling incorrect. Back to Choice stage.</span>
+                        <span>Spelling incorrect. Try again.</span>
                       </>
                     )}
                   </div>
@@ -1262,7 +1305,7 @@ export const Vocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
                     <span className="text-xs opacity-90 pl-6">
                       Correct answer:{" "}
                       <strong className="font-mono bg-white/50 dark:bg-black/20 px-1 rounded">
-                        {activeWord.translation}
+                        {activeWord.word}
                       </strong>
                     </span>
                   )}
