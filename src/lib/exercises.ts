@@ -569,3 +569,37 @@ export async function syncExercisesToDb(): Promise<{ syncedCount: number; delete
   };
 }
 
+export function clearExerciseCache(id?: string) {
+  if (id) {
+    exerciseCache.delete(id);
+  } else {
+    exerciseCache.clear();
+  }
+}
+
+interface BuildStatus {
+  status: string;
+  progress: number;
+  message: string;
+}
+
+export function getActiveBuildStatuses(): Record<string, BuildStatus> {
+  const exercisesDir = path.join(process.cwd(), "content", "exercises");
+  if (!fs.existsSync(exercisesDir)) return {};
+
+  const statuses: Record<string, BuildStatus> = {};
+  const folders = fs.readdirSync(exercisesDir);
+  for (const folder of folders) {
+    const statusPath = path.join(exercisesDir, folder, "build-status.json");
+    if (fs.existsSync(statusPath)) {
+      try {
+        const raw = fs.readFileSync(statusPath, "utf-8");
+        statuses[folder] = JSON.parse(raw);
+      } catch {
+        // Ignore
+      }
+    }
+  }
+  return statuses;
+}
+

@@ -6,8 +6,9 @@ import {
   requireAdmin,
   requireTeacherOrAdmin,
 } from "@/lib/actions/auth-helpers";
-import { processUserQuota } from "@/lib/actions/quota";
+import { processUserQuota, consumeUserQuota } from "@/lib/actions/quota";
 import { generateAloysResponse, generateLearningContent } from "@/lib/aloys-ai";
+import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
 
 /**
@@ -117,9 +118,6 @@ export async function sendChatMessageAction(
   const trimmed = content.trim();
   if (!trimmed) throw new Error("Message cannot be empty");
 
-  // Verify and deduct quota
-  await processUserQuota(session.userId, true, "input");
-
   // Verify conversation ownership
   const conversation = await prisma.aloysConversation.findUnique({
     where: { id: conversationId },
@@ -127,6 +125,11 @@ export async function sendChatMessageAction(
   if (!conversation || conversation.studentId !== session.userId) {
     throw new Error("Unauthorized conversation access");
   }
+
+  // Verify (but do NOT yet consume) the user's quota slot. The actual deduction
+  // happens below, AFTER the AI response is successfully persisted. If the AI
+  // call fails, the user keeps their quota slot.
+  await processUserQuota(session.userId, false, "input");
 
   // Save user message
   await prisma.aloysMessage.create({
@@ -169,6 +172,31 @@ export async function sendChatMessageAction(
       data: { updatedAt: new Date() },
     });
 
+    // Auto-rename: after first exchange, suggest title from user's message
+    const messageCount = await prisma.aloysMessage.count({
+      where: { conversationId },
+    });
+    if (messageCount < 5) {
+      const prefix = conversation.title.startsWith("Chat: ") ? "Chat: " :
+                     conversation.title.startsWith("Lesson: ") ? "Lesson: " : null;
+      if (prefix) {
+        const currentBody = conversation.title.substring(prefix.length);
+        const suggestedTitle = trimmed.substring(0, 60);
+        if (suggestedTitle.length > 0 && suggestedTitle !== currentBody) {
+          await prisma.aloysConversation.update({
+            where: { id: conversationId },
+            data: { title: suggestedTitle },
+          });
+        }
+      }
+    }
+
+    // AI succeeded — now consume the quota slot. If this throws (e.g. the
+    // user has hit the daily cap between the check and the consume — a race
+    // condition), the assistant message is still saved and the user simply
+    // sees a quota error. We re-throw so the client can show it.
+    await consumeUserQuota(session.userId, "input");
+
     return savedMsg;
   } catch (err: unknown) {
     console.error("Aloys Socratic Response Error:", err);
@@ -187,8 +215,10 @@ export async function startLearningSessionAction(topic: string) {
   const trimmedTopic = topic.trim();
   if (!trimmedTopic) throw new Error("Topic cannot be empty");
 
-  // Verify and deduct quota
-  await processUserQuota(session.userId, true, "quiz");
+  // Verify (but do NOT yet consume) the user's quota slot. Actual deduction
+  // happens after the learning content is generated and persisted, so a
+  // failed AI call never costs the student a quiz slot.
+  await processUserQuota(session.userId, false, "quiz");
 
   try {
     const content = await generateLearningContent(trimmedTopic);
@@ -223,6 +253,11 @@ export async function startLearningSessionAction(topic: string) {
         }),
       },
     });
+
+    // AI succeeded — consume the quota slot. If this throws (e.g. the user
+    // hit the daily cap between the check and the consume — race condition),
+    // the lesson is still saved but the user sees a quota error.
+    await consumeUserQuota(session.userId, "quiz");
 
     return { conversationId: conversation.id };
   } catch (err: unknown) {
@@ -327,6 +362,49 @@ export async function submitLearningAnswersAction(
   });
 
   return savedMsg;
+}
+
+/**
+ * Renames a conversation. The caller must be the owner or a TEACHER/ADMIN.
+ */
+export async function renameAloysConversationAction(
+  conversationId: string,
+  newTitle: string
+) {
+  const session = await requireAuth();
+
+  const conversation = await prisma.aloysConversation.findUnique({
+    where: { id: conversationId },
+  });
+
+  if (!conversation) {
+    throw new Error("Conversation not found");
+  }
+
+  // Permissions check: owner or TEACHER/ADMIN
+  if (
+    conversation.studentId !== session.userId &&
+    session.role !== "TEACHER" &&
+    session.role !== "ADMIN"
+  ) {
+    throw new Error("Unauthorized access to conversation");
+  }
+
+  const trimmed = newTitle.trim();
+  if (!trimmed || trimmed.length > 80) {
+    throw new Error("Title must be between 1 and 80 characters");
+  }
+
+  const updated = await prisma.aloysConversation.update({
+    where: { id: conversationId },
+    data: { title: trimmed },
+  });
+
+  revalidatePath("/student/aloys");
+  revalidatePath("/teacher/aloys");
+  revalidatePath("/admin");
+
+  return updated;
 }
 
 /* ==========================================================================
@@ -524,6 +602,40 @@ export async function adminGetConversationsAction(
       },
     },
   });
+}
+
+/**
+ * Admin-only rename of any conversation.
+ */
+export async function adminRenameAloysConversationAction(
+  conversationId: string,
+  newTitle: string
+) {
+  await requireAdmin();
+
+  const conversation = await prisma.aloysConversation.findUnique({
+    where: { id: conversationId },
+  });
+
+  if (!conversation) {
+    throw new Error("Conversation not found");
+  }
+
+  const trimmed = newTitle.trim();
+  if (!trimmed || trimmed.length > 80) {
+    throw new Error("Title must be between 1 and 80 characters");
+  }
+
+  const updated = await prisma.aloysConversation.update({
+    where: { id: conversationId },
+    data: { title: trimmed },
+  });
+
+  revalidatePath("/student/aloys");
+  revalidatePath("/teacher/aloys");
+  revalidatePath("/admin");
+
+  return updated;
 }
 
 /* ==========================================================================

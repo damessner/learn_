@@ -10,6 +10,9 @@ interface JoinClientFormProps {
   defaultNickname: string;
 }
 
+// Live-quiz PINs are always exactly 6 digits (see security section #7 of README).
+const PIN_LENGTH = 6;
+
 export default function JoinClientForm({ userId, defaultNickname }: JoinClientFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -18,9 +21,22 @@ export default function JoinClientForm({ userId, defaultNickname }: JoinClientFo
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // The submit button is only enabled when the PIN is the exact expected length
+  // and the nickname is non-empty. This gives the user immediate feedback that
+  // the PIN is incomplete without waiting for the server to reject it.
+  const isPinComplete = pin.length === PIN_LENGTH;
+  const isNicknameValid = nickname.trim().length > 0;
+  const canSubmit = isPinComplete && isNicknameValid && !loading;
+
+  const handlePinChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Strip non-digits, cap at PIN_LENGTH, and don't allow leading whitespace.
+    const cleaned = e.target.value.replace(/\D/g, "").slice(0, PIN_LENGTH);
+    setPin(cleaned);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!pin.trim() || !nickname.trim()) return;
+    if (!canSubmit) return;
 
     setLoading(true);
     setError(null);
@@ -46,17 +62,20 @@ export default function JoinClientForm({ userId, defaultNickname }: JoinClientFo
       {/* PIN Input */}
       <div className="space-y-1">
         <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 block">
-          Game PIN
+          Game PIN ({pin.length}/{PIN_LENGTH})
         </label>
         <input
           type="text"
           required
-          maxLength={6}
-          pattern="\d*"
+          maxLength={PIN_LENGTH}
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          pattern="\d{6}"
           value={pin}
-          onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
-          placeholder="e.g. 123456"
+          onChange={handlePinChange}
+          placeholder="123456"
           className="w-full text-center text-lg font-extrabold tracking-widest border border-neutral-300 dark:border-neutral-750 rounded-xl p-3 bg-transparent outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 font-mono"
+          aria-invalid={!isPinComplete && pin.length > 0 ? "true" : undefined}
         />
       </div>
 
@@ -86,7 +105,7 @@ export default function JoinClientForm({ userId, defaultNickname }: JoinClientFo
       {/* Submit Button */}
       <button
         type="submit"
-        disabled={loading || !pin || !nickname}
+        disabled={!canSubmit}
         className="w-full bg-purple-650 hover:bg-purple-700 text-white font-bold font-mono text-xs py-3.5 rounded-xl uppercase tracking-wider transition disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
       >
         {loading ? (

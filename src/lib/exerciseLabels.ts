@@ -26,3 +26,44 @@ export const EXERCISE_TYPE_LABELS: Record<string, string> = {
 export function getExerciseTypeLabel(type: string): string {
   return EXERCISE_TYPE_LABELS[type] ?? type;
 }
+
+/**
+ * Returns a visual emoji symbol representing each exercise type.
+ */
+export function getExerciseTypeSymbol(type: string): string {
+  switch (type) {
+    case "multiple-choice": return "☑️";
+    case "drag-drop": return "👇";
+    case "gap-fill": return "✍️";
+    case "categorization": return "🗂️";
+    case "explore-image-map": return "🗺️";
+    case "worksheet": return "📄";
+    case "clickable-choice": return "🖱️";
+    case "matching": return "🧩";
+    case "media": return "🎥";
+    case "instruction": return "ℹ️";
+    case "open-question": return "💬";
+    case "ordering": return "🔢";
+    case "image-hotspot-quiz": return "🎯";
+    case "interactive-reading": return "📖";
+    case "vocabulary": return "🔤";
+    case "oral-vocabulary": return "🗣️";
+    case "writing-coach": return "🤖";
+    case "live-quiz": return "⚡";
+    default: return "📄";
+  }
+}
+
+/**
+ * Generates a deterministic, stable 6-character uppercase alphanumeric code
+ * from the worksheet key string. Safe for client and server rendering.
+ */
+export function getWorksheetUniqueCode(id: string): string {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = (hash << 5) - hash + id.charCodeAt(i);
+    hash |= 0; // Convert to 32bit integer
+  }
+  const code = Math.abs(hash).toString(36).toUpperCase();
+  return (code + "000000").substring(0, 6);
+}

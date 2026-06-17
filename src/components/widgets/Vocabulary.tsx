@@ -8,6 +8,41 @@ import { getVocabContextChallengeAction } from "@/lib/actions/ai-coach";
 // Human-readable level labels
 const LEVEL_LABELS = ["Flashcard", "Choice", "Spelling", "Mastered"];
 
+export function cleanWordForSentence(word: string): string {
+  return word
+    .replace(/\((to|etw|sb|sth|sich|jemand|jemanden|etwas|jdm|jdn|jds|jdn\/etw)\)/gi, "")
+    .replace(/[()]/g, "")
+    .replace(/^\s*to\s+/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function checkVocabMatch(input: string, target: string): boolean {
+  const cleanStr = (s: string) => s.trim().toLowerCase();
+  
+  const inVal = cleanStr(input);
+  const targetVal = cleanStr(target);
+  
+  if (inVal === targetVal) return true;
+  
+  const noParens = (s: string) => s.replace(/[()]/g, "").replace(/\s+/g, " ").trim();
+  if (noParens(inVal) === noParens(targetVal)) return true;
+  
+  const noParensContent = (s: string) => s.replace(/\([^)]*\)/g, "").replace(/\s+/g, " ").trim();
+  if (noParensContent(inVal) === noParensContent(targetVal)) return true;
+  
+  const stripTo = (s: string) => s.replace(/^\s*to\s+/i, "").trim();
+  const normValIn = stripTo(noParens(inVal));
+  const normValTarget = stripTo(noParens(targetVal));
+  if (normValIn === normValTarget) return true;
+  
+  const normValIn2 = stripTo(noParensContent(inVal));
+  const normValTarget2 = stripTo(noParensContent(targetVal));
+  if (normValIn2 === normValTarget2) return true;
+  
+  return false;
+}
+
 // Deterministic seeded "shuffle" — given a seed, returns a stable permutation of the array.
 function seededShuffle<T>(arr: T[], seed: number): T[] {
   const result = [...arr];
@@ -89,6 +124,12 @@ export const Vocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
     savedState?.challengeCorrectCount || 0
   );
   const [challengeError, setChallengeError] = useState<string | null>(null);
+  const [challengeOptions, setChallengeOptions] = useState<string[]>(
+    savedState?.challengeOptions || []
+  );
+  const [challengePlacement, setChallengePlacement] = useState<string | null>(
+    savedState?.challengePlacement || null
+  );
 
   // Picture Quiz States
   const [pictureQuizMode, setPictureQuizMode] = useState<"idle" | "playing" | "completed">(
@@ -201,6 +242,8 @@ export const Vocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
         challengeInput,
         challengeFeedback,
         challengeCorrectCount,
+        challengeOptions,
+        challengePlacement,
         pictureQuizMode,
         pictureQuizActiveIdx,
         pictureQuizFeedback,
@@ -221,6 +264,8 @@ export const Vocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
     challengeInput,
     challengeFeedback,
     challengeCorrectCount,
+    challengeOptions,
+    challengePlacement,
     pictureQuizMode,
     pictureQuizActiveIdx,
     pictureQuizFeedback,
@@ -340,6 +385,21 @@ export const Vocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
     setFlipped(false);
   };
 
+  const handleSkipFlashcards = () => {
+    const updated = { ...levels };
+    vocabList.forEach((_, idx) => {
+      if ((updated[idx] ?? 0) === 0) {
+        updated[idx] = 1;
+      }
+    });
+    setLevels(updated);
+    setFlipped(false);
+    const nextUnmastered = vocabList.findIndex((_, idx) => (updated[idx] ?? 0) < 3);
+    if (nextUnmastered >= 0) {
+      setActiveIdx(nextUnmastered);
+    }
+  };
+
   const handleMCOptionClick = (option: string, optionIdx: number) => {
     if (feedback !== "idle") return;
     setSelectedOptionIdx(optionIdx);
@@ -365,8 +425,7 @@ export const Vocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
   const handleSpellingSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (feedback !== "idle") return;
-    const isCorrect =
-      spellingInput.trim().toLowerCase() === activeWord.translation.trim().toLowerCase();
+    const isCorrect = checkVocabMatch(spellingInput, activeWord.translation);
     if (isCorrect) {
       setFeedback("correct");
     } else {
@@ -397,7 +456,9 @@ export const Vocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
       const url = `${assetsPath}${audioFile}`;
       const audio = new Audio(url);
       audio.play().catch((err) => {
-        console.error("Pre-generated audio playback failed, falling back to synthesis:", err);
+        if (err && err.name !== "AbortError") {
+          console.error("Pre-generated audio playback failed, falling back to synthesis:", err);
+        }
         fallbackSpeak(text, isTranslation);
       });
     } else {
@@ -443,6 +504,19 @@ export const Vocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
         if (currentShuffledList) {
           setChallengeWords(currentShuffledList);
         }
+        
+        // Generate options pool (correct English word + 3 distractors)
+        const correctOpt = cleanWordForSentence(targetWord.word);
+        const otherWords = vocabList
+          .filter((_, idx) => idx !== wordIdx)
+          .map((item) => cleanWordForSentence(item.word))
+          .filter((w) => w.toLowerCase() !== correctOpt.toLowerCase());
+        const uniqueOther = Array.from(new Set(otherWords));
+        const distractors = seededShuffle(uniqueOther, Date.now() & 0xffff).slice(0, 3);
+        const allOpts = seededShuffle([correctOpt, ...distractors], Date.now() & 0xffff);
+        setChallengeOptions(allOpts);
+        setChallengePlacement(null);
+
         setChallengeMode("playing");
       }
     } catch (err: unknown) {
@@ -638,12 +712,13 @@ export const Vocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
       const activeWordIdx = challengeWords[challengeActiveIdx];
       const targetWord = vocabList[activeWordIdx];
 
-      const handleChallengeSubmit = (e?: React.FormEvent) => {
-        if (e) e.preventDefault();
+      const handleChallengeSubmit = () => {
         if (challengeFeedback !== "idle") return;
+        if (!challengePlacement) return;
 
-        const isCorrect =
-          challengeInput.trim().toLowerCase() === targetWord.translation.trim().toLowerCase();
+        const correctClean = cleanWordForSentence(targetWord.word).toLowerCase();
+        const placedClean = challengePlacement.toLowerCase();
+        const isCorrect = correctClean === placedClean;
         if (isCorrect) {
           setChallengeFeedback("correct");
           setChallengeCorrectCount((prev) => prev + 1);
@@ -665,10 +740,25 @@ export const Vocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
       const beforeGap = sentenceParts[0] || "";
       const afterGap = sentenceParts[1] || "";
 
+      // Drag/Drop handlers
+      const handleOptionDragStart = (e: React.DragEvent, word: string) => {
+        if (challengeFeedback !== "idle") return;
+        e.dataTransfer.setData("text/plain", word);
+      };
+
+      const handleGapDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        if (challengeFeedback !== "idle") return;
+        const word = e.dataTransfer.getData("text/plain");
+        if (word) {
+          setChallengePlacement(word);
+        }
+      };
+
       return (
         <div className="space-y-6 max-w-md mx-auto py-4">
           <div className="text-center space-y-1">
-            <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold uppercase tracking-wider text-purple-550">
+            <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold uppercase tracking-wider text-purple-650 dark:text-purple-400">
               <Sparkles className="w-3 h-3 text-purple-500 animate-pulse" />
               AI Challenge Arena
             </span>
@@ -678,47 +768,83 @@ export const Vocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
           </div>
 
           <div className="p-6 border rounded-xl bg-neutral-50 dark:bg-neutral-955 border-neutral-300 dark:border-neutral-800 space-y-4">
+            {/* Sentence with Gap Slot */}
             <div className="text-base text-neutral-800 dark:text-neutral-200 leading-relaxed font-medium text-center">
               {beforeGap}
-              <span className="inline-block mx-1">
-                <input
-                  type="text"
-                  autoFocus
-                  autoComplete="off"
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  disabled={challengeFeedback !== "idle"}
-                  value={challengeInput}
-                  onChange={(e) => setChallengeInput(e.target.value)}
-                  placeholder="word"
-                  className={`border-b-2 bg-transparent text-center focus:outline-none transition-all px-1 font-semibold ${
-                    challengeFeedback === "correct"
-                      ? "border-green-500 text-green-600"
+              <span
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={handleGapDrop}
+                onClick={() => {
+                  if (challengeFeedback === "idle") {
+                    setChallengePlacement(null);
+                  }
+                }}
+                className={`inline-flex items-center justify-center min-w-[130px] h-9 mx-1.5 px-3 border align-middle cursor-pointer transition rounded-lg ${
+                  challengePlacement
+                    ? challengeFeedback === "correct"
+                      ? "border-green-500 bg-green-50 dark:bg-green-950/20 text-green-700 dark:text-green-300 font-bold"
                       : challengeFeedback === "incorrect"
-                      ? "border-red-500 text-red-600"
-                      : "border-purple-400 focus:border-black dark:focus:border-white"
-                  }`}
-                  style={{ width: `${Math.max(4, challengeInput.length || 4) * 10 + 15}px` }}
-                />
+                      ? "border-red-500 bg-red-50 dark:bg-red-950/20 text-red-750 dark:text-red-300 font-bold"
+                      : "border-purple-650 dark:border-purple-400 bg-purple-55/10 text-neutral-800 dark:text-neutral-200 font-bold"
+                    : "border-dashed border-neutral-400 dark:border-neutral-750 hover:border-purple-500 dark:hover:border-purple-400 bg-neutral-100 dark:bg-neutral-900/50 text-neutral-400 dark:text-neutral-500 text-xs font-semibold"
+                }`}
+              >
+                {challengePlacement || "drop word here"}
               </span>
               {afterGap}
             </div>
 
-            <div className="text-xs text-neutral-500 bg-white dark:bg-neutral-900 p-3 rounded-lg border border-neutral-100 dark:border-neutral-850 flex items-start gap-2 leading-relaxed">
+            {/* AI Prompt Context Hint */}
+            <div className="text-xs text-neutral-550 dark:text-neutral-400 bg-white dark:bg-neutral-900 p-3 rounded-lg border border-neutral-150 dark:border-neutral-850 flex items-start gap-2 leading-relaxed">
               <span className="text-base leading-none">💡</span>
               <div className="text-left">
-                <span className="font-semibold text-neutral-750 dark:text-neutral-300">Context Tip:</span>{" "}
+                <span className="font-semibold text-neutral-800 dark:text-neutral-200">Context Tip:</span>{" "}
                 {challengeData.hint}
               </div>
             </div>
           </div>
 
+          {/* Option Pool */}
+          {challengeFeedback === "idle" && (
+            <div className="space-y-2.5">
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-neutral-400 block text-center">
+                Drag or tap to place
+              </span>
+              <div className="flex flex-wrap justify-center gap-2">
+                {challengeOptions.map((opt, oIdx) => {
+                  const isPlaced = challengePlacement === opt;
+                  return (
+                    <button
+                      key={oIdx}
+                      type="button"
+                      draggable="true"
+                      onDragStart={(e) => handleOptionDragStart(e, opt)}
+                      onClick={() => {
+                        if (challengeFeedback === "idle") {
+                          setChallengePlacement(opt);
+                        }
+                      }}
+                      disabled={isPlaced}
+                      className={`px-3 py-2 border rounded-lg text-xs font-semibold uppercase tracking-wide transition select-none cursor-pointer ${
+                        isPlaced
+                          ? "border-neutral-200 dark:border-neutral-805 bg-neutral-100 dark:bg-neutral-900 text-neutral-350 dark:text-neutral-600 pointer-events-none opacity-40"
+                          : "border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-750 dark:text-neutral-250 hover:border-purple-500 dark:hover:border-purple-400 hover:text-purple-600 dark:hover:text-purple-400 active:scale-95 shadow-xs"
+                      }`}
+                    >
+                      {opt}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {challengeFeedback === "idle" ? (
             <button
               type="button"
+              disabled={!challengePlacement}
               onClick={() => handleChallengeSubmit()}
-              className="w-full bg-purple-600 hover:bg-purple-700 text-white font-mono font-bold text-xs uppercase py-4 rounded-lg shadow-sm transition active:scale-95 cursor-pointer"
+              className="w-full bg-purple-650 hover:bg-purple-700 disabled:opacity-40 text-white font-mono font-bold text-xs uppercase py-4 rounded-lg shadow-sm transition active:scale-95 cursor-pointer"
             >
               Verify Answer
             </button>
@@ -734,7 +860,7 @@ export const Vocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
                 <div className="flex items-center gap-2">
                   {challengeFeedback === "correct" ? (
                     <>
-                      <Check className="w-4 h-4 text-green-500" />
+                      <Check className="w-4 h-4 text-green-500 animate-bounce" />
                       <span>Perfect! Your answer fits the context perfectly.</span>
                     </>
                   ) : (
@@ -745,12 +871,12 @@ export const Vocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
                   )}
                 </div>
                 {challengeFeedback === "incorrect" && (
-                  <span className="text-xs opacity-90 pl-6 text-left">
+                  <span className="text-xs opacity-90 pl-6 text-left leading-relaxed">
                     Correct word:{" "}
-                    <strong className="font-mono bg-white/50 dark:bg-black/20 px-1 rounded text-neutral-850 dark:text-neutral-100">
-                      {targetWord.translation}
+                    <strong className="font-mono bg-white/50 dark:bg-black/20 px-1 rounded text-neutral-900 dark:text-neutral-100 font-bold">
+                      {cleanWordForSentence(targetWord.word)}
                     </strong>{" "}
-                    (German: *{targetWord.word}*)
+                    (German: *{targetWord.translation}*)
                   </span>
                 )}
               </div>
@@ -950,16 +1076,25 @@ export const Vocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
               )}
             </div>
 
-            {flipped && (
+            <div className="flex flex-col gap-2 mt-2">
+              {flipped && (
+                <button
+                  type="button"
+                  onClick={handleLevel0Complete}
+                  className="w-full bg-black hover:bg-neutral-800 active:bg-neutral-900 text-white dark:bg-white dark:text-black dark:hover:bg-neutral-100 py-4 rounded-md font-sans font-bold text-sm transition flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
+                >
+                  I Memorized It
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              )}
               <button
                 type="button"
-                onClick={handleLevel0Complete}
-                className="w-full bg-black hover:bg-neutral-800 active:bg-neutral-900 text-white dark:bg-white dark:text-black dark:hover:bg-neutral-100 py-4 rounded-md font-sans font-bold text-sm transition flex items-center justify-center gap-1.5 shadow-sm"
+                onClick={handleSkipFlashcards}
+                className="w-full border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-600 dark:text-neutral-450 py-3 rounded-md font-sans font-bold text-xs transition cursor-pointer uppercase tracking-wider"
               >
-                I Memorized It
-                <ArrowRight className="w-4 h-4" />
+                Skip Flashcards (Go to Multiple Choice)
               </button>
-            )}
+            </div>
           </div>
         )}
 

@@ -71,30 +71,56 @@ export function SocraticClientPage({
 
   // Poll quota and time remaining calculations
   const [dailyTimeText, setDailyTimeText] = useState("");
-  const [windowTimeText, setWindowTimeText] = useState("");
+  const [inputTimeText, setInputTimeText] = useState("");
+  const [quizTimeText, setQuizTimeText] = useState("");
 
   useEffect(() => {
     let dailyMs = quota.dailyResetInMs;
     let windowMs = quota.windowResetInMs;
 
+    const formatTime = (ms: number): string => {
+      if (ms <= 0) return "0s";
+      const totalSeconds = Math.floor(ms / 1000);
+      const h = Math.floor(totalSeconds / 3600);
+      const m = Math.floor((totalSeconds % 3600) / 60);
+      const s = totalSeconds % 60;
+
+      if (h > 0) {
+        return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+      }
+      return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+    };
+
     const updateTimers = () => {
       if (dailyMs > 0) {
-        const h = Math.floor(dailyMs / (1000 * 60 * 60));
-        const m = Math.floor((dailyMs % (1000 * 60 * 60)) / (1000 * 60));
-        setDailyTimeText(`resets in ${h}h ${m}m`);
-        dailyMs -= 60000;
+        setDailyTimeText(`Daily resets in: ${formatTime(dailyMs)}`);
+        dailyMs -= 1000;
       } else {
         setDailyTimeText("resetting daily quota...");
       }
 
-      if (windowMs > 0) {
-        const m = Math.floor(windowMs / (1000 * 60));
-        const s = Math.floor((windowMs % (1000 * 60)) / 1000);
-        setWindowTimeText(`resets in ${m}m ${s}s`);
-        windowMs -= 1000;
+      // Per-type window countdowns using shared windowResetInMs (server doesn't distinguish)
+      if (quota.windowInputRemaining === 0) {
+        if (windowMs > 0) {
+          setInputTimeText(`Next slot available in: ${formatTime(windowMs)}`);
+        } else {
+          setInputTimeText("window slot available");
+        }
       } else {
-        setWindowTimeText("window slot available");
+        setInputTimeText("");
       }
+
+      if (quota.windowQuizRemaining === 0) {
+        if (windowMs > 0) {
+          setQuizTimeText(`Next slot available in: ${formatTime(windowMs)}`);
+        } else {
+          setQuizTimeText("window slot available");
+        }
+      } else {
+        setQuizTimeText("");
+      }
+
+      windowMs -= 1000;
     };
 
     updateTimers();
@@ -323,6 +349,11 @@ export function SocraticClientPage({
                   }}
                 />
               </div>
+              {quota.role !== "TEACHER" && quota.role !== "ADMIN" && inputTimeText && (
+                <span className="text-[10px] font-mono text-neutral-400 block mt-1">
+                  {inputTimeText}
+                </span>
+              )}
             </div>
 
             <div>
@@ -345,9 +376,9 @@ export function SocraticClientPage({
                   }}
                 />
               </div>
-              {quota.role !== "TEACHER" && quota.role !== "ADMIN" && (
+              {quota.role !== "TEACHER" && quota.role !== "ADMIN" && quizTimeText && (
                 <span className="text-[10px] font-mono text-neutral-400 block mt-1">
-                  {windowTimeText}
+                  {quizTimeText}
                 </span>
               )}
             </div>

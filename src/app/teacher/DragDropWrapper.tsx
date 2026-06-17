@@ -1,15 +1,21 @@
 "use client";
 
-import React, { useState, useTransition } from "react";
+import React, { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { addExerciseToCourse } from "@/lib/actions/course";
 import { FolderOpen, FileText, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { getExerciseTypeLabel } from "@/lib/exerciseLabels";
+import { getExerciseTypeLabel, getExerciseTypeSymbol, getWorksheetUniqueCode } from "@/lib/exerciseLabels";
 import CreateCourseForm from "./CreateCourseForm";
 import DeleteCourseButton from "./DeleteCourseButton";
 import DeleteExerciseButton from "./DeleteExerciseButton";
 import DuplicateExerciseButton from "./DuplicateExerciseButton";
+
+interface BuildStatus {
+  status: string;
+  progress: number;
+  message: string;
+}
 
 export default function DragDropWrapper({
   courses,
@@ -39,6 +45,28 @@ export default function DragDropWrapper({
   const [isPending, startTransition] = useTransition();
   const [droppingToCourse, setDroppingToCourse] = useState<string | null>(null);
   const [dragOverCourse, setDragOverCourse] = useState<string | null>(null);
+  const [buildStatuses, setBuildStatuses] = useState<Record<string, BuildStatus>>({});
+
+  useEffect(() => {
+    let active = true;
+    const poll = async () => {
+      try {
+        const res = await fetch("/api/exercises/build-statuses");
+        if (res.ok && active) {
+          const data = await res.json();
+          setBuildStatuses(data.statuses || {});
+        }
+      } catch (err) {
+        console.error("Failed to fetch build statuses:", err);
+      }
+    };
+    poll();
+    const timer = setInterval(poll, 2500);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, []);
 
   const handleDragStart = (e: React.DragEvent<HTMLTableRowElement>, exerciseId: string) => {
     e.dataTransfer.setData("text/plain", exerciseId);
@@ -161,11 +189,18 @@ export default function DragDropWrapper({
                               <span className="text-xs font-mono text-neutral-400 w-5 shrink-0">
                                 {idx + 1}.
                               </span>
-                              <FileText className="w-4 h-4 text-neutral-400 shrink-0" />
+                              <span className="text-base shrink-0 select-none" title={getExerciseTypeLabel(ex.type)}>
+                                {getExerciseTypeSymbol(ex.type)}
+                              </span>
                               <div className="min-w-0">
-                                <span className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 truncate block">
-                                  {ex.title}
-                                </span>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 truncate block">
+                                    {ex.title}
+                                  </span>
+                                  <span className="text-[9px] font-bold font-mono bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0" title={`Unique Identifier: ${getWorksheetUniqueCode(ex.id)}`}>
+                                    ID: {getWorksheetUniqueCode(ex.id)}
+                                  </span>
+                                </div>
                                 <span className="text-[10px] font-mono text-neutral-500">
                                   {ex.id}
                                 </span>
@@ -252,7 +287,36 @@ export default function DragDropWrapper({
                         className="hover:bg-neutral-50/50 dark:hover:bg-neutral-950/20 font-mono text-xs cursor-grab transition-opacity"
                       >
                         <td className="px-6 py-4 font-semibold text-neutral-900 dark:text-neutral-100 font-sans text-sm">
-                          {ex.title}
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-base shrink-0 select-none" title={getExerciseTypeLabel(ex.type)}>
+                                {getExerciseTypeSymbol(ex.type)}
+                              </span>
+                              <span className="text-[9px] font-bold font-mono bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0" title={`Unique Identifier: ${getWorksheetUniqueCode(ex.id)}`}>
+                                ID: {getWorksheetUniqueCode(ex.id)}
+                              </span>
+                              <span>{ex.title}</span>
+                              {buildStatuses[ex.id]?.status === "processing" && (
+                                <span className="inline-flex items-center gap-1 text-[9px] font-mono font-bold uppercase tracking-wider text-purple-650 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/30 px-1.5 py-0.5 rounded animate-pulse">
+                                  <Loader2 className="w-2.5 h-2.5 animate-spin text-purple-500" />
+                                  Building ({buildStatuses[ex.id].progress}%)
+                                </span>
+                              )}
+                            </div>
+                            {buildStatuses[ex.id]?.status === "processing" && (
+                              <div className="space-y-1 mt-0.5">
+                                <div className="text-[10px] text-neutral-450 dark:text-neutral-500 font-mono">
+                                  {buildStatuses[ex.id].message}
+                                </div>
+                                <div className="w-48 h-1 bg-neutral-200 dark:bg-neutral-800 rounded-full overflow-hidden">
+                                  <div
+                                    className="h-full bg-purple-500 rounded-full transition-all duration-300"
+                                    style={{ width: `${buildStatuses[ex.id].progress}%` }}
+                                  />
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </td>
                         <td className="px-6 py-4 text-neutral-600 dark:text-neutral-450">
                           <code>{ex.id}</code>
@@ -272,34 +336,42 @@ export default function DragDropWrapper({
                           )}
                         </td>
                         <td className="px-6 py-4 text-right space-x-2 whitespace-nowrap">
-                          {ex.type === "live-quiz" && (
-                            <Link
-                              href={`/teacher/live-quiz/host/${ex.id}`}
-                              className="inline-flex items-center gap-1 bg-purple-650 hover:bg-purple-700 text-white dark:bg-purple-600 dark:hover:bg-purple-500 px-2.5 py-1 rounded transition font-sans font-semibold text-xs shadow-sm"
-                            >
-                              Host Live
-                            </Link>
+                          {buildStatuses[ex.id]?.status === "processing" ? (
+                            <span className="text-[11px] text-neutral-400 italic font-mono font-medium">
+                              Building assets...
+                            </span>
+                          ) : (
+                            <>
+                              {ex.type === "live-quiz" && (
+                                <Link
+                                  href={`/teacher/live-quiz/host/${ex.id}`}
+                                  className="inline-flex items-center gap-1 bg-purple-650 hover:bg-purple-700 text-white dark:bg-purple-600 dark:hover:bg-purple-500 px-2.5 py-1 rounded transition font-sans font-semibold text-xs shadow-sm"
+                                >
+                                  Host Live
+                                </Link>
+                              )}
+                              <Link
+                                href={`/teacher/preview/${ex.id}`}
+                                className="inline-flex items-center gap-1 border border-neutral-350 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 px-2.5 py-1 rounded transition text-neutral-700 dark:text-neutral-300 font-sans font-semibold text-xs"
+                              >
+                                Preview
+                              </Link>
+                              <Link
+                                href={`/teacher/edit/${ex.id}`}
+                                className="inline-flex items-center gap-1 border border-neutral-350 dark:border-neutral-700 hover:bg-neutral-150 dark:hover:bg-neutral-850 px-2.5 py-1 bg-neutral-50 dark:bg-neutral-955 rounded transition text-neutral-850 dark:text-neutral-250 font-sans font-semibold text-xs"
+                              >
+                                Edit
+                              </Link>
+                              <DuplicateExerciseButton
+                                exerciseId={ex.id}
+                                exerciseTitle={ex.title}
+                              />
+                              <DeleteExerciseButton
+                                exerciseId={ex.id}
+                                exerciseTitle={ex.title}
+                              />
+                            </>
                           )}
-                          <Link
-                            href={`/teacher/preview/${ex.id}`}
-                            className="inline-flex items-center gap-1 border border-neutral-350 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 px-2.5 py-1 rounded transition text-neutral-700 dark:text-neutral-300 font-sans font-semibold text-xs"
-                          >
-                            Preview
-                          </Link>
-                          <Link
-                            href={`/teacher/edit/${ex.id}`}
-                            className="inline-flex items-center gap-1 border border-neutral-350 dark:border-neutral-700 hover:bg-neutral-150 dark:hover:bg-neutral-850 px-2.5 py-1 bg-neutral-50 dark:bg-neutral-955 rounded transition text-neutral-850 dark:text-neutral-250 font-sans font-semibold text-xs"
-                          >
-                            Edit
-                          </Link>
-                          <DuplicateExerciseButton
-                            exerciseId={ex.id}
-                            exerciseTitle={ex.title}
-                          />
-                          <DeleteExerciseButton
-                            exerciseId={ex.id}
-                            exerciseTitle={ex.title}
-                          />
                         </td>
                       </tr>
                     );

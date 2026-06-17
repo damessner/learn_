@@ -3,7 +3,19 @@
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
+import { z } from "zod";
 import { requireAuth, requireTeacher, generateJoinCode } from "./auth-helpers";
+
+// Per-row Zod validation for bulk-imported usernames.
+// 2-32 chars, must start with a letter/digit, allowed: lowercase letters, digits, dot, underscore, hyphen.
+const BulkUsernameSchema = z
+  .string()
+  .min(2, "Username must be at least 2 characters")
+  .max(32, "Username must be 32 characters or fewer")
+  .regex(
+    /^[a-z0-9][a-z0-9._-]*$/,
+    "Username may only contain lowercase letters, digits, dot, underscore, or hyphen, and must start with a letter or digit"
+  );
 
 export async function createClassroom(name: string) {
   const teacher = await requireTeacher();
@@ -111,22 +123,67 @@ export async function bulkImportStudents(classroomId: string, usernamesCsv: stri
   }
   const defaultPasswordHash = await bcrypt.hash(password, 10);
 
-  // Split and sanitize usernames by newline, comma, or semicolon
-  const names = usernamesCsv
+  // Split raw entries by newline, comma, or semicolon
+  const rawEntries = usernamesCsv
     .split(/[\n,;]+/)
-    .map((name) => name.trim())
-    .filter((name) => name.length >= 2);
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
 
-  if (names.length === 0) {
-    return { error: "No valid usernames found." };
+  if (rawEntries.length === 0) {
+    return { error: "No usernames provided." };
+  }
+
+  // Per-row Zod validation. Skip empty rows; collect errors for invalid ones
+  // so the teacher gets actionable feedback instead of a generic "all failed".
+  interface RowError {
+    row: number;
+    input: string;
+    message: string;
+  }
+  const errors: RowError[] = [];
+  const validNames: string[] = [];
+  rawEntries.forEach((raw, idx) => {
+    // Normalize: usernames are stored lowercase to match the login flow.
+    const normalized = raw.toLowerCase();
+    const result = BulkUsernameSchema.safeParse(normalized);
+    if (result.success) {
+      validNames.push(result.data);
+    } else {
+      errors.push({
+        row: idx + 1,
+        input: raw,
+        message: result.error.issues[0]?.message ?? "Invalid username",
+      });
+    }
+  });
+
+  // Deduplicate within the submitted batch — first occurrence wins.
+  const seen = new Set<string>();
+  const uniqueNames: string[] = [];
+  const dupesSkipped: string[] = [];
+  for (const name of validNames) {
+    if (seen.has(name)) {
+      dupesSkipped.push(name);
+    } else {
+      seen.add(name);
+      uniqueNames.push(name);
+    }
+  }
+
+  if (uniqueNames.length === 0) {
+    return {
+      error: "No valid usernames to import.",
+      rowErrors: errors,
+    };
   }
 
   let importedCount = 0;
   let enrolledCount = 0;
+  let alreadyExistedCount = 0;
 
   try {
     await prisma.$transaction(async (tx) => {
-      for (const name of names) {
+      for (const name of uniqueNames) {
         // Find or create student user
         let student = await tx.user.findUnique({
           where: { username: name },
@@ -144,6 +201,8 @@ export async function bulkImportStudents(classroomId: string, usernamesCsv: stri
         } else if (student.role !== "STUDENT") {
           // Skip users with teacher role
           continue;
+        } else {
+          alreadyExistedCount++;
         }
 
         // Check if student is already in this classroom
@@ -173,7 +232,10 @@ export async function bulkImportStudents(classroomId: string, usernamesCsv: stri
       success: true,
       importedCount,
       enrolledCount,
+      alreadyExistedCount,
       defaultPassword: password,
+      rowErrors: errors,
+      duplicatesSkipped: dupesSkipped,
     };
   } catch (error: unknown) {
     console.error("Failed to bulk import students:", error);

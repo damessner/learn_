@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useTransition } from "react";
+import React, { useState, useTransition, useEffect, useRef } from "react";
 import {
   adminGetUsersAction,
   adminCreateUserAction,
@@ -90,6 +90,17 @@ export function AdminClientPage({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loadingConv, setLoadingConv] = useState(false);
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | null>(null);
+  const confirmTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Auto-cancel confirm state after 5 seconds
+  useEffect(() => {
+    return () => {
+      if (confirmTimeoutRef.current) {
+        clearTimeout(confirmTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Reload user list
   const refreshUsers = async () => {
@@ -153,9 +164,9 @@ export function AdminClientPage({
     });
   };
 
-  // Handle Delete User
+  // Handle Delete User (actual execution, called after confirmation)
   const handleDeleteUser = async (userId: string, name: string) => {
-    if (!confirm(`Are you sure you want to delete user "${name}"?`)) return;
+    setConfirmingDeleteId(null);
     setError(null);
     setSuccess(null);
 
@@ -168,6 +179,29 @@ export function AdminClientPage({
         setError(err instanceof Error ? err.message : "Failed to delete user");
       }
     });
+  };
+
+  // Initiate delete confirmation (first click)
+  const handleDeleteClick = (userId: string) => {
+    // Clear any existing timeout
+    if (confirmTimeoutRef.current) {
+      clearTimeout(confirmTimeoutRef.current);
+    }
+    setConfirmingDeleteId(userId);
+    // Auto-cancel after 5 seconds
+    confirmTimeoutRef.current = setTimeout(() => {
+      setConfirmingDeleteId(null);
+      confirmTimeoutRef.current = null;
+    }, 5000);
+  };
+
+  // Cancel delete confirmation
+  const handleCancelDelete = () => {
+    if (confirmTimeoutRef.current) {
+      clearTimeout(confirmTimeoutRef.current);
+      confirmTimeoutRef.current = null;
+    }
+    setConfirmingDeleteId(null);
   };
 
   // View Socratic Conversation details
@@ -442,7 +476,7 @@ export function AdminClientPage({
                   {users.map((u) => {
                     const mappedClasses = u.classroomsJoined.map((cj) => cj.classroom.name).join(", ") || "-";
                     return (
-                      <tr key={u.id} className="hover:bg-neutral-50 dark:hover:bg-black/20">
+                      <tr key={u.id} className={`hover:bg-neutral-50 dark:hover:bg-black/20 ${confirmingDeleteId === u.id ? "bg-red-50 dark:bg-red-900/20" : ""}`}>
                         <td className="py-3.5 pr-2 font-bold">{u.username}</td>
                         <td className="py-3.5 pr-2">
                           <span
@@ -467,25 +501,48 @@ export function AdminClientPage({
                           {u.role === "STUDENT" ? "30 inp / 5 quiz per 45m" : "Unlimited"}
                         </td>
                         <td className="py-3.5 text-right space-x-2">
-                          <button
-                            onClick={() => {
-                              setEditingUserId(u.id);
-                              setEditDailyLimit(u.dailyLimit);
-                              setEditClassrooms(u.classroomsJoined.map((cj) => cj.classroom.id));
-                              setEditPassword("");
-                              setError(null);
-                              setSuccess(null);
-                            }}
-                            className="text-[10px] uppercase tracking-wider text-black dark:text-white underline hover:no-underline cursor-pointer"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleDeleteUser(u.id, u.username)}
-                            className="text-[10px] uppercase tracking-wider text-[#ff2a2e] underline hover:no-underline cursor-pointer"
-                          >
-                            Delete
-                          </button>
+                          {confirmingDeleteId === u.id ? (
+                            <>
+                              <span className="text-[10px] font-mono text-[#ff2a2e] mr-1">
+                                Delete user &lsquo;{u.username}&rsquo;? This cannot be undone.
+                              </span>
+                              <button
+                                onClick={() => handleDeleteUser(u.id, u.username)}
+                                disabled={isPending}
+                                className="text-[10px] uppercase tracking-wider text-white bg-[#ff2a2e] border border-[#ff2a2e] px-2 py-0.5 hover:bg-transparent hover:text-[#ff2a2e] transition disabled:opacity-40 cursor-pointer rounded-none"
+                              >
+                                Confirm Delete
+                              </button>
+                              <button
+                                onClick={handleCancelDelete}
+                                className="text-[10px] uppercase tracking-wider text-neutral-500 underline hover:text-black dark:hover:text-white cursor-pointer"
+                              >
+                                Cancel
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => {
+                                  setEditingUserId(u.id);
+                                  setEditDailyLimit(u.dailyLimit);
+                                  setEditClassrooms(u.classroomsJoined.map((cj) => cj.classroom.id));
+                                  setEditPassword("");
+                                  setError(null);
+                                  setSuccess(null);
+                                }}
+                                className="text-[10px] uppercase tracking-wider text-black dark:text-white underline hover:no-underline cursor-pointer"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() => handleDeleteClick(u.id)}
+                                className="text-[10px] uppercase tracking-wider text-[#ff2a2e] underline hover:no-underline cursor-pointer"
+                              >
+                                Delete
+                              </button>
+                            </>
+                          )}
                         </td>
                       </tr>
                     );

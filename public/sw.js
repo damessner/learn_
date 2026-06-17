@@ -1,4 +1,6 @@
-const CACHE_NAME = "learn-cache-v1";
+// Cache name suffix is filled in at runtime in `activate` based on the
+// current /api/version response. Until then we use a fallback name.
+let ACTIVE_CACHE_NAME = "learn-cache-bootstrap-v1";
 const OFFLINE_URL = "/offline.html";
 
 const ASSETS_TO_CACHE = [
@@ -14,26 +16,43 @@ const ASSETS_TO_CACHE = [
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
+    caches.open(ACTIVE_CACHE_NAME).then((cache) => {
       return cache.addAll(ASSETS_TO_CACHE);
     })
   );
-  self.skipWaiting();
+  // Do NOT skipWaiting here — let the new SW wait until activated so
+  // existing tabs don't get yanked into the new version mid-session.
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            return caches.delete(cacheName);
+    (async () => {
+      // Fetch the current app version and adopt the new cache name.
+      // If the version endpoint is unreachable, keep the bootstrap name
+      // so the user keeps a working offline cache.
+      try {
+        const res = await fetch("/api/version");
+        if (res.ok) {
+          const data = await res.json();
+          if (data && typeof data.version === "string") {
+            ACTIVE_CACHE_NAME = `learn-cache-v-${data.version}`;
           }
-        })
+        }
+      } catch {
+        // Offline or transient error — keep the bootstrap name.
+      }
+
+      // Delete any cache whose name does not match the active one.
+      const names = await caches.keys();
+      await Promise.all(
+        names
+          .filter((name) => name !== ACTIVE_CACHE_NAME)
+          .map((name) => caches.delete(name))
       );
-    })
+
+      await self.clients.claim();
+    })()
   );
-  self.clients.claim();
 });
 
 self.addEventListener("fetch", (event) => {
@@ -42,8 +61,8 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
   // Skip backend dynamic endpoints, dev hot reloads, and next configs
   if (
-    url.pathname.startsWith("/api") || 
-    url.pathname.startsWith("/_next") || 
+    url.pathname.startsWith("/api") ||
+    url.pathname.startsWith("/_next") ||
     url.pathname.includes("webpack")
   ) {
     return;
@@ -62,7 +81,7 @@ self.addEventListener("fetch", (event) => {
           }
 
           const responseToCache = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
+          caches.open(ACTIVE_CACHE_NAME).then((cache) => {
             cache.put(event.request, responseToCache);
           });
 

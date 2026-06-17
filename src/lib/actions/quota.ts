@@ -1,13 +1,26 @@
 import { prisma } from "@/lib/db";
+import { Prisma } from "@/generated/prisma/client";
 
 const WINDOW_MS = 45 * 60 * 1000; // 45 minutes
 const WINDOW_INPUT_LIMIT = 30;
 const WINDOW_QUIZ_LIMIT = 5;
 
-// Helper to get today's 07:55 Date
-export function getTodayAt0755(): Date {
+// Daily reset time: 07:55 local time each day
+export const DAILY_RESET_HOUR = 7;
+export const DAILY_RESET_MINUTE = 55;
+
+// Helper to get today's daily-reset Date (today at DAILY_RESET_HOUR:DAILY_RESET_MINUTE).
+export function getTodayAtReset(): Date {
   const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 7, 55, 0, 0);
+  return new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+    DAILY_RESET_HOUR,
+    DAILY_RESET_MINUTE,
+    0,
+    0
+  );
 }
 
 /**
@@ -18,34 +31,85 @@ function filterTimestamps(timestamps: number[], windowMs: number, now: number): 
 }
 
 /**
- * Processes the user quota for a given action type.
- *
- * For TEACHER/ADMIN: returns unlimited.
- * For STUDENT:
- *   1. Checks daily reset at 07:55 — resets if needed, rejects if 0 remaining.
- *   2. Checks sliding 45-min window for the given type — rejects if at limit.
- *   3. If decrement: deducts 1 daily, adds current timestamp to the window array.
- *
- * @param userId  The user's ID.
- * @param decrement  Whether to consume one unit of quota.
- * @param type  "input" for chat inputs, "quiz" for learning sessions.
+ * Loads current quota counters (read-only) and returns the snapshot.
+ * Does not consume any quota.
  */
-export async function processUserQuota(
-  userId: string,
-  decrement: boolean = false,
-  type: "input" | "quiz" = "input"
-) {
+async function readUserQuota(tx: Prisma.TransactionClient, userId: string) {
+  const user = await tx.user.findUnique({
+    where: { id: userId },
+  });
+
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  if (user.role === "TEACHER" || user.role === "ADMIN") {
+    return {
+      user,
+      dailyRemaining: 999,
+      dailyLimit: 999,
+      windowInputRemaining: 999,
+      windowInputLimit: 999,
+      windowQuizRemaining: 999,
+      windowQuizLimit: 999,
+      validInput: [] as number[],
+      validQuiz: [] as number[],
+      shouldResetDaily: false,
+      isTeacherOrAdmin: true,
+    };
+  }
+
+  const now = new Date();
+  const nowMs = now.getTime();
+  const todayReset = getTodayAtReset();
+  const isAfterReset = nowMs >= todayReset.getTime();
+
+  // Daily reset: if lastDailyReset is before today's reset time AND we're past it now
+  const shouldResetDaily =
+    user.lastDailyReset.getTime() < todayReset.getTime() && isAfterReset;
+
+  const dailyRemaining = shouldResetDaily ? user.dailyLimit : user.dailyRemaining;
+
+  // Window timestamps
+  let inputTimestamps: number[] = [];
+  let quizTimestamps: number[] = [];
+  try {
+    inputTimestamps = JSON.parse(user.windowInputTimestamps);
+  } catch {
+    inputTimestamps = [];
+  }
+  try {
+    quizTimestamps = JSON.parse(user.windowQuizTimestamps);
+  } catch {
+    quizTimestamps = [];
+  }
+
+  const validInput = filterTimestamps(inputTimestamps, WINDOW_MS, nowMs);
+  const validQuiz = filterTimestamps(quizTimestamps, WINDOW_MS, nowMs);
+
+  return {
+    user,
+    dailyRemaining,
+    dailyLimit: user.dailyLimit,
+    windowInputRemaining: Math.max(0, WINDOW_INPUT_LIMIT - validInput.length),
+    windowInputLimit: WINDOW_INPUT_LIMIT,
+    windowQuizRemaining: Math.max(0, WINDOW_QUIZ_LIMIT - validQuiz.length),
+    windowQuizLimit: WINDOW_QUIZ_LIMIT,
+    isTeacherOrAdmin: false,
+    validInput,
+    validQuiz,
+    shouldResetDaily,
+  };
+}
+
+/**
+ * Returns the public quota view for a user.
+ */
+export async function getUserQuotaSnapshot(userId: string) {
   return await prisma.$transaction(async (tx) => {
-    const user = await tx.user.findUnique({
-      where: { id: userId },
-    });
+    const snap = await readUserQuota(tx, userId);
 
-    if (!user) {
-      throw new Error("User not found");
-    }
-
-    // Teachers and admins have unlimited quotas
-    if (user.role === "TEACHER" || user.role === "ADMIN") {
+    if (snap.isTeacherOrAdmin) {
       return {
         dailyRemaining: 999,
         dailyLimit: 999,
@@ -55,121 +119,135 @@ export async function processUserQuota(
         windowQuizRemaining: 999,
         windowQuizLimit: 999,
         windowResetInMs: 0,
-        role: user.role,
+        role: snap.user.role,
       };
     }
 
-    const now = new Date();
-    const nowMs = now.getTime();
-    const today0755 = getTodayAt0755();
-    const isAfterReset = nowMs >= today0755.getTime();
+    const nowMs = Date.now();
+    const todayReset = getTodayAtReset();
+    const isAfterReset = nowMs >= todayReset.getTime();
+    const nextReset = new Date(
+      todayReset.getFullYear(),
+      todayReset.getMonth(),
+      todayReset.getDate() + (isAfterReset ? 1 : 0),
+      DAILY_RESET_HOUR,
+      DAILY_RESET_MINUTE,
+      0,
+      0
+    );
+    const dailyResetInMs = nextReset.getTime() - nowMs;
 
-    // --- Daily reset check (07:55) ---
-    const lastResetMs = user.lastDailyReset.getTime();
-    // Reset if lastDailyReset is before today's 07:55 AND we're past 07:55 now
-    const shouldResetDaily = lastResetMs < today0755.getTime() && isAfterReset;
-
-    let dailyRemaining = shouldResetDaily ? user.dailyLimit : user.dailyRemaining;
-    const lastDailyReset = shouldResetDaily ? now : user.lastDailyReset;
-
-    if (dailyRemaining <= 0) {
-      throw new Error("You have used up your daily Socratic helping quota. Please wait for the daily refill.");
-    }
-
-    // --- Sliding window checks ---
-    let windowTimestamps: number[];
-    const windowLimit = type === "input" ? WINDOW_INPUT_LIMIT : WINDOW_QUIZ_LIMIT;
-    const windowField =
-      type === "input" ? "windowInputTimestamps" : "windowQuizTimestamps";
-
-    try {
-      windowTimestamps = JSON.parse(
-        type === "input" ? user.windowInputTimestamps : user.windowQuizTimestamps
-      );
-    } catch {
-      windowTimestamps = [];
-    }
-
-    // Filter to last 45 minutes
-    const validTimestamps = filterTimestamps(windowTimestamps, WINDOW_MS, nowMs);
-    const windowRemaining = Math.max(0, windowLimit - validTimestamps.length);
-
-    if (windowRemaining <= 0) {
-      const label = type === "input" ? "chat" : "quiz";
-      throw new Error(
-        `You have reached your 45-minute ${label} quota (${windowLimit} per window). Please wait for the window to reset.`
-      );
-    }
-
-    // --- Update data if decrementing ---
-    if (decrement) {
-      dailyRemaining -= 1;
-      validTimestamps.push(nowMs);
-
-      const updateData: Record<string, string | number | Date> = {
-        dailyRemaining,
-        lastDailyReset,
-      };
-      updateData[windowField] = JSON.stringify(validTimestamps);
-
-      if (shouldResetDaily) {
-        // When resetting, also reset the opposite window (since it's a new day)
-        if (type === "input") {
-          updateData.windowQuizTimestamps = "[]";
-        } else {
-          updateData.windowInputTimestamps = "[]";
-        }
-      }
-
-      await tx.user.update({
-        where: { id: userId },
-        data: updateData,
-      });
-    }
-
-    // --- Calculate window reset time ---
-    // Find oldest timestamp in the valid window — that's when the next slot opens (45 min after it)
+    // Window reset = when oldest timestamp in the valid window falls out
     let windowResetInMs = 0;
-    if (validTimestamps.length > 0) {
-      const oldest = Math.min(...validTimestamps);
+    const oldestSet = [...snap.validInput, ...snap.validQuiz];
+    if (oldestSet.length > 0) {
+      const oldest = Math.min(...oldestSet);
       const slotFreeAt = oldest + WINDOW_MS;
       windowResetInMs = Math.max(0, slotFreeAt - nowMs);
     }
 
-    // --- Calculate daily reset time (next 07:55) ---
-    const next0755 = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate() + (isAfterReset ? 1 : 0),
-      7, 55, 0, 0
-    );
-    const dailyResetInMs = next0755.getTime() - nowMs;
-
-    // Compute both window remainings for the response
-    let windowInputTimestamps: number[] = [];
-    let windowQuizTimestamps: number[] = [];
-    try {
-      windowInputTimestamps = JSON.parse(user.windowInputTimestamps);
-    } catch { /* empty */ }
-    try {
-      windowQuizTimestamps = JSON.parse(user.windowQuizTimestamps);
-    } catch { /* empty */ }
-
-    const validInputTimestamps = filterTimestamps(windowInputTimestamps, WINDOW_MS, nowMs);
-    const validQuizTimestamps = filterTimestamps(windowQuizTimestamps, WINDOW_MS, nowMs);
-    const windowInputRemaining = Math.max(0, WINDOW_INPUT_LIMIT - validInputTimestamps.length);
-    const windowQuizRemaining = Math.max(0, WINDOW_QUIZ_LIMIT - validQuizTimestamps.length);
-
     return {
-      dailyRemaining,
-      dailyLimit: user.dailyLimit,
+      dailyRemaining: snap.dailyRemaining,
+      dailyLimit: snap.dailyLimit,
       dailyResetInMs,
-      windowInputRemaining,
-      windowInputLimit: WINDOW_INPUT_LIMIT,
-      windowQuizRemaining,
-      windowQuizLimit: WINDOW_QUIZ_LIMIT,
+      windowInputRemaining: snap.windowInputRemaining,
+      windowInputLimit: snap.windowInputLimit,
+      windowQuizRemaining: snap.windowQuizRemaining,
+      windowQuizLimit: snap.windowQuizLimit,
       windowResetInMs,
-      role: user.role,
+      role: snap.user.role,
     };
+  });
+}
+
+/**
+ * Backwards-compatible entry point: returns the quota snapshot.
+ * Use this from server actions that need to *check* the quota without
+ * consuming it (e.g. the UI refresh action).
+ */
+export async function processUserQuota(
+  userId: string,
+  decrement: boolean = false,
+  type: "input" | "quiz" = "input"
+) {
+  if (!decrement) {
+    return await getUserQuotaSnapshot(userId);
+  }
+  return await consumeUserQuota(userId, type);
+}
+
+/**
+ * Atomically decrements 1 unit of quota for the given action type.
+ *
+ * Throws if the user is at the daily cap or window limit.
+ *
+ * Call this AFTER the underlying work (AI generation, etc.) has succeeded,
+ * so a failed upstream call never costs the student a quota slot.
+ */
+export async function consumeUserQuota(
+  userId: string,
+  type: "input" | "quiz" = "input"
+) {
+  return await prisma.$transaction(async (tx) => {
+    const snap = await readUserQuota(tx, userId);
+
+    if (snap.isTeacherOrAdmin) {
+      // No-op: unlimited
+      return await getUserQuotaSnapshot(userId);
+    }
+
+    if (snap.dailyRemaining <= 0) {
+      throw new Error(
+        "You have used up your daily Socratic helping quota. Please wait for the daily refill."
+      );
+    }
+
+    if (snap.windowInputRemaining <= 0 && type === "input") {
+      throw new Error(
+        `You have reached your 45-minute chat quota (${WINDOW_INPUT_LIMIT} per window). Please wait for the window to reset.`
+      );
+    }
+    if (snap.windowQuizRemaining <= 0 && type === "quiz") {
+      throw new Error(
+        `You have reached your 45-minute quiz quota (${WINDOW_QUIZ_LIMIT} per window). Please wait for the window to reset.`
+      );
+    }
+
+    const nowMs = Date.now();
+    const todayReset = getTodayAtReset();
+    const isAfterReset = nowMs >= todayReset.getTime();
+    const lastResetMs = snap.user.lastDailyReset.getTime();
+    const shouldResetDaily =
+      lastResetMs < todayReset.getTime() && isAfterReset;
+
+    const newDailyRemaining = snap.dailyRemaining - 1;
+    const newLastReset = shouldResetDaily ? new Date() : snap.user.lastDailyReset;
+
+    const newInput = [...snap.validInput, nowMs];
+    const newQuiz = [...snap.validQuiz, nowMs];
+
+    const updateData: Record<string, string | number | Date> = {
+      dailyRemaining: newDailyRemaining,
+      lastDailyReset: newLastReset,
+      windowInputTimestamps: JSON.stringify(newInput),
+      windowQuizTimestamps: JSON.stringify(newQuiz),
+    };
+
+    // If a new day reset, also clear the opposite window so the
+    // student doesn't carry any stale timestamps into a new period.
+    if (shouldResetDaily) {
+      if (type === "input") {
+        updateData.windowQuizTimestamps = "[]";
+      } else {
+        updateData.windowInputTimestamps = "[]";
+      }
+    }
+
+    await tx.user.update({
+      where: { id: userId },
+      data: updateData,
+    });
+
+    return await getUserQuotaSnapshot(userId);
   });
 }

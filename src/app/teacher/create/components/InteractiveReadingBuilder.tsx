@@ -1,7 +1,8 @@
 "use client";
 
-import React from "react";
-import { Upload, X, Plus, Trash } from "lucide-react";
+import React, { useState } from "react";
+import { Upload, X, Plus, Trash, Sparkles, Loader2, Wand2 } from "lucide-react";
+import { generateAIReadingAdventure } from "@/lib/actions/ai-reading";
 
 export interface ReadingPageCreator {
   id: string; // unique page Key
@@ -38,15 +39,49 @@ interface InteractiveReadingBuilderProps {
 }
 
 export function InteractiveReadingBuilder({
+  id,
   readingPages,
   setReadingPages,
   startPageId,
   setStartPageId,
   handleMediaUpload,
 }: InteractiveReadingBuilderProps) {
+  // Aloys AI States
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiVocabulary, setAiVocabulary] = useState("");
+  const [aiTopics, setAiTopics] = useState("");
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [genError, setGenError] = useState<string | null>(null);
+
+  const handleAIGenerate = async () => {
+    if (!aiPrompt.trim()) {
+      setGenError("Please enter a story prompt or topic.");
+      return;
+    }
+    setIsGenerating(true);
+    setGenError(null);
+    try {
+      const res = await generateAIReadingAdventure(aiPrompt, aiVocabulary, aiTopics, id);
+      if (res.error) {
+        setGenError(res.error);
+      } else if (res.success && res.readingPages) {
+        setReadingPages(res.readingPages);
+        if (res.startPageId) {
+          setStartPageId(res.startPageId);
+        }
+        setAiPrompt("");
+        setAiVocabulary("");
+        setAiTopics("");
+      }
+    } catch (err: unknown) {
+      setGenError(err instanceof Error ? err.message : "An unexpected error occurred during story generation.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   const addReadingPage = () => {
-    const newId = `page-${Math.random().toString(36).substring(7)}`;
+    const newId = `page-${crypto.randomUUID()}`;
     setReadingPages((prev) => [
       ...prev,
       {
@@ -104,7 +139,7 @@ export function InteractiveReadingBuilder({
           questions: [
             ...(p.questions || []),
             {
-              id: Math.random().toString(36).substring(7),
+              id: crypto.randomUUID(),
               type: "multiple-choice" as const,
               prompt: "",
               options: ["", ""],
@@ -193,6 +228,94 @@ export function InteractiveReadingBuilder({
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {/* Aloys AI Generator Card */}
+      <div className="p-6 border rounded-xl border-neutral-300 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-950/20 shadow-sm space-y-4 relative overflow-hidden">
+        {/* Decorative corner dots */}
+        <div className="absolute top-2 right-2 flex gap-1 select-none pointer-events-none opacity-40">
+          <div className="w-1 h-1 rounded-full bg-neutral-450 dark:bg-neutral-600"></div>
+          <div className="w-1 h-1 rounded-full bg-neutral-450 dark:bg-neutral-600"></div>
+          <div className="w-1 h-1 rounded-full bg-neutral-450 dark:bg-neutral-600"></div>
+        </div>
+
+        <div className="flex items-center gap-2 border-b border-neutral-250 dark:border-neutral-850 pb-2">
+          <Sparkles className="w-4 h-4 text-purple-650 dark:text-purple-400" />
+          <h3 className="text-sm font-bold font-mono uppercase tracking-wider text-neutral-850 dark:text-neutral-200">
+            Aloys AI Story Builder
+          </h3>
+        </div>
+
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="md:col-span-2 space-y-1">
+              <label className="text-[10px] font-bold font-mono uppercase tracking-wider text-neutral-550 block">
+                Story Theme / Plot Prompt *
+              </label>
+              <textarea
+                rows={2}
+                disabled={isGenerating}
+                placeholder="Describe what the story should be about (e.g. 'A magical tree that talks, guiding kids through a garbage sorting adventure')"
+                value={aiPrompt}
+                onChange={(e) => setAiPrompt(e.target.value)}
+                className="w-full text-xs border border-neutral-300 dark:border-neutral-750 bg-white dark:bg-neutral-900 rounded-lg p-2.5 outline-none focus:border-purple-500 transition-colors"
+              />
+            </div>
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold font-mono uppercase tracking-wider text-neutral-550 block">
+                  Target Vocabulary (optional)
+                </label>
+                <input
+                  type="text"
+                  disabled={isGenerating}
+                  placeholder="e.g. environment, litter, sorting"
+                  value={aiVocabulary}
+                  onChange={(e) => setAiVocabulary(e.target.value)}
+                  className="w-full text-xs border border-neutral-300 dark:border-neutral-750 bg-white dark:bg-neutral-900 rounded-lg px-2.5 py-2 outline-none focus:border-purple-500 transition-colors"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold font-mono uppercase tracking-wider text-neutral-550 block">
+                  Other Topics to Integrate (optional)
+                </label>
+                <input
+                  type="text"
+                  disabled={isGenerating}
+                  placeholder="e.g. climate change, recycling"
+                  value={aiTopics}
+                  onChange={(e) => setAiTopics(e.target.value)}
+                  className="w-full text-xs border border-neutral-300 dark:border-neutral-750 bg-white dark:bg-neutral-900 rounded-lg px-2.5 py-2 outline-none focus:border-purple-500 transition-colors"
+                />
+              </div>
+            </div>
+          </div>
+
+          {genError && (
+            <div className="p-3 rounded-lg border border-red-200/50 bg-red-50/10 text-red-650 dark:text-red-400 font-mono text-[10px] uppercase font-bold tracking-wider">
+              Error: {genError}
+            </div>
+          )}
+
+          <button
+            type="button"
+            disabled={isGenerating || !aiPrompt.trim() || !id.trim()}
+            onClick={handleAIGenerate}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg font-mono font-bold text-xs uppercase bg-black text-white hover:bg-black/90 dark:bg-white dark:text-black dark:hover:bg-white/90 transition disabled:opacity-50 disabled:cursor-not-allowed select-none cursor-pointer"
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin text-purple-400 shrink-0" />
+                <span>Aloys is writing & downloading illustrations...</span>
+              </>
+            ) : (
+              <>
+                <Wand2 className="w-4 h-4 text-purple-400 shrink-0" />
+                <span>Generate Adventure with Aloys AI</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+
       {/* Start page selector */}
       <div className="p-6 border rounded border-neutral-300 dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-sm space-y-4">
         <h3 className="text-sm font-bold font-mono uppercase tracking-wide border-b pb-2">

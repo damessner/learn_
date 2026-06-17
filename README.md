@@ -303,6 +303,44 @@ npm run test:watch
 
 ---
 
+## 🔐 Rotating Secrets
+
+All sensitive credentials live in `.env`. Rotate them without breaking existing sessions.
+
+### `SESSION_SECRET`
+Encrypts the session cookie (AES-256-GCM). Rotating this value invalidates **every** active session — every user (including admins) will be logged out. Do this if you suspect key compromise.
+
+```bash
+# Generate a fresh 32-byte hex key
+openssl rand -hex 32
+
+# Edit .env, replace SESSION_SECRET, then restart the app
+sudo systemctl restart learn
+```
+
+> **Tip:** Schedule rotations off-hours. Communicate the logout to users in advance.
+
+### AI provider keys (`OPENCODE_API_KEY`, `GEMINI_API_KEY`, etc.)
+Rotating an API key is non-disruptive for the server but **does** invalidate any in-flight requests. Rotate at the provider's portal first, then update `.env` and restart.
+
+```bash
+sudo systemctl edit learn   # or edit /opt/learn/.env directly
+sudo systemctl restart learn
+```
+
+### `PIXABAY_API_KEY`
+Pixabay keys are tied to an account and have no in-flight state on our side. Just update `.env` and restart.
+
+### `DATABASE_URL`
+**Do not change casually.** A different path means a fresh empty database. If you need to migrate databases, use Prisma's standard migration workflow (`prisma migrate deploy`) on the new database first.
+
+### What you do **not** need to rotate
+- The bcrypt salt (handled per-user by `bcrypt.hash(password, 10)` inside `prisma/seed.ts` and admin user creation).
+- TTS asset filenames on disk (regenerated on demand).
+- Live-quiz PINs (single-session, regenerated each game).
+
+---
+
 ## 📄 Configuration Formats
 
 ### Exercise JSON (`index.json`)

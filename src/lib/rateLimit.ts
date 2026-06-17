@@ -97,6 +97,36 @@ export function buildRateLimitKey(username: string, ip?: string): string {
 }
 
 /**
+ * Check and consume a rate-limit slot for a given key.
+ * Uses a fixed window of `windowMs` duration starting from the first request.
+ * Returns whether the action is allowed and rate limit info.
+ *
+ * Unlike `recordFailedAttempt`, this does not require a prior
+ * block/unblock cycle — it enforces a simple counter per window.
+ */
+export function consumeRateLimit(
+  key: string,
+  maxRequests: number,
+  windowMs: number,
+): { allowed: boolean; remaining: number; resetMs: number } {
+  const now = Date.now();
+  let entry = store.get(key);
+
+  if (!entry || entry.windowStart + windowMs < now) {
+    entry = { count: 0, blockedUntil: 0, windowStart: now };
+    store.set(key, entry);
+  }
+
+  if (entry.count >= maxRequests) {
+    const resetMs = entry.windowStart + windowMs - now;
+    return { allowed: false, remaining: 0, resetMs: Math.max(0, resetMs) };
+  }
+
+  entry.count++;
+  return { allowed: true, remaining: maxRequests - entry.count, resetMs: 0 };
+}
+
+/**
  * Test-only helper to clear in-memory limiter state.
  * Must not be called in production.
  */

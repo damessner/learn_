@@ -178,7 +178,7 @@ export function ImageHotspotQuizBuilder({
     const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
 
     if (drawingTool === "circle") {
-      const newHotspotId = `hs-${Math.random().toString(36).substring(7)}`;
+      const newHotspotId = `hs-${crypto.randomUUID()}`;
       const task = hotspotTasks.find((t) => t.id === expandedTaskId);
       const name = task?.promptText 
         ? `${task.promptText.substring(0, 15)} - Zone ${(task.targetHotspotIds?.length || 0) + 1}`
@@ -219,7 +219,7 @@ export function ImageHotspotQuizBuilder({
         const w = Math.max(2, Math.abs(rectCorner1[0] - x));
         const h = Math.max(2, Math.abs(rectCorner1[1] - y));
 
-        const newHotspotId = `hs-${Math.random().toString(36).substring(7)}`;
+        const newHotspotId = `hs-${crypto.randomUUID()}`;
         const task = hotspotTasks.find((t) => t.id === expandedTaskId);
         const name = task?.promptText 
           ? `${task.promptText.substring(0, 15)} - Zone ${(task.targetHotspotIds?.length || 0) + 1}`
@@ -285,7 +285,7 @@ export function ImageHotspotQuizBuilder({
   };
 
   const addHotspotTask = () => {
-    const newId = `t-${Math.random().toString(36).substring(7)}`;
+    const newId = `t-${crypto.randomUUID()}`;
     setHotspotTasks((prev) => [
       ...prev,
       {

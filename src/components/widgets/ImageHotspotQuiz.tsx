@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { WidgetProps, ImageHotspotQuizConfig } from "./types";
-import { Play, Check, X, Award } from "lucide-react";
+import { Play, Check, X, Award, Maximize2, Minimize2 } from "lucide-react";
 
 // Deterministic seeded Fisher-Yates shuffle.
 // Returns a new array that is a stable permutation of `arr` for the given seed.
@@ -53,6 +53,7 @@ export const ImageHotspotQuiz: React.FC<WidgetProps<ImageHotspotQuizConfig>> = (
   const [isCompleted, setIsCompleted] = useState<boolean>(
     savedState?.isCompleted || false
   );
+  const [isEnlarged, setIsEnlarged] = useState<boolean>(false);
 
   // Cleanup audio/timeout
   useEffect(() => {
@@ -236,58 +237,180 @@ export const ImageHotspotQuiz: React.FC<WidgetProps<ImageHotspotQuizConfig>> = (
       )}
 
       {/* Interactive Coordinate Canvas */}
-      <div className="relative border border-neutral-300 dark:border-neutral-800 rounded overflow-hidden bg-neutral-100/50 dark:bg-neutral-950/20">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={imageUrl}
-          alt="TipToi Click Quiz Background"
-          className="w-full h-auto max-h-[70vh] object-contain block mx-auto select-none"
-          draggable={false}
-        />
-
-        {/* SVG Overlay to capture coordinate clicks */}
-        <svg
-          viewBox="0 0 100 100"
-          preserveAspectRatio="none"
-          onClick={handleImageClick}
-          className={`absolute top-0 left-0 w-full h-full ${
-            isReadOnly || isCompleted ? "pointer-events-none" : "cursor-crosshair pointer-events-auto"
-          }`}
-          style={{ touchAction: "none" }}
+      <div className="relative border border-neutral-300 dark:border-neutral-800 rounded overflow-hidden bg-neutral-100/50 dark:bg-neutral-950/20 flex items-center justify-center group">
+        {/* Enlarge toggle button */}
+        <button
+          type="button"
+          onClick={() => setIsEnlarged(true)}
+          className="absolute top-3 right-3 z-10 p-2 rounded-lg bg-black/60 hover:bg-black/80 text-white transition shadow duration-150 flex items-center gap-1.5 text-xs font-semibold backdrop-blur-xs cursor-pointer"
         >
-          {/* In read-only or completed mode, draw the hotspots to visualize them */}
-          {(isReadOnly || isCompleted) &&
-            config.hotspots.map((hs) => {
-              const matchedTask = tasks.find((t) => t.targetHotspotId === hs.id || (t.targetHotspotIds && t.targetHotspotIds.includes(hs.id)));
-              if (!matchedTask) return null;
+          <Maximize2 className="w-3.5 h-3.5" />
+          Enlarge Picture
+        </button>
 
-              const isSolved = completedTaskIds.includes(matchedTask.id);
-              const shapeProps = {
-                className: `transition duration-150 ${
-                  isSolved
-                    ? "fill-green-500/20 stroke-green-500/50"
-                    : "fill-red-500/10 stroke-red-500/30"
-                }`,
-              };
+        <div className="relative w-fit h-fit max-w-full">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={imageUrl}
+            alt="TipToi Click Quiz Background"
+            className="w-full h-auto max-h-[70vh] object-contain block mx-auto select-none"
+            draggable={false}
+          />
 
-              if (hs.shape === "circle" && hs.coords.length >= 3) {
-                const [cx, cy, r] = hs.coords;
-                return <circle key={hs.id} cx={cx} cy={cy} r={r} {...shapeProps} />;
-              }
-              if (hs.shape === "rect" && hs.coords.length >= 4) {
-                const [rx, ry, rw, rh] = hs.coords;
-                return <rect key={hs.id} x={rx} y={ry} width={rw} height={rh} {...shapeProps} />;
-              }
-              return null;
-            })}
-        </svg>
+          {/* SVG Overlay to capture coordinate clicks */}
+          <svg
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+            onClick={handleImageClick}
+            className={`absolute top-0 left-0 w-full h-full ${
+              isReadOnly || isCompleted ? "pointer-events-none" : "cursor-crosshair pointer-events-auto"
+            }`}
+            style={{ touchAction: "none" }}
+          >
+            {/* In read-only or completed mode, draw the hotspots to visualize them */}
+            {(isReadOnly || isCompleted) &&
+              config.hotspots.map((hs) => {
+                const matchedTask = tasks.find((t) => t.targetHotspotId === hs.id || (t.targetHotspotIds && t.targetHotspotIds.includes(hs.id)));
+                if (!matchedTask) return null;
 
-        {popupText && (
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/90 dark:bg-white/95 text-white dark:text-black px-4 py-2 rounded shadow text-xs font-semibold animate-fade-in-up">
-            {popupText}
-          </div>
-        )}
+                const isSolved = completedTaskIds.includes(matchedTask.id);
+                const shapeProps = {
+                  className: `transition duration-150 ${
+                    isSolved
+                      ? "fill-green-500/20 stroke-green-500/50"
+                      : "fill-red-500/10 stroke-red-500/30"
+                  }`,
+                };
+
+                if (hs.shape === "circle" && hs.coords.length >= 3) {
+                  const [cx, cy, r] = hs.coords;
+                  return <circle key={hs.id} cx={cx} cy={cy} r={r} {...shapeProps} />;
+                }
+                if (hs.shape === "rect" && hs.coords.length >= 4) {
+                  const [rx, ry, rw, rh] = hs.coords;
+                  return <rect key={hs.id} x={rx} y={ry} width={rw} height={rh} {...shapeProps} />;
+                }
+                return null;
+              })}
+          </svg>
+
+          {popupText && (
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/90 dark:bg-white/95 text-white dark:text-black px-4 py-2 rounded shadow text-xs font-semibold animate-fade-in-up whitespace-nowrap z-20">
+              {popupText}
+            </div>
+          )}
+        </div>
       </div>
+
+      {isEnlarged && (
+        <div className="fixed inset-0 z-50 bg-black/95 dark:bg-neutral-955/98 flex flex-col p-4 md:p-6 overflow-hidden">
+          {/* Header block inside enlarged mode */}
+          <div className="flex items-center justify-between gap-4 border-b border-neutral-800 pb-3 mb-4 shrink-0">
+            <div className="min-w-0">
+              <h3 className="font-bold text-neutral-100 text-sm md:text-base truncate">
+                {config.title}
+              </h3>
+              <div className="text-[10px] font-mono text-neutral-400 mt-0.5">
+                Progress: {completedTaskIds.length} / {tasks.length} solved
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsEnlarged(false)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-neutral-700 bg-neutral-900 text-neutral-300 hover:bg-neutral-850 hover:text-white transition font-mono font-bold text-xs uppercase cursor-pointer"
+            >
+              <Minimize2 className="w-3.5 h-3.5" />
+              Close [X]
+            </button>
+          </div>
+
+          {/* Active Prompt inside enlarged mode */}
+          {!isReadOnly && !isCompleted && currentTask && (
+            <div className="p-4 bg-purple-950/45 border border-purple-800/60 text-white rounded-xl shadow-md flex items-center justify-between gap-4 mb-4 shrink-0">
+              <div className="space-y-1">
+                <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-purple-400 block">
+                  Task {activeTaskIdx + 1} of {tasks.length}
+                </span>
+                <p className="text-sm md:text-base font-bold text-purple-100">{currentTask.promptText}</p>
+              </div>
+              {currentTask.promptAudio && (
+                <button
+                  onClick={playPromptAudio}
+                  className="flex items-center gap-1.5 text-xs border border-purple-700/80 bg-purple-900/40 hover:bg-purple-800/80 rounded-lg px-3 py-1.5 transition font-semibold cursor-pointer shrink-0"
+                >
+                  <Play className="w-3.5 h-3.5 fill-current text-purple-400" />
+                  Listen
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Completion inside enlarged mode */}
+          {isCompleted && !isReadOnly && (
+            <div className="p-6 border border-green-850/80 bg-green-950/20 rounded-xl text-center space-y-2 mb-4 shrink-0">
+              <Award className="w-6 h-6 text-green-500 mx-auto" />
+              <h4 className="font-bold text-green-400 text-sm">Quiz Completed!</h4>
+              <p className="text-xs text-neutral-400">You successfully mapped all items on the picture.</p>
+            </div>
+          )}
+
+          {/* Main Visual Center: contains image and SVG overlay scaled to fill screen */}
+          <div className="flex-1 relative min-h-0 w-full flex items-center justify-center bg-neutral-900/60 rounded-xl border border-neutral-850 overflow-hidden">
+            <div className="relative w-fit h-fit max-w-full max-h-full">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={imageUrl}
+                alt="TipToi Click Quiz Background"
+                className="max-w-full max-h-[calc(100vh-230px)] object-contain select-none block mx-auto"
+                draggable={false}
+              />
+
+              {/* SVG Overlay to capture coordinate clicks */}
+              <svg
+                viewBox="0 0 100 100"
+                preserveAspectRatio="none"
+                onClick={handleImageClick}
+                className={`absolute top-0 left-0 w-full h-full ${
+                  isReadOnly || isCompleted ? "pointer-events-none" : "cursor-crosshair pointer-events-auto"
+                }`}
+                style={{ touchAction: "none" }}
+              >
+                {/* In read-only or completed mode, draw the hotspots to visualize them */}
+                {(isReadOnly || isCompleted) &&
+                  config.hotspots.map((hs) => {
+                    const matchedTask = tasks.find((t) => t.targetHotspotId === hs.id || (t.targetHotspotIds && t.targetHotspotIds.includes(hs.id)));
+                    if (!matchedTask) return null;
+
+                    const isSolved = completedTaskIds.includes(matchedTask.id);
+                    const shapeProps = {
+                      className: `transition duration-150 ${
+                        isSolved
+                          ? "fill-green-500/25 stroke-green-500/65"
+                          : "fill-red-500/15 stroke-red-500/45"
+                      }`,
+                    };
+
+                    if (hs.shape === "circle" && hs.coords.length >= 3) {
+                      const [cx, cy, r] = hs.coords;
+                      return <circle key={hs.id} cx={cx} cy={cy} r={r} {...shapeProps} />;
+                    }
+                    if (hs.shape === "rect" && hs.coords.length >= 4) {
+                      const [rx, ry, rw, rh] = hs.coords;
+                      return <rect key={hs.id} x={rx} y={ry} width={rw} height={rh} {...shapeProps} />;
+                    }
+                    return null;
+                  })}
+              </svg>
+
+              {popupText && (
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/95 text-white border border-neutral-800 px-4 py-2 rounded-xl shadow-lg text-xs font-semibold animate-fade-in-up z-20 whitespace-nowrap">
+                  {popupText}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Review Mode details list */}
       {isReadOnly && (

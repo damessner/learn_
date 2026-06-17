@@ -4,6 +4,32 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import { WidgetProps, VocabularyConfig } from "./types";
 import { Check, X, Award, Volume2, ArrowRight } from "lucide-react";
 
+export function checkVocabMatch(input: string, target: string): boolean {
+  const cleanStr = (s: string) => s.trim().toLowerCase();
+  
+  const inVal = cleanStr(input);
+  const targetVal = cleanStr(target);
+  
+  if (inVal === targetVal) return true;
+  
+  const noParens = (s: string) => s.replace(/[()]/g, "").replace(/\s+/g, " ").trim();
+  if (noParens(inVal) === noParens(targetVal)) return true;
+  
+  const noParensContent = (s: string) => s.replace(/\([^)]*\)/g, "").replace(/\s+/g, " ").trim();
+  if (noParensContent(inVal) === noParensContent(targetVal)) return true;
+  
+  const stripTo = (s: string) => s.replace(/^\s*to\s+/i, "").trim();
+  const normValIn = stripTo(noParens(inVal));
+  const normValTarget = stripTo(noParens(targetVal));
+  if (normValIn === normValTarget) return true;
+  
+  const normValIn2 = stripTo(noParensContent(inVal));
+  const normValTarget2 = stripTo(noParensContent(targetVal));
+  if (normValIn2 === normValTarget2) return true;
+  
+  return false;
+}
+
 export const OralVocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
   config,
   assetsPath,
@@ -112,9 +138,7 @@ export const OralVocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
     if (e) e.preventDefault();
     if (feedback !== "idle") return;
 
-    const cleanInput = currentInput.trim().toLowerCase();
-    const correctWord = activeWord.word.trim().toLowerCase();
-    const isCorrect = cleanInput === correctWord;
+    const isCorrect = checkVocabMatch(currentInput, activeWord.word);
 
     setAnswers((prev) => ({ ...prev, [activeIdx]: currentInput }));
     setCorrectItems((prev) => ({ ...prev, [activeIdx]: isCorrect }));

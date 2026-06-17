@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { randomUUID } from "@/lib/uuid";
 import { createWorksheet } from "@/lib/actions/exercise";
@@ -131,6 +131,21 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
   const [badgeEmoji, setBadgeEmoji] = useState(parsedInitialData?.badgeEmoji || "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isIdManual, setIsIdManual] = useState(false);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    };
+  }, []);
+
+  const computeSlug = (t: string) =>
+    t
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
 
   const [vocabRawText, setVocabRawText] = useState(() => {
     if (parsedInitialData && (parsedInitialData.type === "vocabulary" || parsedInitialData.type === "oral-vocabulary") && Array.isArray(parsedInitialData.vocabList)) {
@@ -147,7 +162,7 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
         word: String(item.word || ""),
         translation: String(item.translation || ""),
         image: item.image ? String(item.image) : undefined,
-        ttsEnabled: !!item.ttsEnabled,
+        ttsEnabled: item.ttsEnabled !== false,
         wordAudio: item.wordAudio ? String(item.wordAudio) : undefined,
         translationAudio: item.translationAudio ? String(item.translationAudio) : undefined,
       }));
@@ -157,9 +172,9 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
 
   const [vocabPictureSupplementation, setVocabPictureSupplementation] = useState<boolean>(() => {
     if (parsedInitialData && (parsedInitialData.type === "vocabulary" || parsedInitialData.type === "oral-vocabulary")) {
-      return !!(parsedInitialData as Record<string, unknown>).pictureSupplementation;
+      return (parsedInitialData as Record<string, unknown>).pictureSupplementation !== false;
     }
-    return false;
+    return true;
   });
 
   const handleVocabRawTextChange = (newText: string) => {
@@ -182,7 +197,7 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
         word: parsed.word,
         translation: parsed.translation,
         image: existing?.image,
-        ttsEnabled: existing?.ttsEnabled ?? false,
+        ttsEnabled: existing?.ttsEnabled ?? true,
         wordAudio: existing?.wordAudio,
         translationAudio: existing?.translationAudio,
       };
@@ -467,7 +482,21 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
   // ----------------------------------------------------
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!id.trim() || !title.trim()) return;
+
+    // Flush any pending title→slug auto-generation so the slug is up to date
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
+
+    const resolvedId =
+      !parsedInitialData && !isIdManual ? computeSlug(title) : id;
+
+    if (resolvedId !== id) {
+      setId(resolvedId);
+    }
+
+    if (!resolvedId.trim() || !title.trim()) return;
 
     setLoading(true);
     setError(null);
@@ -863,7 +892,7 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
       }
 
       const res = await createWorksheet(
-        id.toLowerCase().trim(),
+        resolvedId.toLowerCase().trim(),
         creatorMode,
         title,
         description,
@@ -1005,15 +1034,41 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
                 <label className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
                   Worksheet Key (kebab-case)
                 </label>
-                <input
-                  type="text"
-                  required
-                  disabled={!!parsedInitialData}
-                  placeholder="e.g. math-decimals-1"
-                  value={id}
-                  onChange={(e) => setId(e.target.value.replace(/[^a-zA-Z0-9-]/g, ""))}
-                  className="w-full text-base border border-neutral-300 dark:border-neutral-750 rounded px-3 py-1.5 bg-transparent outline-none focus:border-black dark:focus:border-white font-mono disabled:opacity-60"
-                />
+                <div className="relative">
+                  <input
+                    type="text"
+                    required
+                    readOnly={!isIdManual && !parsedInitialData}
+                    disabled={!!parsedInitialData}
+                    placeholder="e.g. math-decimals-1"
+                    value={id}
+                    onChange={(e) => {
+                      if (isIdManual) {
+                        setId(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""));
+                      }
+                    }}
+                    onClick={() => {
+                      if (!parsedInitialData) {
+                        setIsIdManual(true);
+                        // Cancel pending auto-generation so manual edits aren't overwritten
+                        if (debounceTimerRef.current) {
+                          clearTimeout(debounceTimerRef.current);
+                          debounceTimerRef.current = null;
+                        }
+                      }
+                    }}
+                    className={`w-full text-base border border-neutral-300 dark:border-neutral-750 rounded px-3 py-1.5 bg-transparent outline-none focus:border-black dark:focus:border-white font-mono transition ${
+                      !isIdManual && !parsedInitialData
+                        ? "bg-neutral-100 dark:bg-neutral-800 text-neutral-500 cursor-pointer border-dashed hover:bg-neutral-150 dark:hover:bg-neutral-750"
+                        : "disabled:opacity-60"
+                    }`}
+                  />
+                  {!isIdManual && !parsedInitialData && (
+                    <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[9px] font-bold font-mono uppercase bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-350 px-1.5 py-0.5 rounded pointer-events-none">
+                      Click to edit
+                    </span>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-1">
@@ -1025,7 +1080,16 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
                   required
                   placeholder="e.g. Decimals & Fractions quiz"
                   value={title}
-                  onChange={(e) => setTitle(e.target.value)}
+                  onChange={(e) => {
+                    const newTitle = e.target.value;
+                    setTitle(newTitle);
+                    if (!parsedInitialData && !isIdManual) {
+                      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+                      debounceTimerRef.current = setTimeout(() => {
+                        setId(computeSlug(newTitle));
+                      }, 300);
+                    }
+                  }}
                   className="w-full text-base border border-neutral-300 dark:border-neutral-750 rounded px-3 py-1.5 bg-transparent outline-none focus:border-black dark:focus:border-white"
                 />
               </div>

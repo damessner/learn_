@@ -65,7 +65,7 @@ export function WorksheetQuestionsBuilder({
     setQuestions((prev) => [
       ...prev,
       {
-        id: Math.random().toString(36).substring(7),
+        id: crypto.randomUUID(),
         type,
         question: "",
         media: "",
@@ -80,7 +80,7 @@ export function WorksheetQuestionsBuilder({
         statements: "",
         matchingPairs: [
           {
-            id: Math.random().toString(36).substring(7),
+            id: crypto.randomUUID(),
             leftText: "",
             leftMedia: "",
             leftMediaStatus: "",
@@ -569,7 +569,7 @@ export function WorksheetQuestionsBuilder({
                       matchingPairs: [
                         ...q.matchingPairs,
                         {
-                          id: Math.random().toString(36).substring(7),
+                          id: crypto.randomUUID(),
                           leftText: "",
                           leftMedia: "",
                           leftMediaStatus: "",

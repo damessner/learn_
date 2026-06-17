@@ -86,7 +86,7 @@ ${content}
       fs.writeFileSync(path.join(exerciseDir, "index.md"), mdContent, "utf-8");
     } else {
       const parsedContent = JSON.parse(content);
-      let jsonContent = {
+      const jsonContent = {
         ...parsedContent,
         id,
         title,
@@ -97,14 +97,6 @@ ${content}
         badgeEmoji: badgeEmoji || "",
       };
 
-      // Generate TTS if needed
-      try {
-        const { generateTTSForExercise } = await import("@/lib/tts/generator");
-        jsonContent = await generateTTSForExercise(id, type, jsonContent);
-      } catch (ttsErr) {
-        console.error("TTS generation error:", ttsErr);
-      }
-
       fs.writeFileSync(
         path.join(exerciseDir, "index.json"),
         JSON.stringify(jsonContent, null, 2),
@@ -113,6 +105,25 @@ ${content}
     }
 
     await syncExercisesToDb();
+
+    if (type !== "gap-fill") {
+      const parsedContent = JSON.parse(content);
+      const initialJsonContent = {
+        ...parsedContent,
+        id,
+        title,
+        description,
+        type,
+        tags: tags || "",
+        badgeName: badgeName || "",
+        badgeEmoji: badgeEmoji || "",
+      };
+      import("@/lib/tts/generator").then(({ runBackgroundBuild }) => {
+        runBackgroundBuild(id, type, initialJsonContent);
+      }).catch((err) => {
+        console.error("Failed to start background build:", err);
+      });
+    }
 
     // If a courseId is provided, link the exercise to that course
     if (courseId) {

@@ -6,8 +6,8 @@ import struct
 import urllib.request
 
 # URLs for models and voices
-EN_ONNX_URL = "https://github.com/thewh1teagle/kokoro-onnx/releases/download/v1.0.0/kokoro-v1.0.onnx"
-EN_VOICES_URL = "https://github.com/thewh1teagle/kokoro-onnx/releases/download/v1.0.0/voices-v1.0.bin"
+EN_ONNX_URL = "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/kokoro-v1.0.onnx"
+EN_VOICES_URL = "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/voices-v1.0.bin"
 
 DE_ONNX_URL = "https://huggingface.co/Godelaune/Kokoro-82M-ONNX-German-Martin/resolve/main/kokoro-martin.onnx"
 DE_VOICES_URL = "https://huggingface.co/Godelaune/Kokoro-82M-ONNX-German-Martin/resolve/main/voices-martin.npz"
@@ -37,6 +37,14 @@ def main():
         text = payload.get("text", "").strip()
         lang = payload.get("lang", "en-us") # "en-us" or "de"
         output_file = payload.get("output_file", "")
+
+        if lang != "de":
+            import re
+            # E.g. "(to) notice" -> "to notice"
+            text = re.sub(r'\((to)\)\s*', r'\1 ', text)
+            # Remove any other parenthesized notes (e.g. "(sb.)", "(sth.)")
+            text = re.sub(r'\([^)]*\)', '', text)
+            text = re.sub(r'\s+', ' ', text).strip()
 
         if not text:
             print(json.dumps({"success": False, "error": "empty text"}))
@@ -86,9 +94,9 @@ def main():
             
             samples, sample_rate = kokoro.create(
                 text,
-                voice="af_sarah",
+                voice="bf_emma",
                 speed=1.0,
-                lang="en-us"
+                lang="en-gb"
             )
 
         # Save float32 samples to 16-bit PCM WAV
