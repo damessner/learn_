@@ -52,3 +52,8 @@ next-env.d.ts
 
 # exercise recycle/trash
 /content/exercises/.deleted-*/
+
+# TTS model files — too large for GitHub (>100 MB limit), download separately
+/content/tts/*.onnx
+/content/tts/*.npz
+/content/tts/*.bin

@@ -1,0 +1,33 @@
+{
+  "backgroundImage": "Gemini_Generated_Image_de0fjsde0fjsde0f.png",
+  "shuffleTasks": false,
+  "hotspots": [
+    {
+      "id": "hs-igcer6f",
+      "name": "Zone 1",
+      "shape": "circle",
+      "coords": [
+        69.56806282722513,
+        22.796352361001613,
+        6
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "t-d23k4c",
+      "promptText": "helicopter",
+      "targetHotspotId": "hs-igcer6f",
+      "targetHotspotIds": [
+        "hs-igcer6f"
+      ]
+    }
+  ],
+  "id": "m1-u13-help",
+  "title": "M1 Unit 13 Help",
+  "description": "",
+  "type": "image-hotspot-quiz",
+  "tags": "",
+  "badgeName": "",
+  "badgeEmoji": ""
+}

@@ -1,0 +1,97 @@
+{
+  "id": "english-booster",
+  "title": "English Booster: Grammar & Vocabulary",
+  "description": "Practice parts of speech, past tenses, sentence structure, and word meanings.",
+  "type": "worksheet",
+  "tags": ["grammar", "vocabulary", "english"],
+  "badgeName": "Grammar Guru",
+  "badgeEmoji": "✍️",
+  "questions": [
+    {
+      "id": "intro",
+      "type": "instruction",
+      "text": "Welcome to the English Booster Challenge! 🚀\n\nThis mixed-modality worksheet is designed to test your knowledge of English grammar, vocabulary, and writing. Read each question carefully and give it your best shot!"
+    },
+    {
+      "id": "q1-mc",
+      "type": "multiple-choice",
+      "question": "Which word in the following sentence is an ADVERB?\n\n'The sleek spacecraft glided gracefully through the cosmic void.'",
+      "options": ["sleek", "spacecraft", "gracefully", "cosmic"],
+      "correctOptionIndex": 2,
+      "media": "space-adventure.png",
+      "hint": "Adverbs often end in '-ly' and describe how an action is performed."
+    },
+    {
+      "id": "q2-gap",
+      "type": "gap-fill",
+      "question": "Complete the story with the correct verb form (Past Simple or Past Continuous):",
+      "text": "Yesterday afternoon, while Marcus [was typing|typed|types] (type) on his holographic terminal, a strange signal [appeared] (appear) on the main monitor. He immediately [called] (call) his supervisor, but she [was having|had|has] (have) a meeting with the space commander."
+    },
+    {
+      "id": "q3-match",
+      "type": "matching",
+      "question": "Match the space-themed words with their correct definitions:",
+      "pairs": [
+        {
+          "id": "pair1",
+          "leftText": "Nebula",
+          "rightText": "A giant cloud of dust and gas in space"
+        },
+        {
+          "id": "pair2",
+          "leftText": "Orbit",
+          "rightText": "The curved path of a celestial object around a star or planet"
+        },
+        {
+          "id": "pair3",
+          "leftText": "Galaxy",
+          "rightText": "A huge system of billions of stars, gas, and dust held together by gravity"
+        },
+        {
+          "id": "pair4",
+          "leftText": "Constellation",
+          "rightText": "A group of stars forming a recognizable pattern"
+        }
+      ]
+    },
+    {
+      "id": "q4-click",
+      "type": "clickable-choice",
+      "question": "Choose the correct prepositions to complete the sentences:",
+      "choices": ["on", "at", "in", "by"],
+      "statements": [
+        {
+          "id": "s1",
+          "text": "The captain sits [on] the command bridge.",
+          "correctChoice": "on"
+        },
+        {
+          "id": "s2",
+          "text": "We will jump to hyperspace [at] exactly midnight.",
+          "correctChoice": "at"
+        },
+        {
+          "id": "s3",
+          "text": "The space station orbits the star [in] 365 days.",
+          "correctChoice": "in"
+        }
+      ]
+    },
+    {
+      "id": "q5-order",
+      "type": "ordering",
+      "question": "Rearrange the words to form a correct grammatical sentence:",
+      "elements": ["The", "astronauts", "carefully", "repaired", "the", "damaged", "solar", "panels", "during", "their", "spacewalk."]
+    },
+    {
+      "id": "q6-open",
+      "type": "open-question",
+      "question": "Describe a fictional mission to Mars. Make sure to use the words 'exploration', 'oxygen', and 'scientific' in your answer.",
+      "keywords": ["exploration", "oxygen", "scientific"],
+      "required": ["exploration##1.0", "oxygen##1.0", "scientific##1.0"],
+      "spellingTolerance": "lenient",
+      "allowAudio": true,
+      "allowImage": false
+    }
+  ]
+}

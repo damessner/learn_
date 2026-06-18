@@ -74,6 +74,7 @@ const WorksheetQuestionRow: React.FC<WorksheetQuestionRowProps> = ({
 
   const adaptedConfig = useMemo(() => {
     const base: Record<string, unknown> = {
+      ...q,
       id: q.id,
       title: q.question || `${q.type} task`,
       type: q.type,

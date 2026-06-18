@@ -525,4 +525,96 @@ Output strictly in the required JSON format.
   }
 }
 
+export interface VocabDefinitionResponse {
+  definition: string;
+}
+
+/**
+ * Uses Gemini to generate an age-appropriate simple English definition for a vocabulary word.
+ */
+export async function fetchVocabDefinition(
+  word: string,
+  translation: string
+): Promise<VocabDefinitionResponse> {
+  if (!GEMINI_API_KEY) {
+    throw new Error("AI services are currently unavailable: GEMINI_API_KEY is not configured.");
+  }
+
+  const model = GEMINI_MODEL || "gemini-3.5-flash";
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+
+  const systemInstructionText = `
+You are an expert English language teacher creating simple definitions for young pupils (around 10 years old).
+Your task is to generate a simple, clear definition in English for the target vocabulary word.
+
+Rules:
+1. The definition must be easy to understand for basic English learners.
+2. Keep the definition under 15 words.
+3. Do NOT mention the target English word or any of its close variations in the definition.
+`;
+
+  const userPrompt = `
+Target Word: "${word}" (Translation: "${translation}")
+
+Generate a simple definition in English. Output strictly in the required JSON format.
+`;
+
+  const requestBody = {
+    contents: [
+      {
+        role: "user",
+        parts: [{ text: userPrompt }],
+      },
+    ],
+    systemInstruction: {
+      parts: [{ text: systemInstructionText }],
+    },
+    generationConfig: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: "OBJECT",
+        properties: {
+          definition: { type: "STRING" },
+        },
+        required: ["definition"],
+      },
+    },
+  };
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30_000);
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(requestBody),
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "Unknown error");
+    console.error("Gemini API call failed:", response.status, errorText);
+    throw new Error(`Failed to generate definition: HTTP ${response.status}`);
+  }
+
+  const data = await response.json();
+  const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+  if (!rawText) {
+    throw new Error("Empty response from Gemini.");
+  }
+
+  try {
+    return JSON.parse(rawText) as VocabDefinitionResponse;
+  } catch (err) {
+    console.error("Failed to parse Gemini response text as JSON:", rawText, err);
+    throw new Error("Invalid response format from Gemini.");
+  }
+}
+
+
 

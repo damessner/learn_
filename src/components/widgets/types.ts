@@ -247,6 +247,7 @@ export interface WritingCoachConfig {
   type: "writing-coach";
   prompt: string;
   systemPrompt?: string;
+  media?: string;
   criteria: Array<{
     id: string;
     name: string;

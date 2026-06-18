@@ -256,6 +256,7 @@ export const WritingCoachSchema = BaseExerciseSchema.extend({
   type: z.literal("writing-coach"),
   prompt: z.string(),
   systemPrompt: z.string().optional(),
+  media: z.string().optional(),
   criteria: z.array(
     z.object({
       id: z.string(),

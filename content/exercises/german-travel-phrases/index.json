@@ -1,0 +1,59 @@
+{
+  "id": "german-travel-phrases",
+  "title": "Essential German for Travelers",
+  "description": "Learn useful German words and phrases for traveling, dining, and asking for help.",
+  "type": "vocabulary",
+  "tags": ["vocabulary", "german", "travel"],
+  "badgeName": "German Explorer",
+  "badgeEmoji": "🥨",
+  "vocabList": [
+    {
+      "word": "Guten Tag",
+      "translation": "Good day / Hello",
+      "image": "greeting.png",
+      "ttsEnabled": true
+    },
+    {
+      "word": "Bitte",
+      "translation": "Please",
+      "image": "polite.png",
+      "ttsEnabled": true
+    },
+    {
+      "word": "Danke schön",
+      "translation": "Thank you very much",
+      "image": "polite.png",
+      "ttsEnabled": true
+    },
+    {
+      "word": "Sprechen Sie Englisch?",
+      "translation": "Do you speak English?",
+      "image": "greeting.png",
+      "ttsEnabled": true
+    },
+    {
+      "word": "Entschuldigung",
+      "translation": "Excuse me / Sorry",
+      "image": "greeting.png",
+      "ttsEnabled": true
+    },
+    {
+      "word": "Wo ist die Toilette?",
+      "translation": "Where is the bathroom?",
+      "image": "bathroom.png",
+      "ttsEnabled": true
+    },
+    {
+      "word": "Rechnung, bitte",
+      "translation": "The bill, please",
+      "image": "bill.png",
+      "ttsEnabled": true
+    },
+    {
+      "word": "Auf Wiedersehen",
+      "translation": "Goodbye",
+      "image": "greeting.png",
+      "ttsEnabled": true
+    }
+  ]
+}

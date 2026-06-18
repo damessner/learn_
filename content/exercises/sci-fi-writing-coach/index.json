@@ -1,0 +1,32 @@
+{
+  "id": "sci-fi-writing-coach",
+  "title": "AI Writing Coach: Sci-Fi Micro-Fiction",
+  "description": "Write a short science fiction story (50-120 words) about a discovery on Mars. Get instant encouraging AI feedback.",
+  "type": "writing-coach",
+  "media": "mars-dome.png",
+  "tags": ["writing", "ai", "creative"],
+  "badgeName": "Galactic Author",
+  "badgeEmoji": "👽",
+  "prompt": "Write a short story about an astronaut who discovers something unexpected inside an ancient dome on Mars.",
+  "systemPrompt": "Focus on atmospheric description, clear reveal of the discovery, and good word count control.",
+  "criteria": [
+    {
+      "id": "c1",
+      "name": "Atmosphere",
+      "description": "Describe the setting inside the ancient dome to build suspense or wonder.",
+      "tip": "Use details like cold air, ancient dust, glowing structures, or absolute silence."
+    },
+    {
+      "id": "c2",
+      "name": "The Discovery",
+      "description": "Clearly reveal what unexpected thing the astronaut found.",
+      "tip": "It could be a fossilized plant, a alien machine still huming, or a human artifact."
+    },
+    {
+      "id": "c3",
+      "name": "Length & Flow",
+      "description": "Keep it concise (50-120 words) with smooth transitions.",
+      "tip": "Vary sentence lengths to create rhythm and check your spelling."
+    }
+  ]
+}

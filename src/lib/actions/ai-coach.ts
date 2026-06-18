@@ -1,7 +1,7 @@
 "use server";
 
 import { getSession } from "@/lib/session";
-import { fetchWritingCoachFeedback, GeminiFeedbackResponse, fetchImprovedCriterion, fetchVocabContextChallenge } from "@/lib/gemini";
+import { fetchWritingCoachFeedback, GeminiFeedbackResponse, fetchImprovedCriterion, fetchVocabContextChallenge, fetchVocabDefinition } from "@/lib/gemini";
 
 /**
  * Server action to obtain structured feedback for a student writing draft.
@@ -116,6 +116,36 @@ export async function getVocabContextChallengeAction(
     console.error("AI Vocabulary Challenge Action Error:", error);
     return {
       error: error instanceof Error ? error.message : "Failed to generate AI vocabulary challenge.",
+    };
+  }
+}
+
+/**
+ * Server action for students to obtain a simple English definition for a vocabulary word.
+ */
+export async function getVocabDefinitionAction(
+  word: string,
+  translation: string
+): Promise<{ success?: boolean; data?: { definition: string }; error?: string }> {
+  const session = await getSession();
+  if (!session) {
+    return { error: "You must be logged in to use the AI Vocabulary Challenge." };
+  }
+
+  if (!word || word.trim() === "") {
+    return { error: "Vocabulary word is required." };
+  }
+
+  try {
+    const data = await fetchVocabDefinition(word, translation);
+    return {
+      success: true,
+      data,
+    };
+  } catch (error: unknown) {
+    console.error("AI Vocabulary Definition Action Error:", error);
+    return {
+      error: error instanceof Error ? error.message : "Failed to generate AI vocabulary definition.",
     };
   }
 }

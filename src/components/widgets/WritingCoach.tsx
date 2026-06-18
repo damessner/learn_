@@ -19,6 +19,7 @@ interface FeedbackHistoryEntry {
 
 export const WritingCoach: React.FC<WidgetProps<WritingCoachConfig>> = ({
   config,
+  assetsPath,
   savedState,
   onChange,
   isReadOnly = false,
@@ -187,6 +188,15 @@ export const WritingCoach: React.FC<WidgetProps<WritingCoachConfig>> = ({
           <div className="border-t border-neutral-100 dark:border-neutral-800/60 pt-3 text-sm text-neutral-700 dark:text-neutral-300 leading-relaxed whitespace-pre-wrap">
             {config.prompt}
           </div>
+          {config.media && (
+            <div className="mt-4 max-w-full overflow-hidden rounded-lg border border-neutral-200 dark:border-neutral-850">
+              <img
+                src={`${assetsPath}${config.media}`}
+                alt="Prompt visual"
+                className="w-full max-h-64 object-cover"
+              />
+            </div>
+          )}
         </div>
 
         {/* Text Editor */}

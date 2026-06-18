@@ -286,6 +286,7 @@ export default function SubmissionReviewPlayer({
 
             // Adapt on the fly
             const adaptedConfig: Record<string, unknown> = {
+              ...q,
               id: q.id,
               title: q.question || `${q.type} task`,
               type: q.type,
