@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
-import { setSession } from "@/lib/session";
 import { checkRateLimit, recordFailedAttempt } from "@/lib/rateLimit";
 import { headers } from "next/headers";
 
@@ -119,15 +118,10 @@ export async function POST(request: Request) {
       return newUser;
     });
 
-    // Establish session
-    await setSession({
-      userId: user.id,
-      username: user.username,
-      role: user.role as "TEACHER" | "STUDENT",
-    });
-
+    // Account requires admin activation — no automatic session
     return NextResponse.json({
       success: true,
+      pending: true,
       user: {
         id: user.id,
         username: user.username,

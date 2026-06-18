@@ -6,6 +6,7 @@ import {
   adminCreateUserAction,
   adminUpdateUserAction,
   adminDeleteUserAction,
+  adminSetUserActiveAction,
   getConversationDetail,
 } from "@/lib/actions/aloys";
 
@@ -13,6 +14,7 @@ interface UserListItem {
   id: string;
   username: string;
   role: string;
+  active: boolean;
   createdAt: Date;
   dailyLimit: number;
   dailyRemaining: number;
@@ -466,9 +468,10 @@ export function AdminClientPage({
                   <tr className="border-b border-black dark:border-white text-left text-neutral-400 text-[10px] tracking-wider uppercase">
                     <th className="pb-3 pr-2">Username</th>
                     <th className="pb-3 pr-2">Role</th>
+                    <th className="pb-3 pr-2">Status</th>
                     <th className="pb-3 pr-2">Classes</th>
-                        <th className="pb-3 pr-2">Daily Quota</th>
-                        <th className="pb-3 pr-2">Window Quota</th>
+                    <th className="pb-3 pr-2">Daily Quota</th>
+                    <th className="pb-3 pr-2">Window Quota</th>
                     <th className="pb-3 text-right">Actions</th>
                   </tr>
                 </thead>
@@ -489,6 +492,17 @@ export function AdminClientPage({
                             }`}
                           >
                             {u.role}
+                          </span>
+                        </td>
+                        <td className="py-3.5 pr-2">
+                          <span
+                            className={`text-[9px] px-1.5 py-0.5 border select-none ${
+                              u.active
+                                ? "text-green-600 border-green-500/50 dark:text-green-400 dark:border-green-500/50"
+                                : "text-amber-600 border-amber-500/50 dark:text-amber-400 dark:border-amber-500/50"
+                            }`}
+                          >
+                            {u.active ? "ACTIVE" : "PENDING"}
                           </span>
                         </td>
                         <td className="py-3.5 pr-2 max-w-[150px] truncate" title={mappedClasses}>
@@ -522,6 +536,24 @@ export function AdminClientPage({
                             </>
                           ) : (
                             <>
+                              <button
+                                onClick={async () => {
+                                  setError(null);
+                                  setSuccess(null);
+                                  try {
+                                    await adminSetUserActiveAction(u.id, !u.active);
+                                    setSuccess(`User "${u.username}" ${u.active ? "deactivated" : "activated"}.`);
+                                    await refreshUsers();
+                                  } catch (err: unknown) {
+                                    setError(err instanceof Error ? err.message : "Failed to toggle user status");
+                                  }
+                                }}
+                                disabled={isPending}
+                                className="text-[10px] uppercase tracking-wider underline hover:no-underline cursor-pointer disabled:opacity-40"
+                                style={{ color: u.active ? "#ff2a2e" : "#16a34a" }}
+                              >
+                                {u.active ? "Deactivate" : "Activate"}
+                              </button>
                               <button
                                 onClick={() => {
                                   setEditingUserId(u.id);

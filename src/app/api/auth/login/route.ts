@@ -70,6 +70,14 @@ export async function POST(request: Request) {
       );
     }
 
+    // Check if account is activated by admin
+    if (!user.active) {
+      return NextResponse.json(
+        { error: "Account not yet activated. Please contact an administrator." },
+        { status: 403 }
+      );
+    }
+
     // Successful login: clear rate limit for this key
     clearRateLimit(rateLimitKey);
 

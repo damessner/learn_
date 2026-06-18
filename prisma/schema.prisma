@@ -12,6 +12,7 @@ model User {
   username         String             @unique
   passwordHash     String
   role             String             // "ADMIN", "TEACHER", or "STUDENT"
+  active           Boolean            @default(false)
   createdAt        DateTime           @default(now())
 
   // AI helping contingents (quotas)

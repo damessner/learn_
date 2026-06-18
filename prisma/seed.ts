@@ -76,6 +76,7 @@ async function main() {
       username: "teacher",
       passwordHash: teacherPasswordHash,
       role: "TEACHER",
+      active: true,
     },
   });
   console.log("Seeded Teacher user: teacher / password");
@@ -89,6 +90,7 @@ async function main() {
       username: "da.messner",
       passwordHash: adminPasswordHash,
       role: "ADMIN",
+      active: true,
     },
   });
   console.log("Seeded Admin user: da.messner / Aloys2026!");
@@ -100,6 +102,7 @@ async function main() {
       username: "weissenbach",
       passwordHash: adminPasswordHash,
       role: "ADMIN",
+      active: true,
     },
   });
   console.log("Seeded Admin user: weissenbach / Aloys2026!");
@@ -125,6 +128,7 @@ async function main() {
       username: "student",
       passwordHash: studentPasswordHash,
       role: "STUDENT",
+      active: true,
     },
   });
   console.log("Seeded Student user: student / password");

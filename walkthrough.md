@@ -1,81 +1,59 @@
-# Walkthrough: Pre-existing Bug Sweep + Prisma Runtime Fix
+# Walkthrough — Manual Account Activation
 
-## Completed work
+## Goal
+Users can register themselves, but an admin must manually activate their account before they can log in.
 
-### 1) Resolved the runtime Prisma crash root cause
+## Changes Made
 
-- The runtime crash (`The column main.User.windowInputTimestamps does not exist`) was caused by DB/schema drift.
-- I synced the local SQLite schema to the current Prisma schema and verified `User` now contains:
-  - `dailyLimit`
-  - `dailyRemaining`
-  - `lastDailyReset`
-  - `windowInputTimestamps`
-  - `windowQuizTimestamps`
+### 1. Database Schema
+**File:** `prisma/schema.prisma`
+- Added `active Boolean @default(false)` to the `User` model
+- **Migration:** `prisma/migrations/20260618030853_add_user_active/`
 
-Safety step taken:
-- Created DB backup before schema sync: `dev.db.bak_2026-06-16_1`
+### 2. Registration API (`src/app/api/auth/register/route.ts`)
+- Removed `setSession()` call — no automatic login after registration
+- Returns `{ success: true, pending: true }` to signal pending activation
+- `active` defaults to `false` via Prisma schema
 
-### 2) Captured migration state in-repo
+### 3. Login API (`src/app/api/auth/login/route.ts`)
+- After password verification, checks `user.active`
+- If inactive: returns `403` with `"Account not yet activated. Please contact an administrator."`
+- Uses separate status code (403) so the client can distinguish from bad credentials (400)
 
-- Added migration file to reflect current schema history alignment:
-  - `prisma/migrations/20260616165000_sync_schema_with_quota_and_aloys/migration.sql`
-- Marked it as applied for the current local DB using Prisma migrate resolve.
+### 4. Registration Page (`src/app/register/page.tsx`)
+- On successful registration, shows a green success banner: "Registration successful! Your account is pending activation by an administrator."
+- Resets form fields
+- Hides the registration form on success (replaced by the success message + login link)
+- Removed `useRouter` since there's no redirect after registration
 
-### 3) Fixed pre-existing lint/runtime defects across backend and UI
+### 5. Admin Server Actions (`src/lib/actions/aloys.ts`)
+- `adminGetUsersAction()` — now selects `active` field in the Prisma query
+- **New:** `adminSetUserActiveAction(userId, active)` — toggles activation status (admin-only)
+- `adminCreateUserAction()` — sets `active: true` (admin-created users are pre-activated)
 
-Key areas fixed:
+### 6. Admin Client Page (`src/app/admin/AdminClientPage.tsx`)
+- `UserListItem` interface: added `active: boolean`
+- Table header: added "Status" column between "Role" and "Classes"
+- Status cell: green "ACTIVE" badge / amber "PENDING" badge
+- New "Activate" (green) / "Deactivate" (red) toggle button per user row
+- Calls `adminSetUserActiveAction` inline, then refreshes the user list
 
-- **Quota + action files**
-  - Removed unsafe `any` usage
-  - Replaced `catch (err: any)` with `unknown` + safe guards
-  - Resolved `prefer-const` and unused variables
+### 7. Bulk Import (`src/lib/actions/classroom.ts`)
+- `bulkImportStudents()` — creates students with `active: true` (teacher-imported students are pre-activated)
 
-- **UI files**
-  - Fixed JSX comment textnode violations
-  - Fixed unescaped quote entities in JSX
-  - Removed unused vars/imports
-  - Replaced `any` catch blocks and casts with concrete typing/safe narrowing
+### 8. Seed Data (`prisma/seed.ts`)
+- All seed users (teacher, da.messner, weissenbach, student) created with `active: true`
 
-- **React hooks correctness**
-  - Fixed conditional hooks violation in `OralVocabulary`
-  - Removed sync `setState` calls inside effects by moving resets to event-driven paths and safe state flow
+### 9. Backfill
+- Existing database users were updated to `active: true` (preserving access for pre-existing accounts)
 
-### 4) Smoke-verified key routes
+## Behavior Summary
 
-Using a local production start on isolated port:
-
-- `/teacher` → `200`
-- `/student/aloys` → `200`
-- `/admin` → `307` (expected redirect behavior)
-
-## Files changed
-
-- `prisma/migrations/20260616165000_sync_schema_with_quota_and_aloys/migration.sql` (new)
-- `prisma/seed.ts`
-- `src/lib/actions/quota.ts`
-- `src/lib/actions/aloys.ts`
-- `src/lib/tts/generator.ts`
-- `src/app/manifest.ts`
-- `src/app/admin/AdminClientPage.tsx`
-- `src/app/student/aloys/SocraticClientPage.tsx`
-- `src/app/teacher/aloys/TeacherClientPage.tsx`
-- `src/app/teacher/create/WorksheetCreator.tsx`
-- `src/app/teacher/create/components/ImageHotspotQuizBuilder.tsx`
-- `src/app/teacher/create/components/VocabularyBuilder.tsx`
-- `src/app/teacher/page.tsx`
-- `src/components/widgets/OralVocabulary.tsx`
-- `implementation_plan.md`
-- `task.md`
-
-## Verification results
-
-All verification commands pass:
-
-1. `npx prisma migrate status` → up to date
-2. `npx prisma generate` → success
-3. `npm run build` → success
-4. `npm run test` → **101/101 tests passed**
-5. `npm run lint` → success (no errors)
-
-Additional query-path check:
-- Prisma query matching teacher dashboard include path executed successfully after fix.
+| Scenario | Result |
+|---|---|
+| User registers via `/register` | Account created (inactive), shows pending message |
+| User tries to log in before activation | "Account not yet activated. Please contact an administrator." |
+| Admin creates user via admin panel | Account is active immediately |
+| Teacher bulk-imports students | Accounts are active immediately |
+| Admin toggles activation in admin panel | User status updates immediately |
+| Seed users / existing users | Active (backfilled) |

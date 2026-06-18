@@ -195,6 +195,7 @@ export async function bulkImportStudents(classroomId: string, usernamesCsv: stri
               username: name,
               passwordHash: defaultPasswordHash,
               role: "STUDENT",
+              active: true,
             },
           });
           importedCount++;

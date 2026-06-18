@@ -422,6 +422,7 @@ export async function adminGetUsersAction() {
       id: true,
       username: true,
       role: true,
+      active: true,
       createdAt: true,
       dailyLimit: true,
       dailyRemaining: true,
@@ -468,6 +469,7 @@ export async function adminCreateUserAction(
         username: normalizedUsername,
         passwordHash,
         role,
+        active: true,
         dailyLimit: role === "STUDENT" ? 160 : 999,
         dailyRemaining: role === "STUDENT" ? 160 : 999,
       },
@@ -556,6 +558,24 @@ export async function adminDeleteUserAction(userId: string) {
 
   return await prisma.user.delete({
     where: { id: userId },
+  });
+}
+
+/**
+ * Activates or deactivates a user account.
+ * Only admins can toggle activation status.
+ */
+export async function adminSetUserActiveAction(userId: string, active: boolean) {
+  await requireAdmin();
+
+  return await prisma.user.update({
+    where: { id: userId },
+    data: { active },
+    select: {
+      id: true,
+      username: true,
+      active: true,
+    },
   });
 }
 
