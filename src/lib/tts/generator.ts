@@ -49,10 +49,13 @@ export function generateTTS(req: TTSRequest): Promise<{ success: boolean; error?
  */
 interface TTSWorksheetQuestion {
   id: string;
+  type?: string;
   question?: string;
   ttsEnabled?: boolean;
   media?: string;
   mediaStatus?: string;
+  hint?: string;
+  [key: string]: unknown;
 }
 
 interface TTSVocabItem {
@@ -78,13 +81,25 @@ interface TTSHotspotTask {
   promptAudioStatus?: string;
 }
 
+interface TTSWorksheetPage {
+  id: string;
+  title?: string;
+  questions: TTSWorksheetQuestion[];
+}
+
 interface TTSContentJson {
   questions?: TTSWorksheetQuestion[];
   vocabList?: TTSVocabItem[];
-  pages?: Record<string, TTSReadingPage>;
+  pages?: Record<string, TTSReadingPage> | TTSWorksheetPage[];
   tasks?: TTSHotspotTask[];
   pictureSupplementation?: boolean;
   practiceMode?: string;
+  enhancements?: {
+    autoChunkPages?: boolean;
+    generateSocraticHints?: boolean;
+    autoVisuals?: boolean;
+    spacedRetrieval?: boolean;
+  };
 }
 
 export async function generateTTSForExercise(
@@ -99,23 +114,33 @@ export async function generateTTSForExercise(
   }
 
   if (type === "worksheet") {
+    const questions: TTSWorksheetQuestion[] = [];
     if (Array.isArray(contentJson.questions)) {
-      for (const q of contentJson.questions) {
-        if (q.ttsEnabled && q.question) {
-          const filename = `tts-${q.id}.wav`;
-          const filepath = path.join(assetsDir, filename);
-          console.log(`[TTS] Generating English audio for question prompt: "${q.question}"`);
-          const res = await generateTTS({
-            text: q.question,
-            lang: "en-us",
-            output_file: filepath,
-          });
-          if (res.success) {
-            q.media = filename;
-            q.mediaStatus = "✓ TTS Generated";
-          } else {
-            console.error(`[TTS] Failed to generate for question ${q.id}:`, res.error);
-          }
+      questions.push(...contentJson.questions);
+    }
+    if (Array.isArray(contentJson.pages)) {
+      for (const p of contentJson.pages) {
+        if (p && typeof p === "object" && "questions" in p && Array.isArray(p.questions)) {
+          questions.push(...p.questions);
+        }
+      }
+    }
+
+    for (const q of questions) {
+      if (q.ttsEnabled && q.question && !q.media) {
+        const filename = `tts-${q.id}.wav`;
+        const filepath = path.join(assetsDir, filename);
+        console.log(`[TTS] Generating English audio for question prompt: "${q.question}"`);
+        const res = await generateTTS({
+          text: q.question,
+          lang: "en-us",
+          output_file: filepath,
+        });
+        if (res.success) {
+          q.media = filename;
+          q.mediaStatus = "✓ TTS Generated";
+        } else {
+          console.error(`[TTS] Failed to generate for question ${q.id}:`, res.error);
         }
       }
     }
@@ -124,7 +149,6 @@ export async function generateTTSForExercise(
       const isOralQuiz = type === "oral-vocabulary" || (type === "vocabulary" && contentJson.practiceMode === "oral-quiz");
       for (let i = 0; i < contentJson.vocabList.length; i++) {
         const item = contentJson.vocabList[i];
-        // For oral-vocabulary (or oral-quiz mode), TTS is mandatory for translated word (German) to query pupils.
         // For standard vocabulary, it is manual per-item toggle.
         const shouldGenerate = item.ttsEnabled || isOralQuiz;
         
@@ -166,9 +190,10 @@ export async function generateTTSForExercise(
       }
     }
   } else if (type === "interactive-reading") {
-    if (contentJson.pages && typeof contentJson.pages === "object") {
-      for (const pageKey of Object.keys(contentJson.pages)) {
-        const page = contentJson.pages[pageKey];
+    const pagesRecord = contentJson.pages as Record<string, TTSReadingPage> | undefined;
+    if (pagesRecord && typeof pagesRecord === "object") {
+      for (const pageKey of Object.keys(pagesRecord)) {
+        const page = pagesRecord[pageKey];
         if (page.ttsEnabled && page.text) {
           const filename = `tts-page-${pageKey}.wav`;
           const filepath = path.join(assetsDir, filename);
@@ -356,29 +381,99 @@ async function processBuildQueue(
     if (!fs.existsSync(assetsDir)) {
       fs.mkdirSync(assetsDir, { recursive: true });
     }
-
     writeStatus("processing", 0, "Initializing background builder...");
 
     const steps: Array<() => Promise<void>> = [];
 
     if (type === "worksheet") {
-      if (Array.isArray(contentJson.questions)) {
-        for (const q of contentJson.questions) {
-          if (q.ttsEnabled && q.question) {
-            steps.push(async () => {
-              const filename = `tts-${q.id}.wav`;
-              const filepath = path.join(assetsDir, filename);
-              const res = await generateTTS({
-                text: q.question!,
-                lang: "en-us",
-                output_file: filepath,
-              });
-              if (res.success) {
-                q.media = filename;
-                q.mediaStatus = "✓ TTS Generated";
-              }
+      // 0. Auto-Page Chunking
+      if (contentJson.enhancements?.autoChunkPages) {
+        const hasPages = Array.isArray(contentJson.pages) && contentJson.pages.length > 0;
+        const allQuestions = hasPages
+          ? (contentJson.pages as TTSWorksheetPage[]).flatMap(p => p.questions || [])
+          : (contentJson.questions || []);
+
+        if (allQuestions.length > 0 && (!hasPages || (contentJson.pages as TTSWorksheetPage[]).length <= 1)) {
+          const chunkedPages: TTSWorksheetPage[] = [];
+          const chunkSize = 3;
+          for (let i = 0; i < allQuestions.length; i += chunkSize) {
+            const chunk = allQuestions.slice(i, i + chunkSize);
+            chunkedPages.push({
+              id: `auto-page-${Math.floor(i / chunkSize) + 1}`,
+              title: `Part ${Math.floor(i / chunkSize) + 1}`,
+              questions: chunk
             });
           }
+          contentJson.pages = chunkedPages;
+          contentJson.questions = undefined;
+        }
+      }
+
+      // Gather all worksheet questions
+      const worksheetQuestions: TTSWorksheetQuestion[] = [];
+      if (Array.isArray(contentJson.questions)) {
+        worksheetQuestions.push(...contentJson.questions);
+      }
+      if (Array.isArray(contentJson.pages)) {
+        for (const p of contentJson.pages) {
+          if (p && typeof p === "object" && "questions" in p && Array.isArray(p.questions)) {
+            worksheetQuestions.push(...p.questions);
+          }
+        }
+      }
+
+      // Build enhancement and build steps
+      for (const q of worksheetQuestions) {
+        // TTS Audio Generation
+        if (q.ttsEnabled && q.question && !q.media) {
+          steps.push(async () => {
+            const filename = `tts-${q.id}.wav`;
+            const filepath = path.join(assetsDir, filename);
+            const res = await generateTTS({
+              text: q.question!,
+              lang: "en-us",
+              output_file: filepath,
+            });
+            if (res.success) {
+              q.media = filename;
+              q.mediaStatus = "✓ TTS Generated";
+            }
+          });
+        }
+
+        // Socratic Hint Generation
+        if (contentJson.enhancements?.generateSocraticHints && q.question && (!q.hint || q.hint.trim() === "")) {
+          steps.push(async () => {
+            try {
+              const { fetchSocraticHint } = await import("@/lib/gemini");
+              const hint = await fetchSocraticHint(q);
+              if (hint) {
+                q.hint = hint;
+              }
+            } catch (err) {
+              console.error(`[Background Build] Failed to generate Socratic hint for task ${q.id}:`, err);
+            }
+          });
+        }
+
+        // Auto-Visual Pixabay Image Generation
+        if (contentJson.enhancements?.autoVisuals && (!q.media || q.media.trim() === "")) {
+          steps.push(async () => {
+            if (q.type === "media" || q.type === "instruction") return;
+            try {
+              const { fetchImageQuery } = await import("@/lib/gemini");
+              const query = await fetchImageQuery(q);
+              if (query) {
+                const imgFile = await autoDownloadPixabayImage(query, cleanId);
+                if (imgFile) {
+                  q.media = imgFile;
+                  q.mediaStatus = "✓ Auto-Visual Image";
+                }
+              }
+            } catch (err) {
+              console.error(`[Background Build] Failed to auto-supplement image for task ${q.id}:`, err);
+            }
+          });
         }
       }
     } else if (type === "vocabulary" || type === "oral-vocabulary") {
@@ -427,9 +522,10 @@ async function processBuildQueue(
         }
       }
     } else if (type === "interactive-reading") {
-      if (contentJson.pages && typeof contentJson.pages === "object") {
-        for (const pageKey of Object.keys(contentJson.pages)) {
-          const page = contentJson.pages[pageKey];
+      const pagesRecord = contentJson.pages as Record<string, TTSReadingPage> | undefined;
+      if (pagesRecord && typeof pagesRecord === "object") {
+        for (const pageKey of Object.keys(pagesRecord)) {
+          const page = pagesRecord[pageKey];
           if (page.ttsEnabled && page.text && !page.media) {
             steps.push(async () => {
               const filename = `tts-page-${pageKey}.wav`;

@@ -338,6 +338,12 @@ export const WorksheetSchema = BaseExerciseSchema.extend({
   pages: z.array(WorksheetPageSchema).optional(),
   enforceGate: z.boolean().optional(),
   gateRequiredScore: z.number().optional(),
+  enhancements: z.object({
+    autoChunkPages: z.boolean().optional(),
+    generateSocraticHints: z.boolean().optional(),
+    autoVisuals: z.boolean().optional(),
+    spacedRetrieval: z.boolean().optional(),
+  }).optional(),
 });
 
 export const LiveQuizSchema = BaseExerciseSchema.extend({

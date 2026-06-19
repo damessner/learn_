@@ -1,5 +1,5 @@
-@import "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&family=Kalam:wght@400;700&display=swap');
+@import "tailwindcss";
 
 
 :root {
@@ -122,4 +122,33 @@ body {
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
+}
+
+/* Biophilic Focus Mode Styles */
+@keyframes focus-gradient-animation {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+body.focus-mode-active {
+  background: linear-gradient(135deg, #f0f9ff, #faf5ff, #f0fdfa);
+  background-size: 400% 400%;
+  animation: focus-gradient-animation 20s ease infinite !important;
+  transition: background 1.5s ease-in-out;
+}
+
+@media (prefers-color-scheme: dark) {
+  body.focus-mode-active {
+    background: linear-gradient(135deg, #020617, #0f052d, #022c22) !important;
+    background-size: 400% 400%;
+    animation: focus-gradient-animation 20s ease infinite !important;
+    transition: background 1.5s ease-in-out;
+  }
 }

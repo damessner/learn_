@@ -31,7 +31,7 @@ export async function createWorksheet(
   badgeName?: string,
   badgeEmoji?: string
 ) {
-  await requireTeacher();
+  const teacher = await requireTeacher();
 
   // Validate ID: kebab-case
   const idRegex = /^[a-z0-9-]+$/;
@@ -105,6 +105,18 @@ ${content}
     }
 
     await syncExercisesToDb();
+
+    // Set creatorId if it is not already set
+    const currentEx = await prisma.exercise.findUnique({
+      where: { id },
+      select: { creatorId: true },
+    });
+    if (!currentEx?.creatorId) {
+      await prisma.exercise.update({
+        where: { id },
+        data: { creatorId: teacher.userId },
+      });
+    }
 
     if (type !== "gap-fill") {
       const parsedContent = JSON.parse(content);
@@ -321,5 +333,40 @@ export async function duplicateExercise(
   } catch (error: unknown) {
     console.error("Failed to duplicate exercise:", error);
     return { error: "Failed to duplicate exercise" };
+  }
+}
+
+export async function rateExerciseAction(exerciseId: string, stars: number) {
+  const teacher = await requireTeacher();
+
+  if (!exerciseId || typeof exerciseId !== "string") {
+    return { error: "Invalid exercise ID" };
+  }
+  if (typeof stars !== "number" || stars < 1 || stars > 5) {
+    return { error: "Stars must be between 1 and 5." };
+  }
+
+  try {
+    // Upsert rating (one rating per teacher per exercise)
+    await prisma.rating.upsert({
+      where: {
+        exerciseId_teacherId: {
+          exerciseId,
+          teacherId: teacher.userId,
+        },
+      },
+      update: { stars },
+      create: {
+        exerciseId,
+        teacherId: teacher.userId,
+        stars,
+      },
+    });
+
+    revalidatePath("/teacher/pool");
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to rate exercise:", error);
+    return { error: "Failed to submit rating." };
   }
 }

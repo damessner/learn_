@@ -23,18 +23,22 @@ model User {
   windowQuizTimestamps  String   @default("[]")
   
   // Relations
-  classroomsTaught Classroom[]        @relation("TeacherClassrooms")
-  classroomsJoined ClassroomStudent[]
-  submissions      Submission[]
+  classroomsTaught  Classroom[]        @relation("TeacherClassrooms")
+  classroomsJoined  ClassroomStudent[]
+  submissions       Submission[]
   aloysConversations AloysConversation[]
+  createdExercises  Exercise[]         @relation("CreatorExercises")
+  ratings           Rating[]
 }
 
 model Classroom {
-  id        String             @id @default(uuid())
-  name      String
-  joinCode  String             @unique
-  teacherId String
-  createdAt DateTime           @default(now())
+  id               String             @id @default(uuid())
+  name             String
+  joinCode         String             @unique
+  teacherId        String
+  createdAt        DateTime           @default(now())
+  aiDiagnostic     String?
+  aiDiagnosticDate DateTime?
 
   // Relations
   teacher           User               @relation("TeacherClassrooms", fields: [teacherId], references: [id], onDelete: Cascade)
@@ -80,11 +84,14 @@ model Exercise {
   tags            String            @default("")
   badgeName       String?
   badgeEmoji      String?
+  creatorId       String?
 
   // Relations
   course          Course?           @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  creator         User?             @relation("CreatorExercises", fields: [creatorId], references: [id], onDelete: SetNull)
   assignments     Assignment[]
   liveSessions    LiveQuizSession[]
+  ratings         Rating[]
 }
 
 model Assignment {
@@ -203,4 +210,27 @@ model AloysMessage {
   
   // Relations
   conversation   AloysConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+}
+
+model Rating {
+  id          String   @id @default(uuid())
+  exerciseId  String
+  teacherId   String
+  stars       Int      // 1 to 5
+  createdAt   DateTime @default(now())
+
+  exercise    Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  teacher     User     @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@unique([exerciseId, teacherId])
+}
+
+model WordOfTheDay {
+  date        String   @id // "YYYY-MM-DD"
+  word        String
+  translation String
+  definition  String
+  example     String
+  mnemonic    String
+  createdAt   DateTime @default(now())
 }

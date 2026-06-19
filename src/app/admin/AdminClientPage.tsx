@@ -7,6 +7,7 @@ import {
   adminUpdateUserAction,
   adminDeleteUserAction,
   adminSetUserActiveAction,
+  adminResetUserPasswordAction,
   getConversationDetail,
 } from "@/lib/actions/aloys";
 
@@ -566,6 +567,34 @@ export function AdminClientPage({
                                 className="text-[10px] uppercase tracking-wider text-black dark:text-white underline hover:no-underline cursor-pointer"
                               >
                                 Edit
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  const newPass = prompt(`Enter new password for "${u.username}":`, "Reset123!");
+                                  if (newPass === null) return;
+                                  const passTrimmed = newPass.trim();
+                                  if (passTrimmed.length < 6) {
+                                    alert("Password must be at least 6 characters.");
+                                    return;
+                                  }
+                                  setError(null);
+                                  setSuccess(null);
+                                  startTransition(async () => {
+                                    try {
+                                      const res = await adminResetUserPasswordAction(u.id, passTrimmed);
+                                      if (res?.error) {
+                                        setError(res.error);
+                                      } else {
+                                        setSuccess(`Password for user "${u.username}" has been reset to: ${passTrimmed}`);
+                                      }
+                                    } catch {
+                                      setError("Failed to reset password.");
+                                    }
+                                  });
+                                }}
+                                className="text-[10px] uppercase tracking-wider text-amber-600 dark:text-amber-400 underline hover:no-underline cursor-pointer"
+                              >
+                                Reset PW
                               </button>
                               <button
                                 onClick={() => handleDeleteClick(u.id)}

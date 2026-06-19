@@ -705,3 +705,27 @@ export async function teacherGetConversationsAction() {
     },
   });
 }
+
+export async function adminResetUserPasswordAction(userId: string, newPasswordStr: string) {
+  await requireAdmin();
+
+  if (!userId || typeof userId !== "string") {
+    return { error: "Invalid user ID" };
+  }
+  if (!newPasswordStr || newPasswordStr.length < 6 || newPasswordStr.length > 128) {
+    return { error: "Password must be between 6 and 128 characters." };
+  }
+
+  try {
+    const passwordHash = await bcrypt.hash(newPasswordStr, 10);
+    await prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash },
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to reset user password by admin:", error);
+    return { error: "Failed to reset password." };
+  }
+}

@@ -4,9 +4,12 @@ import { prisma } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
 import Link from "next/link";
-import { Play, AlertCircle, BookOpen, Users, RotateCcw, Trophy, FolderOpen, Award } from "lucide-react";
+import { Play, AlertCircle, BookOpen, Users, RotateCcw, Trophy, FolderOpen, Award, Brain } from "lucide-react";
 import { getExerciseTypeLabel } from "@/lib/exerciseLabels";
 import JoinClassroomForm from "./JoinClassroomForm";
+import { getExerciseFromDisk } from "@/lib/exercises";
+import { getOrGenerateWordOfTheDay } from "@/lib/gemini";
+import { WordOfTheDayCard } from "@/components/WordOfTheDayCard";
 
 function renderDueDateBadge(dueDate: Date | null, isCompleted: boolean) {
   if (isCompleted || !dueDate) return null;
@@ -53,6 +56,9 @@ export default async function StudentDashboard() {
   if (session.role === "TEACHER") {
     redirect("/teacher");
   }
+
+  const todayStr = new Date().toISOString().split("T")[0];
+  const wordOfTheDay = await getOrGenerateWordOfTheDay(todayStr);
 
   // Fetch classrooms the student has joined, with all submissions per assignment
   const classroomsJoined = await prisma.classroomStudent.findMany({
@@ -249,6 +255,9 @@ export default async function StudentDashboard() {
           </Link>
         </div>
 
+        {/* Word of the Day Card */}
+        <WordOfTheDayCard data={wordOfTheDay} />
+
         {/* Notifications Alert Center */}
         {notifications.length > 0 && (
           <div className="border border-neutral-300 dark:border-neutral-800 rounded bg-neutral-50 dark:bg-neutral-900/30 p-5 space-y-3">
@@ -420,6 +429,15 @@ export default async function StudentDashboard() {
                               const attemptCount = submissions.length;
                               const isCompleted = attemptCount > 0;
 
+                              const exerciseContent = getExerciseFromDisk(assignment.exercise.id);
+                              const isSpacedRetrieval = !!(exerciseContent?.type === "worksheet" && exerciseContent.enhancements?.spacedRetrieval);
+                              let isSpacedReviewReady = false;
+                              if (isSpacedRetrieval && isCompleted && submissions.length > 0) {
+                                const latestCompleted = new Date(submissions[0].completedAt);
+                                const diffDays = (Date.now() - latestCompleted.getTime()) / (1000 * 60 * 60 * 24);
+                                isSpacedReviewReady = diffDays >= 3;
+                              }
+
                               const bestEffective = isCompleted
                                 ? Math.max(...submissions.map((s) => s.effectiveScore))
                                 : null;
@@ -443,6 +461,12 @@ export default async function StudentDashboard() {
                                         </span>
                                       )}
                                       {renderDueDateBadge(assignment.dueDate, isCompleted)}
+                                      {isSpacedReviewReady && (
+                                        <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider font-mono px-2 py-0.5 rounded bg-indigo-55 text-indigo-700 dark:bg-indigo-950/20 dark:text-indigo-400 border border-indigo-200/50 dark:border-indigo-900/50 animate-pulse">
+                                          <Brain className="w-3 h-3 shrink-0" />
+                                          Spaced Review Ready
+                                        </span>
+                                      )}
                                       {isCompleted && attemptCount > 0 && (
                                         <details className="text-xs text-neutral-550 mt-2 select-none w-full">
                                           <summary className="cursor-pointer hover:text-black dark:hover:text-white transition font-mono font-semibold flex items-center gap-1">
@@ -492,11 +516,24 @@ export default async function StudentDashboard() {
 
                                         <Link
                                           href={`/assignments/${assignment.id}`}
-                                          className="flex items-center gap-1.5 text-[10px] font-bold uppercase font-mono border border-neutral-300 dark:border-neutral-800 bg-transparent hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black px-3 py-2 rounded-none transition duration-150 text-neutral-700 dark:text-neutral-300"
+                                          className={`flex items-center gap-1.5 text-[10px] font-bold uppercase font-mono border px-3 py-2 rounded-none transition duration-150 ${
+                                            isSpacedReviewReady
+                                              ? "border-indigo-500 bg-indigo-500 hover:bg-indigo-600 text-white dark:border-indigo-550 dark:bg-indigo-650 dark:hover:bg-indigo-700"
+                                              : "border-neutral-300 dark:border-neutral-800 bg-transparent hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black text-neutral-700 dark:text-neutral-300"
+                                          }`}
                                           title={`Attempt #${attemptCount + 1} — score ×${attemptCount === 1 ? "75" : attemptCount === 2 ? "50" : "25"}%`}
                                         >
-                                          <RotateCcw className="w-3 h-3" />
-                                          Redo
+                                          {isSpacedReviewReady ? (
+                                            <>
+                                              <Brain className="w-3 h-3" />
+                                              Review
+                                            </>
+                                          ) : (
+                                            <>
+                                              <RotateCcw className="w-3 h-3" />
+                                              Redo
+                                            </>
+                                          )}
                                         </Link>
                                       </div>
                                     ) : (
@@ -543,6 +580,15 @@ export default async function StudentDashboard() {
                           const attemptCount = submissions.length;
                           const isCompleted = attemptCount > 0;
 
+                          const exerciseContent = getExerciseFromDisk(assignment.exercise.id);
+                          const isSpacedRetrieval = !!(exerciseContent?.type === "worksheet" && exerciseContent.enhancements?.spacedRetrieval);
+                          let isSpacedReviewReady = false;
+                          if (isSpacedRetrieval && isCompleted && submissions.length > 0) {
+                            const latestCompleted = new Date(submissions[0].completedAt);
+                            const diffDays = (Date.now() - latestCompleted.getTime()) / (1000 * 60 * 60 * 24);
+                            isSpacedReviewReady = diffDays >= 3;
+                          }
+
                           // Best effective score across all attempts
                           const bestEffective = isCompleted
                             ? Math.max(...submissions.map((s) => s.effectiveScore))
@@ -567,6 +613,12 @@ export default async function StudentDashboard() {
                                     </span>
                                   )}
                                   {renderDueDateBadge(assignment.dueDate, isCompleted)}
+                                  {isSpacedReviewReady && (
+                                    <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider font-mono px-2 py-0.5 rounded bg-indigo-55 text-indigo-700 dark:bg-indigo-950/20 dark:text-indigo-400 border border-indigo-200/50 dark:border-indigo-900/50 animate-pulse">
+                                      <Brain className="w-3 h-3 shrink-0" />
+                                      Spaced Review Ready
+                                    </span>
+                                  )}
                                   {isCompleted && attemptCount > 0 && (
                                     <details className="text-xs text-neutral-550 mt-2 select-none w-full">
                                       <summary className="cursor-pointer hover:text-black dark:hover:text-white transition font-mono font-semibold flex items-center gap-1">
@@ -618,11 +670,24 @@ export default async function StudentDashboard() {
                                     {/* Redo button */}
                                     <Link
                                       href={`/assignments/${assignment.id}`}
-                                      className="flex items-center gap-1.5 text-[10px] font-bold uppercase font-mono border border-neutral-300 dark:border-neutral-800 bg-transparent hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black px-3 py-2 rounded-none transition duration-150 text-neutral-700 dark:text-neutral-300"
+                                      className={`flex items-center gap-1.5 text-[10px] font-bold uppercase font-mono border px-3 py-2 rounded-none transition duration-150 ${
+                                        isSpacedReviewReady
+                                          ? "border-indigo-500 bg-indigo-500 hover:bg-indigo-655 text-white dark:border-indigo-550 dark:bg-indigo-650 dark:hover:bg-indigo-700"
+                                          : "border-neutral-300 dark:border-neutral-800 bg-transparent hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black text-neutral-700 dark:text-neutral-300"
+                                      }`}
                                       title={`Attempt #${attemptCount + 1} — score ×${attemptCount === 1 ? "75" : attemptCount === 2 ? "50" : "25"}%`}
                                     >
-                                      <RotateCcw className="w-3 h-3" />
-                                      Redo
+                                      {isSpacedReviewReady ? (
+                                        <>
+                                          <Brain className="w-3 h-3" />
+                                          Review
+                                        </>
+                                      ) : (
+                                        <>
+                                          <RotateCcw className="w-3 h-3" />
+                                          Redo
+                                        </>
+                                      )}
                                     </Link>
                                   </div>
                                 ) : (

@@ -8,8 +8,10 @@ import Link from "next/link";
 import { ArrowLeft, Award, FileSpreadsheet, ChevronRight } from "lucide-react";
 import ExportCsvButton from "./ExportCsvButton";
 import BulkImportForm from "./BulkImportForm";
+import AddStudentForm from "./AddStudentForm";
 import ResetPasswordButton from "./ResetPasswordButton";
 import { getExerciseMaxPoints } from "@/lib/points";
+import ClassroomDiagnosticCard from "./ClassroomDiagnosticCard";
 
 export default async function ClassroomRosterPage({
   params,
@@ -113,10 +115,82 @@ export default async function ClassroomRosterPage({
       }
     });
 
+    // Count of assignments by category score:
+    let passedCount = 0;      // >= 75
+    let developingCount = 0;  // 50-74
+    let strugglingCount = 0;  // < 50
+    let incompleteCount = 0;  // null
+
+    const categoryStats: Record<string, { sum: number; count: number }> = {};
+
+    classroom.assignments.forEach((assignment) => {
+      const grade = grades[assignment.id];
+      if (grade) {
+        if (grade.score >= 75) passedCount++;
+        else if (grade.score >= 50) developingCount++;
+        else strugglingCount++;
+
+        const exType = assignment.exercise.type || "worksheet";
+        if (!categoryStats[exType]) categoryStats[exType] = { sum: 0, count: 0 };
+        categoryStats[exType].sum += grade.score;
+        categoryStats[exType].count++;
+      } else {
+        incompleteCount++;
+      }
+    });
+
+    // Identify struggles: any category average < 75%
+    const struggles: string[] = [];
+    Object.entries(categoryStats).forEach(([cat, stats]) => {
+      const avg = stats.sum / stats.count;
+      if (avg < 75) {
+        let label = "Grammar";
+        if (cat === "vocabulary") label = "Vocabulary";
+        else if (cat === "writing-coach") label = "Writing Coach";
+        else if (cat === "interactive-reading") label = "Reading Comprehension";
+        struggles.push(label);
+      }
+    });
+
+    // Pick suggestions
+    let suggestion = "";
+    if (classroom.assignments.length === 0) {
+      suggestion = "Create and assign worksheets to start tracking insights.";
+    } else if (passedCount + developingCount + strugglingCount === 0) {
+      suggestion = "No assignments completed. Encourage student to submit starter tasks.";
+    } else if (struggles.length > 0) {
+      const primary = struggles[0];
+      if (primary === "Vocabulary") {
+        suggestion = "Conduct 5 minutes of spelling or vocabulary flashcard review.";
+      } else if (primary === "Writing Coach") {
+        suggestion = "Provide scaffolded sentence prompts and direct peer review.";
+      } else if (primary === "Reading Comprehension") {
+        suggestion = "Recommend branching choice-adventures to build comprehension context.";
+      } else {
+        suggestion = "Assign targeted gap-fills or offer 1-on-1 grammar review.";
+      }
+    } else {
+      suggestion = "Excellent progress! Challenge with writing coach or advanced reading.";
+    }
+
+    const totalAssCount = classroom.assignments.length || 1;
+    const passedPct = (passedCount / totalAssCount) * 100;
+    const developingPct = (developingCount / totalAssCount) * 100;
+    const strugglingPct = (strugglingCount / totalAssCount) * 100;
+    const incompletePct = (incompleteCount / totalAssCount) * 100;
+
     return {
       id: cs.studentId,
       username: cs.student.username,
       grades,
+      stats: {
+        passedPct,
+        developingPct,
+        strugglingPct,
+        incompletePct,
+        struggles,
+        suggestion,
+      }
     };
   });
 
@@ -226,7 +300,10 @@ export default async function ClassroomRosterPage({
 
         {/* Bulk Import & Analytics Insights */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <BulkImportForm classroomId={classroomId} />
+          <div className="space-y-6">
+            <AddStudentForm classroomId={classroomId} />
+            <BulkImportForm classroomId={classroomId} />
+          </div>
 
           <div className="border border-neutral-300 dark:border-neutral-800 rounded bg-neutral-50 dark:bg-neutral-900/30 p-5 space-y-4">
             <h3 className="font-bold font-mono text-sm uppercase tracking-wide flex items-center gap-2 text-neutral-800 dark:text-neutral-250">
@@ -262,6 +339,119 @@ export default async function ClassroomRosterPage({
             )}
           </div>
         </div>
+
+        {/* AI Diagnostics & Pupil Insights */}
+        {totalStudents > 0 && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Left/Middle: Pupil Insights List */}
+            <div className="lg:col-span-2 border border-neutral-350 dark:border-neutral-800 rounded bg-white dark:bg-neutral-900 shadow-sm overflow-hidden flex flex-col">
+              <div className="px-5 py-4 border-b border-neutral-200 dark:border-neutral-850 flex items-center justify-between bg-neutral-50/50 dark:bg-neutral-950/20">
+                <div>
+                  <h3 className="font-bold text-sm font-mono uppercase tracking-wide text-neutral-900 dark:text-neutral-100">
+                    Pupil Struggles & Progress
+                  </h3>
+                  <p className="text-[10px] text-neutral-550 font-medium">
+                    Concise student learning stats, struggle categories, and action plans
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-5 divide-y divide-neutral-200 dark:divide-neutral-850 max-h-[480px] overflow-y-auto pr-2 space-y-4">
+                {rosterStudents.map((s) => (
+                  <div key={s.id} className="pt-4 first:pt-0 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    {/* Pupil details */}
+                    <div className="space-y-1 min-w-0 md:w-1/4 shrink-0">
+                      <Link
+                        href={`/teacher/classrooms/${classroomId}/students/${s.id}`}
+                        className="font-bold text-xs font-mono uppercase text-neutral-900 dark:text-neutral-100 hover:text-indigo-650 dark:hover:text-indigo-400 hover:underline block truncate"
+                      >
+                        {s.username}
+                      </Link>
+                      <div className="flex items-center gap-1.5">
+                        {s.stats.struggles.length > 0 ? (
+                          <span className="text-[9px] font-bold uppercase tracking-wider font-mono text-red-650 dark:text-red-400 bg-red-500/5 px-1.5 py-0.5 rounded">
+                            Struggling
+                          </span>
+                        ) : (
+                          <span className="text-[9px] font-bold uppercase tracking-wider font-mono text-green-700 dark:text-green-400 bg-green-500/5 px-1.5 py-0.5 rounded">
+                            On Track
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Progress Bar (Minimalistic Segmented Bar) */}
+                    <div className="flex-1 md:px-4">
+                      <div className="flex items-center justify-between text-[9px] font-mono font-bold text-neutral-450 uppercase mb-1">
+                        <span>Accuracy Matrix</span>
+                        <span>
+                          {Math.round(s.stats.passedPct)}% Pass
+                        </span>
+                      </div>
+                      <div className="w-full flex h-2 rounded-full overflow-hidden bg-neutral-200 dark:bg-neutral-850">
+                        {s.stats.passedPct > 0 && (
+                          <div
+                            style={{ width: `${s.stats.passedPct}%` }}
+                            className="bg-green-500 h-full"
+                            title={`Passed (>=75%): ${Math.round(s.stats.passedPct)}%`}
+                          />
+                        )}
+                        {s.stats.developingPct > 0 && (
+                          <div
+                            style={{ width: `${s.stats.developingPct}%` }}
+                            className="bg-amber-400 h-full"
+                            title={`Developing (50-74%): ${Math.round(s.stats.developingPct)}%`}
+                          />
+                        )}
+                        {s.stats.strugglingPct > 0 && (
+                          <div
+                            style={{ width: `${s.stats.strugglingPct}%` }}
+                            className="bg-red-500 h-full"
+                            title={`Struggling (<50%): ${Math.round(s.stats.strugglingPct)}%`}
+                          />
+                        )}
+                        {s.stats.incompletePct > 0 && (
+                          <div
+                            style={{ width: `${s.stats.incompletePct}%` }}
+                            className="bg-neutral-300 dark:bg-neutral-700 h-full"
+                            title={`Incomplete: ${Math.round(s.stats.incompletePct)}%`}
+                          />
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Struggles & Suggestions */}
+                    <div className="md:w-5/12 text-xs space-y-1">
+                      {s.stats.struggles.length > 0 ? (
+                        <p className="text-[10px] text-neutral-650 dark:text-neutral-400">
+                          <strong className="text-red-650 dark:text-red-400">Struggles:</strong>{" "}
+                          {s.stats.struggles.join(", ")}
+                        </p>
+                      ) : (
+                        <p className="text-[10px] text-green-700 dark:text-green-400 font-semibold">
+                          Excellent Mastery
+                        </p>
+                      )}
+                      <p className="text-[10px] text-neutral-500 dark:text-neutral-500 leading-relaxed font-mono">
+                        <strong className="text-neutral-600 dark:text-neutral-400 uppercase tracking-wider text-[8px]">Suggestion:</strong>{" "}
+                        {s.stats.suggestion}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Right: AI Classroom Diagnostic Assistant */}
+            <div className="lg:col-span-1">
+              <ClassroomDiagnosticCard
+                classroomId={classroom.id}
+                initialDiagnostic={classroom.aiDiagnostic}
+                initialDiagnosticDate={classroom.aiDiagnosticDate}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Gradebook Grid */}
         <div className="space-y-4">

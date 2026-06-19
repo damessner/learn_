@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
+import { generateClassroomDiagnosticReport } from "@/lib/gemini";
 import { z } from "zod";
 import { requireAuth, requireTeacher, generateJoinCode } from "./auth-helpers";
 
@@ -294,5 +295,237 @@ export async function joinClassroom(joinCode: string) {
   } catch (error) {
     console.error("Failed to join classroom:", error);
     return { error: "Database error while joining classroom." };
+  }
+}
+
+export async function addStudentToClassroomByUsername(classroomId: string, username: string) {
+  const teacher = await requireTeacher();
+
+  if (!classroomId || typeof classroomId !== "string") {
+    return { error: "Invalid classroom ID" };
+  }
+  if (!username || typeof username !== "string") {
+    return { error: "Username is required" };
+  }
+
+  const normalizedUsername = username.trim().toLowerCase();
+
+  try {
+    // 1. Verify teacher owns the classroom
+    const classroom = await prisma.classroom.findFirst({
+      where: {
+        id: classroomId,
+        teacherId: teacher.userId,
+      },
+    });
+    if (!classroom) {
+      return { error: "Classroom not found or access denied." };
+    }
+
+    // 2. Find the user with that username
+    const studentUser = await prisma.user.findUnique({
+      where: { username: normalizedUsername },
+    });
+    if (!studentUser) {
+      return { error: `User "${username}" not found.` };
+    }
+
+    // 3. Ensure role is STUDENT
+    if (studentUser.role !== "STUDENT") {
+      return { error: `User "${username}" is not a student.` };
+    }
+
+    // 4. Check if already enrolled
+    const exists = await prisma.classroomStudent.findUnique({
+      where: {
+        classroomId_studentId: {
+          classroomId,
+          studentId: studentUser.id,
+        },
+      },
+    });
+    if (exists) {
+      return { error: `Student "${username}" is already in this class.` };
+    }
+
+    // 5. Enroll student
+    await prisma.classroomStudent.create({
+      data: {
+        classroomId,
+        studentId: studentUser.id,
+      },
+    });
+
+    revalidatePath(`/teacher/classrooms/${classroomId}`);
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to add student by username:", error);
+    return { error: "Failed to add student due to a database error." };
+  }
+}
+
+export async function generateClassroomDiagnosticAction(classroomId: string) {
+  const teacher = await requireTeacher();
+
+  if (!classroomId || typeof classroomId !== "string") {
+    return { error: "Invalid classroom ID" };
+  }
+
+  try {
+    // 1. Fetch classroom data
+    const classroom = await prisma.classroom.findFirst({
+      where: {
+        id: classroomId,
+        teacherId: teacher.userId,
+      },
+      include: {
+        students: {
+          include: {
+            student: {
+              include: {
+                submissions: {
+                  where: {
+                    assignment: {
+                      classroomId,
+                    },
+                  },
+                  include: {
+                    assignment: {
+                      include: {
+                        exercise: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        assignments: {
+          include: {
+            exercise: true,
+            submissions: true,
+          },
+        },
+      },
+    });
+
+    if (!classroom) {
+      return { error: "Classroom not found or access denied." };
+    }
+
+    if (classroom.students.length === 0) {
+      return { error: "No students in this classroom to analyze." };
+    }
+
+    // 2. Compile stats
+    const totalStudents = classroom.students.length;
+    let overallSum = 0;
+    let overallCount = 0;
+
+    // Averages per category/type
+    const categoryScores: Record<string, { sum: number; count: number }> = {};
+    // Exercise difficulties
+    const exerciseScores: Record<string, { title: string; sum: number; count: number }> = {};
+    // Student individual stats
+    const studentStats: Array<{ username: string; average: number; struggles: string[] }> = [];
+
+    classroom.students.forEach(({ student }) => {
+      let studentSum = 0;
+      let studentCount = 0;
+      const studentCategoryScores: Record<string, { sum: number; count: number }> = {};
+
+      student.submissions.forEach((sub) => {
+        const score = sub.teacherScore !== null ? sub.teacherScore : sub.effectiveScore;
+        const exType = sub.assignment.exercise.type || "worksheet";
+
+        // Classroom overall
+        overallSum += score;
+        overallCount++;
+
+        // Student overall
+        studentSum += score;
+        studentCount++;
+
+        // Category averages
+        if (!categoryScores[exType]) categoryScores[exType] = { sum: 0, count: 0 };
+        categoryScores[exType].sum += score;
+        categoryScores[exType].count++;
+
+        if (!studentCategoryScores[exType]) studentCategoryScores[exType] = { sum: 0, count: 0 };
+        studentCategoryScores[exType].sum += score;
+        studentCategoryScores[exType].count++;
+
+        // Exercise averages
+        const exId = sub.assignment.exerciseId;
+        if (!exerciseScores[exId]) {
+          exerciseScores[exId] = { title: sub.assignment.exercise.title, sum: 0, count: 0 };
+        }
+        exerciseScores[exId].sum += score;
+        exerciseScores[exId].count++;
+      });
+
+      if (studentCount > 0) {
+        const avg = studentSum / studentCount;
+        const struggles: string[] = [];
+
+        // Check which categories they struggle in
+        Object.entries(studentCategoryScores).forEach(([cat, data]) => {
+          const catAvg = data.sum / data.count;
+          if (catAvg < 75) {
+            struggles.push(cat);
+          }
+        });
+
+        studentStats.push({
+          username: student.username,
+          average: Math.round(avg),
+          struggles,
+        });
+      }
+    });
+
+    const overallClassAverage = overallCount > 0 ? Math.round(overallSum / overallCount) : "—";
+
+    const finalCategoryAverages: Record<string, number> = {};
+    Object.entries(categoryScores).forEach(([cat, data]) => {
+      finalCategoryAverages[cat] = Math.round(data.sum / data.count);
+    });
+
+    const lowScoringExercises: Array<{ title: string; average: number }> = [];
+    Object.values(exerciseScores).forEach((data) => {
+      const avg = Math.round(data.sum / data.count);
+      if (avg < 75) {
+        lowScoringExercises.push({ title: data.title, average: avg });
+      }
+    });
+
+    const strugglingStudents = studentStats.filter((s) => s.average < 75);
+
+    // 3. Call Gemini helper
+    const diagnosticReport = await generateClassroomDiagnosticReport({
+      className: classroom.name,
+      numStudents: totalStudents,
+      classAverage: overallClassAverage,
+      categoryAverages: finalCategoryAverages,
+      strugglingStudents,
+      lowScoringExercises,
+    });
+
+    // 4. Update classroom
+    await prisma.classroom.update({
+      where: { id: classroomId },
+      data: {
+        aiDiagnostic: diagnosticReport,
+        aiDiagnosticDate: new Date(),
+      },
+    });
+
+    revalidatePath(`/teacher/classrooms/${classroomId}`);
+    return { success: true };
+  } catch (error: unknown) {
+    console.error("Failed to generate classroom diagnostic action:", error);
+    const message = error instanceof Error ? error.message : "Failed to generate AI insights due to an error.";
+    return { error: message };
   }
 }

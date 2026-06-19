@@ -22,18 +22,28 @@ export async function Navbar() {
             LEARN<span className="text-[#ff2a2e] font-extrabold animate-pulse">.</span>
           </Link>
           {session && (
-            <Link
-              href={
-                session.role === "ADMIN"
-                  ? "/admin"
-                  : session.role === "TEACHER"
-                  ? "/teacher"
-                  : "/student"
-              }
-              className="text-[10px] font-mono uppercase border border-neutral-200 dark:border-neutral-800 px-2.5 py-0.5 rounded-none text-neutral-600 dark:text-neutral-400 hover:text-black dark:hover:text-white transition duration-150"
-            >
-              Dashboard
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link
+                href={
+                  session.role === "ADMIN"
+                    ? "/admin"
+                    : session.role === "TEACHER"
+                    ? "/teacher"
+                    : "/student"
+                }
+                className="text-[10px] font-mono uppercase border border-neutral-200 dark:border-neutral-800 px-2.5 py-0.5 rounded-none text-neutral-600 dark:text-neutral-400 hover:text-black dark:hover:text-white transition duration-150"
+              >
+                Dashboard
+              </Link>
+              {session.role === "TEACHER" && (
+                <Link
+                  href="/teacher/pool"
+                  className="text-[10px] font-mono uppercase border border-neutral-200 dark:border-neutral-800 px-2.5 py-0.5 rounded-none text-neutral-600 dark:text-neutral-400 hover:text-black dark:hover:text-white transition duration-150"
+                >
+                  Worksheet Pool
+                </Link>
+              )}
+            </div>
           )}
         </div>
 

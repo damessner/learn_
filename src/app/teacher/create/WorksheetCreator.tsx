@@ -389,6 +389,27 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
       : 75
   );
 
+  const [autoChunkPages, setAutoChunkPages] = useState<boolean>(
+    parsedInitialData && parsedInitialData.type === "worksheet" && parsedInitialData.enhancements
+      ? !!parsedInitialData.enhancements.autoChunkPages
+      : true
+  );
+  const [generateSocraticHints, setGenerateSocraticHints] = useState<boolean>(
+    parsedInitialData && parsedInitialData.type === "worksheet" && parsedInitialData.enhancements
+      ? !!parsedInitialData.enhancements.generateSocraticHints
+      : true
+  );
+  const [autoVisuals, setAutoVisuals] = useState<boolean>(
+    parsedInitialData && parsedInitialData.type === "worksheet" && parsedInitialData.enhancements
+      ? !!parsedInitialData.enhancements.autoVisuals
+      : true
+  );
+  const [spacedRetrieval, setSpacedRetrieval] = useState<boolean>(
+    parsedInitialData && parsedInitialData.type === "worksheet" && parsedInitialData.enhancements
+      ? !!parsedInitialData.enhancements.spacedRetrieval
+      : true
+  );
+
   // ----------------------------------------------------
   // IMAGE HOTSPOT QUIZ MODE STATE
   // ----------------------------------------------------
@@ -952,6 +973,12 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
           pages: formattedPages,
           enforceGate,
           gateRequiredScore,
+          enhancements: {
+            autoChunkPages,
+            generateSocraticHints,
+            autoVisuals,
+            spacedRetrieval,
+          }
         });
       }
 
@@ -1300,8 +1327,94 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
 
         {/* Sidebar Info/Submit Column */}
         <div className="space-y-6">
+          {creatorMode === "worksheet" && (
+            <div className="p-5 bg-white dark:bg-neutral-900 border rounded shadow-sm text-xs space-y-4">
+              <h4 className="font-bold text-neutral-800 dark:text-neutral-200 flex items-center gap-1.5 border-b pb-2">
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                Neuroscience Auto-Enhancements
+              </h4>
+              <p className="text-[10px] text-neutral-500 leading-relaxed">
+                Worksheets are automatically enhanced in the background upon registration. Adjust options below:
+              </p>
+              
+              <div className="space-y-3 pt-1">
+                {/* Auto-page Chunking */}
+                <label className="flex items-start gap-3 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={autoChunkPages}
+                    onChange={(e) => setAutoChunkPages(e.target.checked)}
+                    className="mt-0.5 rounded border-neutral-300 text-neutral-900 focus:ring-neutral-900"
+                  />
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-neutral-700 dark:text-neutral-300 group-hover:text-black dark:group-hover:text-white transition">
+                      Cognitive Load Chunking
+                    </span>
+                    <span className="text-[9.5px] text-neutral-500 leading-normal mt-0.5">
+                      Splits tasks into 3-question pages to reduce student cognitive overload and support executive control.
+                    </span>
+                  </div>
+                </label>
+
+                {/* Socratic Hints */}
+                <label className="flex items-start gap-3 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={generateSocraticHints}
+                    onChange={(e) => setGenerateSocraticHints(e.target.checked)}
+                    className="mt-0.5 rounded border-neutral-300 text-neutral-900 focus:ring-neutral-900"
+                  />
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-neutral-700 dark:text-neutral-300 group-hover:text-black dark:group-hover:text-white transition">
+                      Socratic Scaffold Hints
+                    </span>
+                    <span className="text-[9.5px] text-neutral-500 leading-normal mt-0.5">
+                      Uses the Gemini API to auto-generate non-spoiler hints for tasks to support active retrieval.
+                    </span>
+                  </div>
+                </label>
+
+                {/* Auto-Visuals */}
+                <label className="flex items-start gap-3 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={autoVisuals}
+                    onChange={(e) => setAutoVisuals(e.target.checked)}
+                    className="mt-0.5 rounded border-neutral-300 text-neutral-900 focus:ring-neutral-900"
+                  />
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-neutral-700 dark:text-neutral-300 group-hover:text-black dark:group-hover:text-white transition">
+                      Dual Coding Imagery
+                    </span>
+                    <span className="text-[9.5px] text-neutral-500 leading-normal mt-0.5">
+                      Extracts keyword representations and automatically imports relevant Pixabay photos to support multisensory learning.
+                    </span>
+                  </div>
+                </label>
+
+                {/* Spaced Retrieval */}
+                <label className="flex items-start gap-3 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={spacedRetrieval}
+                    onChange={(e) => setSpacedRetrieval(e.target.checked)}
+                    className="mt-0.5 rounded border-neutral-300 text-neutral-900 focus:ring-neutral-900"
+                  />
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-neutral-700 dark:text-neutral-300 group-hover:text-black dark:group-hover:text-white transition">
+                      Spaced Retrieval Review
+                    </span>
+                    <span className="text-[9.5px] text-neutral-500 leading-normal mt-0.5">
+                      Flag this exercise to recommend reviews on the student dashboard at cognitive retention intervals (3+ days).
+                    </span>
+                  </div>
+                </label>
+              </div>
+            </div>
+          )}
+
           {/* Syntax Tips Panel */}
-          <div className="p-5 bg-neutral-50 dark:bg-neutral-950/40 border rounded text-xs space-y-4 text-neutral-600 dark:text-neutral-400">
+          <div className="p-5 bg-neutral-50 dark:bg-neutral-955/45 border rounded text-xs space-y-4 text-neutral-600 dark:text-neutral-400">
             <h4 className="font-bold text-neutral-800 dark:text-neutral-200 flex items-center gap-1 border-b pb-2">
               <HelpCircle className="w-3.5 h-3.5 text-neutral-500" />
               Creator Assistance

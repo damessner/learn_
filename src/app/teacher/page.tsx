@@ -21,6 +21,8 @@ import {
 } from "lucide-react";
 import { getExerciseTypeLabel } from "@/lib/exerciseLabels";
 import DragDropWrapper from "./DragDropWrapper";
+import { getOrGenerateWordOfTheDay } from "@/lib/gemini";
+import { WordOfTheDayCard } from "@/components/WordOfTheDayCard";
 
 export default async function TeacherDashboard({
   searchParams,
@@ -38,6 +40,9 @@ export default async function TeacherDashboard({
   if (session.role === "STUDENT") {
     redirect("/student");
   }
+
+  const todayStr = new Date().toISOString().split("T")[0];
+  const wordOfTheDay = await getOrGenerateWordOfTheDay(todayStr);
 
   const totalSubmissions = await prisma.submission.count({
     where: {
@@ -132,6 +137,9 @@ export default async function TeacherDashboard({
             <SyncButton />
           </div>
         </div>
+
+        {/* Word of the Day Card */}
+        <WordOfTheDayCard data={wordOfTheDay} />
 
         {/* Create New Exercise Grid */}
         <div className="space-y-4">

@@ -3,9 +3,10 @@
 import React, { useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { submitAssignment } from "@/lib/actions/submission";
+import { generateMasteryMeme } from "@/lib/actions/ai-meme";
 import { WIDGET_REGISTRY } from "@/components/widgets";
 import type { ExerciseData } from "@/lib/exercises";
-import { ArrowLeft, Check, AlertTriangle, ArrowRight, RotateCcw } from "lucide-react";
+import { ArrowLeft, Check, AlertTriangle, ArrowRight, RotateCcw, Headphones, Volume2 } from "lucide-react";
 import { MediaEmbed } from "@/components/widgets/MediaEmbed";
 import Link from "next/link";
 import { getExerciseTypeLabel } from "@/lib/exerciseLabels";
@@ -178,7 +179,7 @@ export default function AssignmentPlayer({
   const exercise = useMemo(() => {
     if (exerciseJson) {
       try {
-        return JSON.parse(exerciseJson);
+        return JSON.parse(exerciseJson) as ExerciseData;
       } catch (e) {
         console.error("Failed to parse exerciseJson:", e);
       }
@@ -189,7 +190,7 @@ export default function AssignmentPlayer({
   const savedAnswers = useMemo(() => {
     if (savedAnswersJson) {
       try {
-        return JSON.parse(savedAnswersJson);
+        return JSON.parse(savedAnswersJson) as Record<string, unknown>;
       } catch (e) {
         console.error("Failed to parse savedAnswersJson:", e);
       }
@@ -225,6 +226,203 @@ export default function AssignmentPlayer({
     }
   }, [widgetState, assignmentId, role]);
 
+  // --- Biophilic Focus Mode States & Web Audio API Generator ---
+  const [focusMode, setFocusMode] = useState<"off" | "binaural" | "rain">("off");
+  const [focusVolume, setFocusVolume] = useState<number>(0.3);
+
+  const audioCtxRef = React.useRef<AudioContext | null>(null);
+  const nodesRef = React.useRef<{
+    oscL?: OscillatorNode;
+    oscR?: OscillatorNode;
+    noiseSource?: AudioBufferSourceNode;
+    lfo?: OscillatorNode;
+    masterGain?: GainNode;
+  } | null>(null);
+
+  const cleanupAudio = useCallback(() => {
+    if (nodesRef.current) {
+      try {
+        nodesRef.current.oscL?.stop();
+      } catch {}
+      try {
+        nodesRef.current.oscR?.stop();
+      } catch {}
+      try {
+        nodesRef.current.noiseSource?.stop();
+      } catch {}
+      try {
+        nodesRef.current.lfo?.stop();
+      } catch {}
+      nodesRef.current = null;
+    }
+    if (audioCtxRef.current) {
+      try {
+        if (audioCtxRef.current.state !== "closed") {
+          audioCtxRef.current.close();
+        }
+      } catch {}
+      audioCtxRef.current = null;
+    }
+  }, []);
+
+  const initAudio = useCallback((mode: "binaural" | "rain", vol: number) => {
+    cleanupAudio();
+
+    if (typeof window === "undefined") return;
+    const AudioCtxClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioCtxClass) return;
+
+    try {
+      const audioCtx = new AudioCtxClass();
+      audioCtxRef.current = audioCtx;
+
+      const masterGain = audioCtx.createGain();
+      masterGain.gain.setValueAtTime(vol, audioCtx.currentTime);
+      masterGain.connect(audioCtx.destination);
+
+      const nodes: typeof nodesRef.current = { masterGain };
+
+      if (mode === "binaural") {
+        // 10Hz Binaural differential (carrier 200Hz L / 210Hz R)
+        const merger = audioCtx.createChannelMerger(2);
+
+        const oscL = audioCtx.createOscillator();
+        oscL.type = "sine";
+        oscL.frequency.setValueAtTime(200, audioCtx.currentTime);
+
+        const oscR = audioCtx.createOscillator();
+        oscR.type = "sine";
+        oscR.frequency.setValueAtTime(210, audioCtx.currentTime);
+
+        const gainL = audioCtx.createGain();
+        const gainR = audioCtx.createGain();
+        gainL.gain.setValueAtTime(0.55, audioCtx.currentTime);
+        gainR.gain.setValueAtTime(0.55, audioCtx.currentTime);
+
+        oscL.connect(gainL);
+        oscR.connect(gainR);
+
+        gainL.connect(merger, 0, 0);
+        gainR.connect(merger, 0, 1);
+
+        merger.connect(masterGain);
+
+        oscL.start();
+        oscR.start();
+
+        nodes.oscL = oscL;
+        nodes.oscR = oscR;
+      } else if (mode === "rain") {
+        // Synthesizing organic cozy rain/wind using Pink-ish noise buffer
+        const bufferSize = audioCtx.sampleRate * 2;
+        const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const output = noiseBuffer.getChannelData(0);
+        
+        // Populate white noise
+        for (let i = 0; i < bufferSize; i++) {
+          output[i] = Math.random() * 2 - 1;
+        }
+
+        const noiseSource = audioCtx.createBufferSource();
+        noiseSource.buffer = noiseBuffer;
+        noiseSource.loop = true;
+
+        // Apply lowpass filter to make it soft like rain
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = "lowpass";
+        filter.frequency.setValueAtTime(700, audioCtx.currentTime);
+
+        // LFO (0.08Hz) to modulate the volume dynamically for breeze/gust wind fluctuations
+        const lfo = audioCtx.createOscillator();
+        lfo.type = "sine";
+        lfo.frequency.setValueAtTime(0.08, audioCtx.currentTime);
+
+        const lfoGain = audioCtx.createGain();
+        lfoGain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+
+        const noiseGain = audioCtx.createGain();
+        noiseGain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+
+        lfo.connect(lfoGain);
+        lfoGain.connect(noiseGain.gain);
+
+        noiseSource.connect(filter);
+        filter.connect(noiseGain);
+        noiseGain.connect(masterGain);
+
+        lfo.start();
+        noiseSource.start();
+
+        nodes.noiseSource = noiseSource;
+        nodes.lfo = lfo;
+      }
+
+      nodesRef.current = nodes;
+
+      if (audioCtx.state === "suspended") {
+        audioCtx.resume();
+      }
+    } catch (err) {
+      console.error("Web Audio initialization failure:", err);
+    }
+  }, [cleanupAudio]);
+
+  React.useEffect(() => {
+    if (focusMode === "off") {
+      cleanupAudio();
+    } else {
+      initAudio(focusMode, focusVolume);
+    }
+  }, [focusMode, initAudio, cleanupAudio, focusVolume]);
+
+  React.useEffect(() => {
+    if (nodesRef.current?.masterGain && audioCtxRef.current) {
+      nodesRef.current.masterGain.gain.setValueAtTime(focusVolume, audioCtxRef.current.currentTime);
+    }
+  }, [focusVolume]);
+
+  React.useEffect(() => {
+    if (focusMode !== "off") {
+      document.body.classList.add("focus-mode-active");
+    } else {
+      document.body.classList.remove("focus-mode-active");
+    }
+    return () => {
+      document.body.classList.remove("focus-mode-active");
+    };
+  }, [focusMode]);
+
+  React.useEffect(() => {
+    return () => {
+      cleanupAudio();
+    };
+  }, [cleanupAudio]);
+
+  // --- AI Mastery Meme States & Action triggers ---
+  const [unwrappedMeme, setUnwrappedMeme] = useState(false);
+  const [loadingMeme, setLoadingMeme] = useState(false);
+  const [memeData, setMemeData] = useState<{ text: string; imageUrl: string } | null>(null);
+  const [memeError, setMemeError] = useState<string | null>(null);
+
+  const handleUnwrapMeme = useCallback(async () => {
+    setLoadingMeme(true);
+    setMemeError(null);
+    setUnwrappedMeme(true);
+    try {
+      const res = await generateMasteryMeme(exercise.title || "English Learning");
+      if (res.success && res.text && res.imageUrl) {
+        setMemeData({ text: res.text, imageUrl: res.imageUrl });
+      } else {
+        setMemeError(res.error || "Failed to load meme");
+      }
+    } catch {
+      setMemeError("An error occurred loading the meme.");
+    } finally {
+      setLoadingMeme(false);
+    }
+  }, [exercise.title]);
+
+
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitScore, setSubmitScore] = useState<number | null>(null);
@@ -236,6 +434,9 @@ export default function AssignmentPlayer({
   const Widget = exercise.type !== "worksheet" && exercise.type !== "image-hotspot-quiz" && exercise.type !== "interactive-reading"
     ? WIDGET_REGISTRY[exercise.type as keyof typeof WIDGET_REGISTRY]
     : null;
+
+  const enforceGate = exercise.type === "worksheet" ? !!exercise.enforceGate : false;
+  const gateRequiredScore = exercise.type === "worksheet" ? (exercise.gateRequiredScore ?? 75) : 75;
 
   const handleWidgetChange = useCallback((state: unknown, complete: boolean, currentScore: number) => {
     setWidgetState(state as Record<string, unknown> | null);
@@ -254,14 +455,23 @@ export default function AssignmentPlayer({
   }, [exercise]);
 
   const pages = useMemo(() => {
-    if (exercise.type === "worksheet" && Array.isArray(exercise.pages) && exercise.pages.length > 0) {
-      return exercise.pages as Array<{ id: string; title?: string; questions: WorksheetQuestionData[] }>;
+    if (exercise.type === "worksheet") {
+      if (Array.isArray(exercise.pages) && exercise.pages.length > 0) {
+        return exercise.pages as Array<{ id: string; title?: string; questions: WorksheetQuestionData[] }>;
+      }
+      return [
+        {
+          id: "legacy-page-1",
+          title: "Worksheet",
+          questions: (exercise.questions as WorksheetQuestionData[]) || [],
+        },
+      ];
     }
     return [
       {
         id: "legacy-page-1",
         title: "Worksheet",
-        questions: (exercise.questions as WorksheetQuestionData[]) || [],
+        questions: [],
       },
     ];
   }, [exercise]);
@@ -299,7 +509,7 @@ export default function AssignmentPlayer({
       alert("Please complete all tasks on this page first.");
       return;
     }
-    if (exercise.enforceGate && currentPageScore < (exercise.gateRequiredScore ?? 75)) {
+    if (enforceGate && currentPageScore < gateRequiredScore) {
       setGateAlertVisible(true);
       return;
     }
@@ -409,6 +619,11 @@ export default function AssignmentPlayer({
     const pct = Math.round(submitMultiplier * 100);
     const isFullMarks = submitMultiplier === 1.0;
 
+    const isVisualEnhancementEnabled = exercise.type === "worksheet"
+      ? (exercise.enhancements?.autoVisuals !== false)
+      : true;
+    const isMastered = (submitEffectiveScore ?? score ?? 0) >= 75;
+
     return (
       <div className="max-w-md mx-auto border border-neutral-300 dark:border-neutral-800 rounded bg-white dark:bg-neutral-900 p-8 shadow text-center space-y-6">
         <div className="w-16 h-16 bg-green-50 dark:bg-green-950/20 text-green-600 dark:text-green-400 rounded-full flex items-center justify-center mx-auto border border-green-200">
@@ -442,6 +657,70 @@ export default function AssignmentPlayer({
           )}
         </div>
 
+        {/* AI Mastery Meme Reward */}
+        {isMastered && isVisualEnhancementEnabled && (
+          <div className="pt-4 border-t border-neutral-200 dark:border-neutral-800 space-y-4">
+            {!unwrappedMeme ? (
+              <button
+                type="button"
+                onClick={handleUnwrapMeme}
+                className="relative group overflow-hidden bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white font-mono font-bold text-xs px-6 py-4 rounded-xl uppercase tracking-widest hover:scale-[1.02] transition-all duration-250 cursor-pointer shadow-md hover:shadow-indigo-500/20 active:scale-[0.98] w-full animate-pulse"
+              >
+                <span className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-200"></span>
+                <span className="flex items-center justify-center gap-2">
+                  ✨ Unwrap AI Reward ✨
+                </span>
+              </button>
+            ) : loadingMeme ? (
+              <div className="relative aspect-video rounded-xl overflow-hidden bg-neutral-100 dark:bg-neutral-950 animate-pulse border border-neutral-300 dark:border-neutral-800 flex items-center justify-center">
+                <div className="text-center space-y-3">
+                  <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                  <p className="text-[10px] font-mono text-neutral-500 uppercase tracking-widest animate-pulse">
+                    Crafting brain reward...
+                  </p>
+                </div>
+              </div>
+            ) : memeError ? (
+              <div className="p-4 border rounded border-red-300 bg-red-50/20 text-red-755 dark:text-red-350 text-xs font-mono">
+                <p>⚠️ {memeError}</p>
+                <button
+                  type="button"
+                  onClick={handleUnwrapMeme}
+                  className="mt-2 text-indigo-650 dark:text-indigo-400 font-bold hover:underline"
+                >
+                  Try again
+                </button>
+              </div>
+            ) : memeData ? (
+              <div className="space-y-3">
+                <div className="relative aspect-video rounded-xl overflow-hidden border border-neutral-300 dark:border-neutral-850 shadow-md group">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={memeData.imageUrl}
+                    alt="Mastery Meme Background"
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 flex flex-col justify-end p-5 text-left bg-gradient-to-t from-black/90 via-black/45 to-transparent text-white">
+                    <span className="text-[9px] font-mono tracking-widest text-indigo-300 font-bold uppercase mb-1">
+                      🎓 Mastery Reward
+                    </span>
+                    <p className="font-['Kalam'] text-base sm:text-lg font-bold leading-snug drop-shadow-lg text-yellow-300">
+                      {memeData.text}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleUnwrapMeme}
+                  className="text-[10px] font-mono font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-350 transition uppercase tracking-wider flex items-center justify-center gap-1 mx-auto cursor-pointer"
+                >
+                  ✨ Generate Another Meme
+                </button>
+              </div>
+            ) : null}
+          </div>
+        )}
+
         <div className="flex flex-col gap-3 pt-2">
           <Link
             href="/student"
@@ -471,15 +750,43 @@ export default function AssignmentPlayer({
   return (
     <div className="space-y-6">
       {/* Top bar */}
-      <div className="flex items-center justify-between border-b pb-4">
+      <div className="flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between border-b pb-4">
         <Link
           href={role === "TEACHER" ? "/teacher" : "/student"}
-          className="flex items-center gap-1 text-xs font-semibold uppercase font-mono text-neutral-500 hover:text-black dark:hover:text-white"
+          className="flex items-center gap-1 text-xs font-semibold uppercase font-mono text-neutral-500 hover:text-black dark:hover:text-white self-start sm:self-auto"
         >
           <ArrowLeft className="w-4 h-4" />
           Dashboard
         </Link>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Biophilic Focus sound controls */}
+          <div className="flex items-center gap-2 bg-neutral-100 dark:bg-neutral-850 px-2.5 py-1.5 rounded-lg border border-neutral-300 dark:border-neutral-750">
+            <Headphones className={`w-3.5 h-3.5 text-neutral-500 ${focusMode !== "off" ? "animate-pulse text-indigo-500 dark:text-indigo-400" : ""}`} />
+            <select
+              value={focusMode}
+              onChange={(e) => setFocusMode(e.target.value as "off" | "binaural" | "rain")}
+              className="bg-transparent text-[10px] font-mono font-bold uppercase tracking-wider text-neutral-700 dark:text-neutral-300 focus:outline-none cursor-pointer border-none p-0 pr-1"
+            >
+              <option value="off" className="bg-white dark:bg-neutral-900">Focus Sound: Off</option>
+              <option value="binaural" className="bg-white dark:bg-neutral-900">Binaural (10Hz)</option>
+              <option value="rain" className="bg-white dark:bg-neutral-900">Rain Noise</option>
+            </select>
+            {focusMode !== "off" && (
+              <div className="flex items-center gap-1.5 pl-1.5 border-l border-neutral-300 dark:border-neutral-700">
+                <Volume2 className="w-3 h-3 text-neutral-500" />
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  value={focusVolume}
+                  onChange={(e) => setFocusVolume(parseFloat(e.target.value))}
+                  className="w-12 sm:w-16 h-1 bg-neutral-300 dark:bg-neutral-700 rounded appearance-none cursor-pointer accent-indigo-500 focus:outline-none"
+                />
+              </div>
+            )}
+          </div>
+
           {role === "STUDENT" && (
             <span className="text-[10px] text-neutral-400 dark:text-neutral-500 font-mono tracking-wider">
               ✓ Autosaved draft
@@ -607,14 +914,13 @@ export default function AssignmentPlayer({
         </div>
       )}
 
-      {/* Gate Alert Warning Banner */}
       {exercise.type === "worksheet" && gateAlertVisible && (
         <div className="p-4 border rounded border-red-350 bg-red-50/20 text-red-750 dark:text-red-350 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fade-in">
           <div className="space-y-1">
             <p className="text-xs font-bold font-mono uppercase tracking-wider">⚠️ Score Threshold Not Reached</p>
             <p className="text-xs">
               You scored <strong>{currentPageScore.toFixed(0)}%</strong>, but you need at least{" "}
-              <strong>{exercise.gateRequiredScore ?? 75}%</strong> to continue. Please review your answers or redo this page to try again.
+              <strong>{gateRequiredScore}%</strong> to continue. Please review your answers or redo this page to try again.
             </p>
           </div>
           <button
@@ -649,7 +955,7 @@ export default function AssignmentPlayer({
             ) : (
               isCurrentPageComplete ? (
                 <span className="text-xs text-neutral-650 dark:text-neutral-400 flex items-center gap-1 font-mono">
-                  <Check className="w-4 h-4 text-green-500" /> Page complete {exercise.enforceGate && `(Score: ${currentPageScore.toFixed(0)}% / Target: ${exercise.gateRequiredScore ?? 75}%)`}
+                  <Check className="w-4 h-4 text-green-500" /> Page complete {enforceGate && `(Score: ${currentPageScore.toFixed(0)}% / Target: ${gateRequiredScore}%)`}
                 </span>
               ) : (
                 <span className="text-xs text-neutral-500 flex items-center gap-1 font-mono">
