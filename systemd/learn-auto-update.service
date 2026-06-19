@@ -29,6 +29,8 @@ ExecStart=/usr/bin/bash -c '\
   runuser -u learn -g learn -- git pull origin main; \
   echo "=== Installing dependencies ==="; \
   runuser -u learn -g learn -- npm install --no-audit --no-fund; \
+  echo "=== Running DB setup ==="; \
+  runuser -u learn -g learn -- bash scripts/db-setup.sh; \
   echo "=== Building ==="; \
   runuser -u learn -g learn -- npm run build; \
   echo "=== Restarting learn.service ==="; \

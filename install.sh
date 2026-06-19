@@ -343,13 +343,9 @@ step_npm() {
   sudo -u "$LEARN_USER" npx prisma generate
   ok "Prisma client generated"
 
-  msg "Pushing database schema..."
-  sudo -u "$LEARN_USER" npx prisma db push --accept-data-loss
-  ok "Database schema pushed"
-
-  msg "Seeding database..."
-  sudo -u "$LEARN_USER" npx prisma db seed || note "Seed skipped (data exists)"
-  ok "Database seeded"
+  msg "Running database setup (schema + triggers + seed)..."
+  sudo -u "$LEARN_USER" bash scripts/db-setup.sh
+  ok "Database setup complete"
 }
 
 step_build() {

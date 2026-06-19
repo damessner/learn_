@@ -37,12 +37,8 @@ if [ ! -d "src/generated/prisma" ]; then
     npx prisma generate
 fi
 
-# 4. Check if SQLite database exists, run push and seed if missing
-if [ ! -f "prisma/dev.db" ]; then
-    echo -e "${YELLOW}SQLite database not found. Creating and seeding database...${CLEAR}"
-    npx prisma db push --accept-data-loss
-    npx prisma db seed
-fi
+# 4. Run database setup (push schema, create triggers, seed)
+bash scripts/db-setup.sh
 
 # 5. Start the Next.js development server
 echo -e "${GREEN}✓ Ready! Starting development server...${CLEAR}"
