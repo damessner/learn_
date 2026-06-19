@@ -149,9 +149,10 @@ async function main() {
   });
   console.log("Mapped Student to Classroom");
 
-  // 5. Assign exercises to classroom
+  // 5. Assign non-4g exercises to classroom 1A
   const allExercises = await prisma.exercise.findMany();
   for (const ex of allExercises) {
+    if (ex.id.startsWith("4g-")) continue;
     // Check if already assigned
     const existingAssignment = await prisma.assignment.findFirst({
       where: {
@@ -168,6 +169,133 @@ async function main() {
         },
       });
       console.log(`Assigned exercise: ${ex.id} to Class 1A`);
+    }
+  }
+
+  // 6. Seed Showcase Classroom 4G
+  const classroom4G = await prisma.classroom.upsert({
+    where: { joinCode: "4G" },
+    update: { name: "Class 4G" },
+    create: {
+      name: "Class 4G",
+      joinCode: "4G",
+      teacherId: teacher.id,
+    },
+  });
+  console.log("Seeded Classroom: Class 4G (Code: 4G)");
+
+  // Map student to Classroom 4G
+  await prisma.classroomStudent.upsert({
+    where: {
+      classroomId_studentId: {
+        classroomId: classroom4G.id,
+        studentId: student.id,
+      },
+    },
+    update: {},
+    create: {
+      classroomId: classroom4G.id,
+      studentId: student.id,
+    },
+  });
+  console.log("Mapped Student to Classroom 4G");
+
+  // Create Showcase Courses and map 4G exercises
+  const coursesData = [
+    {
+      id: "4g-grammar",
+      title: "4G Grammar",
+      description: "Showcase Course: Advanced Grammar covering Past Continuous, Past Perfect, Reported Speech, and Conditionals (Units 1, 2, 3, 4, 10).",
+      order: 1,
+      exerciseIds: ["4g-grammar-past-tenses", "4g-grammar-reported-speech", "4g-grammar-conditionals", "4g-writing-ireland"],
+    },
+    {
+      id: "4g-vocabulary",
+      title: "4G Vocabulary",
+      description: "Showcase Course: Core Vocabulary covering Cybercrime, Careers & Professions, and Food (Units 2, 4, 5).",
+      order: 2,
+      exerciseIds: ["4g-vocab-cybercrime", "4g-vocab-jobs", "4g-vocab-food", "4g-oral-vocab-ireland"],
+    },
+    {
+      id: "4g-readings",
+      title: "4G Readings",
+      description: "Showcase Course: Branching Interactive Readings covering Cyber Mystery and Miracle on the Hudson (Units 2, 3).",
+      order: 3,
+      exerciseIds: ["4g-read-locked-room", "4g-read-hudson-miracle", "4g-explore-dublin", "4g-explore-canterville", "4g-explore-airport"],
+    },
+  ];
+
+  for (const cInfo of coursesData) {
+    const course = await prisma.course.upsert({
+      where: { id: cInfo.id },
+      update: {
+        title: cInfo.title,
+        description: cInfo.description,
+        order: cInfo.order,
+      },
+      create: {
+        id: cInfo.id,
+        title: cInfo.title,
+        description: cInfo.description,
+        order: cInfo.order,
+      },
+    });
+
+    // Update exercises to link to this course and set their order
+    for (let i = 0; i < cInfo.exerciseIds.length; i++) {
+      const exId = cInfo.exerciseIds[i];
+      // Check if exercise exists before updating (to avoid crash if not loaded yet)
+      const exExists = await prisma.exercise.findUnique({ where: { id: exId } });
+      if (exExists) {
+        await prisma.exercise.update({
+          where: { id: exId },
+          data: { courseId: course.id, order: i },
+        });
+      }
+    }
+
+    // Assign course to classroom 4G
+    let courseAssignment = await prisma.courseAssignment.findFirst({
+      where: { classroomId: classroom4G.id, courseId: course.id },
+    });
+
+    if (!courseAssignment) {
+      courseAssignment = await prisma.courseAssignment.create({
+        data: {
+          classroomId: classroom4G.id,
+          courseId: course.id,
+        },
+      });
+      console.log(`Assigned course: ${course.title} to Class 4G`);
+    }
+
+    // Create Assignments for each exercise in this course linked to the CourseAssignment
+    for (const exId of cInfo.exerciseIds) {
+      const exExists = await prisma.exercise.findUnique({ where: { id: exId } });
+      if (!exExists) continue;
+
+      const existingAssignment = await prisma.assignment.findFirst({
+        where: {
+          classroomId: classroom4G.id,
+          exerciseId: exId,
+        },
+      });
+
+      if (!existingAssignment) {
+        await prisma.assignment.create({
+          data: {
+            classroomId: classroom4G.id,
+            exerciseId: exId,
+            courseAssignmentId: courseAssignment.id,
+          },
+        });
+        console.log(`Assigned exercise ${exId} under course ${course.title}`);
+      } else if (!existingAssignment.courseAssignmentId) {
+        await prisma.assignment.update({
+          where: { id: existingAssignment.id },
+          data: { courseAssignmentId: courseAssignment.id },
+        });
+      }
     }
   }
 

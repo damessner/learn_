@@ -235,6 +235,7 @@ export const VocabularySchema = BaseExerciseSchema.extend({
     })
   ),
   pictureSupplementation: z.boolean().optional(),
+  practiceMode: z.enum(["tiered", "oral-quiz"]).optional(),
 });
 
 export const OralVocabularySchema = BaseExerciseSchema.extend({
@@ -325,9 +326,18 @@ export const WorksheetQuestionSchema = z.object({
   elements: z.array(z.string()).optional(),
 });
 
+export const WorksheetPageSchema = z.object({
+  id: z.string(),
+  title: z.string().optional(),
+  questions: z.array(WorksheetQuestionSchema),
+});
+
 export const WorksheetSchema = BaseExerciseSchema.extend({
   type: z.literal("worksheet"),
-  questions: z.array(WorksheetQuestionSchema),
+  questions: z.array(WorksheetQuestionSchema).optional(),
+  pages: z.array(WorksheetPageSchema).optional(),
+  enforceGate: z.boolean().optional(),
+  gateRequiredScore: z.number().optional(),
 });
 
 export const LiveQuizSchema = BaseExerciseSchema.extend({

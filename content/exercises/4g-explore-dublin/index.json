@@ -1,0 +1,90 @@
+{
+  "id": "4g-explore-dublin",
+  "title": "Exploring Dublin City Map",
+  "description": "Explore Dublin's famous sights on this interactive map. Click on the landmarks to learn about them, then test your knowledge in Quiz Mode!",
+  "type": "explore-image-map",
+  "tags": ["vocabulary", "explore", "dublin", "ireland"],
+  "badgeName": "Dublin Guide",
+  "badgeEmoji": "☘️",
+  "startScene": "dublin",
+  "scenes": {
+    "dublin": {
+      "image": "dublin_showcase_map.png",
+      "hotspots": [
+        {
+          "id": "hs-spire",
+          "shape": "rect",
+          "coords": [47, 4, 6, 38],
+          "action": {
+            "type": "play-audio",
+            "audio": "tts-spire.wav"
+          },
+          "popupText": "The Spire: A massive 120-meter high stainless steel needle monument erected on O'Connell Street in 2003.",
+          "label": "the spire"
+        },
+        {
+          "id": "hs-trinity",
+          "shape": "circle",
+          "coords": [82, 60, 11],
+          "action": {
+            "type": "play-audio",
+            "audio": "tts-trinity.wav"
+          },
+          "popupText": "Trinity College: Established in 1592, it is the oldest university in Ireland and holds the famous Book of Kells.",
+          "label": "trinity college"
+        },
+        {
+          "id": "hs-castle",
+          "shape": "circle",
+          "coords": [53, 55, 9],
+          "action": {
+            "type": "play-audio",
+            "audio": "tts-castle.wav"
+          },
+          "popupText": "Dublin Castle: Dating back to 1204, this historic castle was once the seat of British administration in Ireland.",
+          "label": "dublin castle"
+        },
+        {
+          "id": "hs-temple",
+          "shape": "circle",
+          "coords": [28, 60, 10],
+          "action": {
+            "type": "play-audio",
+            "audio": "tts-temple.wav"
+          },
+          "popupText": "Temple Bar: A lively cobbled-street area full of traditional music, pubs, galleries, and street artists.",
+          "label": "temple bar"
+        }
+      ]
+    }
+  },
+  "gameMode": {
+    "enabled": true,
+    "challenges": [
+      {
+        "id": "c1",
+        "promptText": "Find the oldest university in Ireland, which was established in 1592.",
+        "targetLabel": "trinity college",
+        "promptAudio": "prompt-c1.wav"
+      },
+      {
+        "id": "c2",
+        "promptText": "Find the lively cobbled-street quarter known for traditional Irish music and pubs.",
+        "targetLabel": "temple bar",
+        "promptAudio": "prompt-c2.wav"
+      },
+      {
+        "id": "c3",
+        "promptText": "Find the massive 120-meter high stainless steel needle monument.",
+        "targetLabel": "the spire",
+        "promptAudio": "prompt-c3.wav"
+      },
+      {
+        "id": "c4",
+        "promptText": "Find the historic stone fortress dating back to 1204, once the seat of power.",
+        "targetLabel": "dublin castle",
+        "promptAudio": "prompt-c4.wav"
+      }
+    ]
+  }
+}

@@ -222,6 +222,7 @@ export interface VocabularyConfig {
     translationAudio?: string;
   }>;
   pictureSupplementation?: boolean;
+  practiceMode?: "tiered" | "oral-quiz";
 }
 
 export interface OralVocabularyConfig {

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { submitAssignment } from "@/lib/actions/submission";
 import { WIDGET_REGISTRY } from "@/components/widgets";
 import type { ExerciseData } from "@/lib/exercises";
-import { ArrowLeft, Check, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Check, AlertTriangle, ArrowRight, RotateCcw } from "lucide-react";
 import { MediaEmbed } from "@/components/widgets/MediaEmbed";
 import Link from "next/link";
 import { getExerciseTypeLabel } from "@/lib/exerciseLabels";
@@ -219,11 +219,6 @@ export default function AssignmentPlayer({
   const [isComplete, setIsComplete] = useState(false);
   const [score, setScore] = useState(0);
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [childCompletions, setChildCompletions] = useState<Record<string, boolean>>({});
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [childScores, setChildScores] = useState<Record<string, number>>({});
-
   React.useEffect(() => {
     if (typeof window !== "undefined" && role === "STUDENT" && widgetState) {
       localStorage.setItem(`draft_${assignmentId}`, JSON.stringify(widgetState));
@@ -248,17 +243,112 @@ export default function AssignmentPlayer({
     setScore(currentScore);
   }, []);
 
+  const flatQuestions = useMemo(() => {
+    if (exercise.type === "worksheet") {
+      if (Array.isArray(exercise.pages)) {
+        return exercise.pages.flatMap((p: { questions?: WorksheetQuestionData[] }) => p.questions || []);
+      }
+      return (exercise.questions as WorksheetQuestionData[]) || [];
+    }
+    return [];
+  }, [exercise]);
+
+  const pages = useMemo(() => {
+    if (exercise.type === "worksheet" && Array.isArray(exercise.pages) && exercise.pages.length > 0) {
+      return exercise.pages as Array<{ id: string; title?: string; questions: WorksheetQuestionData[] }>;
+    }
+    return [
+      {
+        id: "legacy-page-1",
+        title: "Worksheet",
+        questions: (exercise.questions as WorksheetQuestionData[]) || [],
+      },
+    ];
+  }, [exercise]);
+
+  const [currentPageIdx, setCurrentPageIdx] = useState(0);
+  const [gateAlertVisible, setGateAlertVisible] = useState(false);
+  const currentPage = pages[currentPageIdx];
+
+  const [childCompletions, setChildCompletions] = useState<Record<string, boolean>>({});
+  const [childScores, setChildScores] = useState<Record<string, number>>({});
+
+  const isCurrentPageComplete = useMemo(() => {
+    if (!currentPage?.questions) return true;
+    return currentPage.questions.every((q: WorksheetQuestionData) => {
+      if (q.type === "media" || q.type === "instruction") return true;
+      return childCompletions[q.id];
+    });
+  }, [currentPage, childCompletions]);
+
+  const currentPageScore = useMemo(() => {
+    if (!currentPage?.questions) return 0;
+    let pageMax = 0;
+    let pageEarned = 0;
+    currentPage.questions.forEach((q: WorksheetQuestionData) => {
+      const maxPts = getTaskMaxPoints(q);
+      const childPct = childScores[q.id] ?? 0;
+      pageMax += maxPts;
+      pageEarned += (childPct / 100) * maxPts;
+    });
+    return pageMax > 0 ? (pageEarned / pageMax) * 100 : 0;
+  }, [currentPage, childScores]);
+
+  const handleNextPage = () => {
+    if (!isCurrentPageComplete) {
+      alert("Please complete all tasks on this page first.");
+      return;
+    }
+    if (exercise.enforceGate && currentPageScore < (exercise.gateRequiredScore ?? 75)) {
+      setGateAlertVisible(true);
+      return;
+    }
+    setGateAlertVisible(false);
+    setCurrentPageIdx((prev) => Math.min(pages.length - 1, prev + 1));
+  };
+
+  const handlePrevPage = () => {
+    setGateAlertVisible(false);
+    setCurrentPageIdx((prev) => Math.max(0, prev - 1));
+  };
+
+  const resetCurrentPage = () => {
+    if (!currentPage?.questions) return;
+    setWidgetState((prev: Record<string, unknown> | null) => {
+      const next = { ...(prev || {}) };
+      currentPage.questions.forEach((q: WorksheetQuestionData) => {
+        delete next[q.id];
+      });
+      return next;
+    });
+    setChildCompletions((prev: Record<string, boolean>) => {
+      const next = { ...prev };
+      currentPage.questions.forEach((q: WorksheetQuestionData) => {
+        next[q.id] = false;
+      });
+      return next;
+    });
+    setChildScores((prev: Record<string, number>) => {
+      const next = { ...prev };
+      currentPage.questions.forEach((q: WorksheetQuestionData) => {
+        next[q.id] = 0;
+      });
+      return next;
+    });
+    setGateAlertVisible(false);
+  };
+
   const handleChildChange = useCallback((qId: string, childState: unknown, childComplete: boolean, childScore: number) => {
+    setGateAlertVisible(false);
     setWidgetState((prev: Record<string, unknown> | null) => ({ ...(prev || {}), [qId]: childState }));
 
     setChildCompletions((prev) => {
       const next = { ...prev, [qId]: childComplete };
       if (exercise.type === "worksheet") {
-        const questions = (exercise as Record<string, unknown>).questions as WorksheetQuestionData[] | undefined;
-        const allComplete = questions?.every((q) => {
+        const allComplete = flatQuestions.every((q: WorksheetQuestionData) => {
           if (q.type === "media" || q.type === "instruction") return true;
           return next[q.id];
-        }) ?? false;
+        });
         setIsComplete(allComplete);
       }
       return next;
@@ -267,11 +357,10 @@ export default function AssignmentPlayer({
     setChildScores((prev) => {
       const next = { ...prev, [qId]: childScore };
       if (exercise.type === "worksheet") {
-        const questions = (exercise as Record<string, unknown>).questions as WorksheetQuestionData[] | undefined;
         let totalMax = 0;
         let totalEarned = 0;
-        questions?.forEach((q) => {
-          const maxPts = getTaskMaxPoints(q as unknown as WorksheetQuestionData);
+        flatQuestions.forEach((q: WorksheetQuestionData) => {
+          const maxPts = getTaskMaxPoints(q);
           const childPct = next[q.id] ?? 0;
           totalMax += maxPts;
           totalEarned += (childPct / 100) * maxPts;
@@ -281,7 +370,7 @@ export default function AssignmentPlayer({
       }
       return next;
     });
-  }, [exercise]);
+  }, [flatQuestions, exercise.type]);
 
   const handleSubmit = async () => {
     if (role === "TEACHER") {
@@ -428,7 +517,18 @@ export default function AssignmentPlayer({
       <div className={isPastDue && role === "STUDENT" ? "pointer-events-none opacity-70" : ""}>
         {exercise.type === "worksheet" ? (
           <div className="space-y-8">
-            {(exercise.questions as WorksheetQuestionData[]).map((q, index: number) => {
+            {pages.length > 1 && (
+              <div className="p-4 border rounded border-neutral-300 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-955/10 flex items-center justify-between">
+                <span className="text-xs font-mono font-bold uppercase tracking-wider text-neutral-600 dark:text-neutral-300">
+                  {currentPage.title || `Page ${currentPageIdx + 1}`}
+                </span>
+                <span className="text-[11px] font-mono text-neutral-500">
+                  Page {currentPageIdx + 1} of {pages.length}
+                </span>
+              </div>
+            )}
+
+            {(currentPage.questions as WorksheetQuestionData[]).map((q, index: number) => {
               const ChildWidget = WIDGET_REGISTRY[q.type as keyof typeof WIDGET_REGISTRY];
               if (!ChildWidget) return null;
 
@@ -507,6 +607,27 @@ export default function AssignmentPlayer({
         </div>
       )}
 
+      {/* Gate Alert Warning Banner */}
+      {exercise.type === "worksheet" && gateAlertVisible && (
+        <div className="p-4 border rounded border-red-350 bg-red-50/20 text-red-750 dark:text-red-350 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fade-in">
+          <div className="space-y-1">
+            <p className="text-xs font-bold font-mono uppercase tracking-wider">⚠️ Score Threshold Not Reached</p>
+            <p className="text-xs">
+              You scored <strong>{currentPageScore.toFixed(0)}%</strong>, but you need at least{" "}
+              <strong>{exercise.gateRequiredScore ?? 75}%</strong> to continue. Please review your answers or redo this page to try again.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={resetCurrentPage}
+            className="bg-red-650 hover:bg-red-700 text-white font-mono font-bold text-[10px] uppercase px-3.5 py-2 rounded-lg cursor-pointer transition self-start sm:self-auto shrink-0 shadow-sm flex items-center gap-1"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            Redo Page
+          </button>
+        </div>
+      )}
+
       {/* Submission Footer bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 border border-neutral-300 dark:border-neutral-800 rounded bg-neutral-50 dark:bg-neutral-955/40">
         <div className="flex flex-col gap-1">
@@ -514,6 +635,28 @@ export default function AssignmentPlayer({
             <span className="text-xs text-red-650 dark:text-red-400 flex items-center gap-1 font-mono font-bold">
               <AlertTriangle className="w-4 h-4 text-red-500" /> Submission locked
             </span>
+          ) : exercise.type === "worksheet" && pages.length > 1 ? (
+            currentPageIdx === pages.length - 1 ? (
+              isComplete ? (
+                <span className="text-xs text-neutral-600 dark:text-neutral-400 flex items-center gap-1 font-mono">
+                  <Check className="w-4 h-4 text-green-500" /> Ready to submit
+                </span>
+              ) : (
+                <span className="text-xs text-neutral-500 flex items-center gap-1 font-mono">
+                  <AlertTriangle className="w-4 h-4 text-amber-500" /> Progress: Incomplete
+                </span>
+              )
+            ) : (
+              isCurrentPageComplete ? (
+                <span className="text-xs text-neutral-650 dark:text-neutral-400 flex items-center gap-1 font-mono">
+                  <Check className="w-4 h-4 text-green-500" /> Page complete {exercise.enforceGate && `(Score: ${currentPageScore.toFixed(0)}% / Target: ${exercise.gateRequiredScore ?? 75}%)`}
+                </span>
+              ) : (
+                <span className="text-xs text-neutral-500 flex items-center gap-1 font-mono">
+                  <AlertTriangle className="w-4 h-4 text-amber-500" /> Page incomplete
+                </span>
+              )
+            )
           ) : isComplete ? (
             <span className="text-xs text-neutral-600 dark:text-neutral-400 flex items-center gap-1 font-mono">
               <Check className="w-4 h-4 text-green-500" /> Ready to submit
@@ -530,13 +673,36 @@ export default function AssignmentPlayer({
           )}
         </div>
 
-        <button
-          onClick={handleSubmit}
-          disabled={loading || (isPastDue && role === "STUDENT")}
-          className="bg-black text-white dark:bg-white dark:text-black font-semibold font-mono text-xs px-6 py-3 rounded uppercase tracking-wider hover:opacity-90 transition disabled:opacity-50 cursor-pointer shadow"
-        >
-          {loading ? "Saving..." : role === "TEACHER" ? "Done Previewing" : isPastDue && role === "STUDENT" ? "Locked" : "Submit Assignment"}
-        </button>
+        <div className="flex items-center gap-2.5">
+          {exercise.type === "worksheet" && pages.length > 1 && currentPageIdx > 0 && (
+            <button
+              onClick={handlePrevPage}
+              disabled={loading}
+              className="border border-neutral-350 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300 font-semibold font-mono text-xs px-5 py-3 rounded uppercase tracking-wider hover:bg-neutral-100 dark:hover:bg-neutral-800 transition disabled:opacity-50 cursor-pointer"
+            >
+              Previous Page
+            </button>
+          )}
+
+          {exercise.type === "worksheet" && pages.length > 1 && currentPageIdx < pages.length - 1 ? (
+            <button
+              onClick={handleNextPage}
+              disabled={loading || (isPastDue && role === "STUDENT")}
+              className="bg-black text-white dark:bg-white dark:text-black font-semibold font-mono text-xs px-6 py-3 rounded uppercase tracking-wider hover:opacity-90 transition disabled:opacity-50 cursor-pointer shadow flex items-center gap-1.5"
+            >
+              Next Page
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          ) : (
+            <button
+              onClick={handleSubmit}
+              disabled={loading || (isPastDue && role === "STUDENT") || (exercise.type === "worksheet" && pages.length > 1 && currentPageIdx === pages.length - 1 && !isComplete)}
+              className="bg-black text-white dark:bg-white dark:text-black font-semibold font-mono text-xs px-6 py-3 rounded uppercase tracking-wider hover:opacity-90 transition disabled:opacity-50 cursor-pointer shadow"
+            >
+              {loading ? "Saving..." : role === "TEACHER" ? "Done Previewing" : isPastDue && role === "STUDENT" ? "Locked" : "Submit Assignment"}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

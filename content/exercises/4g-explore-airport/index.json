@@ -1,0 +1,90 @@
+{
+  "id": "4g-explore-airport",
+  "title": "Interactive Airport Terminal",
+  "description": "Explore a busy airport terminal before flying out to New York. Learn about airport procedures, then test your knowledge in Quiz Mode!",
+  "type": "explore-image-map",
+  "tags": ["vocabulary", "explore", "airport", "travel", "danger"],
+  "badgeName": "World Traveler",
+  "badgeEmoji": "✈️",
+  "startScene": "terminal",
+  "scenes": {
+    "terminal": {
+      "image": "airport_terminal.png",
+      "hotspots": [
+        {
+          "id": "hs-checkin",
+          "shape": "rect",
+          "coords": [3, 58, 28, 26],
+          "action": {
+            "type": "play-audio",
+            "audio": "tts-checkin.wav"
+          },
+          "popupText": "Check-in Desks: Stand in line here to check in, drop off your luggage, and get your paper boarding pass.",
+          "label": "check-in"
+        },
+        {
+          "id": "hs-security",
+          "shape": "rect",
+          "coords": [38, 45, 36, 30],
+          "action": {
+            "type": "play-audio",
+            "audio": "tts-security.wav"
+          },
+          "popupText": "Security Checkpoint: Place all carry-on bags and personal items in trays to scan, then walk through the metal detector arch.",
+          "label": "security"
+        },
+        {
+          "id": "hs-fids",
+          "shape": "rect",
+          "coords": [36, 8, 23, 28],
+          "action": {
+            "type": "play-audio",
+            "audio": "tts-fids.wav"
+          },
+          "popupText": "Flight Information Display System (FIDS): Large screens showing departures times, destinations, gate numbers, and flight status details.",
+          "label": "fids"
+        },
+        {
+          "id": "hs-departures",
+          "shape": "rect",
+          "coords": [73, 20, 22, 25],
+          "action": {
+            "type": "play-audio",
+            "audio": "tts-departures.wav"
+          },
+          "popupText": "Departure Gates: Wait here in the departures hall near Gate B12 to board your commercial flight.",
+          "label": "departures"
+        }
+      ]
+    }
+  },
+  "gameMode": {
+    "enabled": true,
+    "challenges": [
+      {
+        "id": "c1",
+        "promptText": "Find the large FIDS screens showing destinations and gate numbers.",
+        "targetLabel": "fids",
+        "promptAudio": "prompt-fids.wav"
+      },
+      {
+        "id": "c2",
+        "promptText": "Find the desks where you drop off your heavy suitcases and collect boarding passes.",
+        "targetLabel": "check-in",
+        "promptAudio": "prompt-checkin.wav"
+      },
+      {
+        "id": "c3",
+        "promptText": "Find the security checkpoint scanner arch.",
+        "targetLabel": "security",
+        "promptAudio": "prompt-security.wav"
+      },
+      {
+        "id": "c4",
+        "promptText": "Find the departures gates hall where you wait to board the airplane.",
+        "targetLabel": "departures",
+        "promptAudio": "prompt-departures.wav"
+      }
+    ]
+  }
+}

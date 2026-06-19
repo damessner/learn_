@@ -1,0 +1,70 @@
+{
+  "id": "4g-grammar-past-tenses",
+  "title": "Past Tenses: Simple vs. Continuous",
+  "description": "Revise the Past Simple and Past Continuous from Unit 1: Welcome to Ireland.",
+  "type": "worksheet",
+  "tags": ["grammar", "past-tenses", "worksheet"],
+  "badgeName": "Tense Master",
+  "badgeEmoji": "⏳",
+  "questions": [
+    {
+      "id": "intro",
+      "type": "instruction",
+      "text": "Review: We use the Past Simple for a completed action in the past. We use the Past Continuous for an action that was in progress at a specific time or when another action interrupted it."
+    },
+    {
+      "id": "q1-mc",
+      "type": "multiple-choice",
+      "question": "Which sentence is correct?",
+      "options": [
+        "While we were walking in Dublin, it started to rain.",
+        "While we walked in Dublin, it was starting to rain.",
+        "While we were walking in Dublin, it was starting to rain."
+      ],
+      "correctOptionIndex": 0,
+      "hint": "The continuous action is walking, and the interruption is the rain starting."
+    },
+    {
+      "id": "q2-gap",
+      "type": "gap-fill",
+      "question": "Fill in the correct forms of the verbs (Past Simple or Past Continuous):",
+      "text": "Yesterday afternoon, while Anna [was reading|read|reads] (read) a book about the history of Ireland, she suddenly [heard] (hear) a loud crash. She [ran] (run) to the window and saw that a tree [had fallen] (fall) down. Some children [were playing|played] (play) near it just minutes before, but thankfully they [were] (be) safe."
+    },
+    {
+      "id": "q3-click",
+      "type": "clickable-choice",
+      "question": "Choose the correct prepositions for time and place:",
+      "choices": ["in", "at", "on", "during"],
+      "statements": [
+        {
+          "id": "s1",
+          "text": "We arrived [in] Dublin late at night.",
+          "correctChoice": "in"
+        },
+        {
+          "id": "s2",
+          "text": "Our flight was [on] Monday morning.",
+          "correctChoice": "on"
+        },
+        {
+          "id": "s3",
+          "text": "He fell asleep [during] the history presentation.",
+          "correctChoice": "during"
+        }
+      ]
+    },
+    {
+      "id": "q4-order",
+      "type": "ordering",
+      "question": "Rearrange the words to form a correct past tense sentence:",
+      "elements": ["They", "were", "talking", "about", "their", "holiday", "when", "the", "ghost", "appeared."]
+    },
+    {
+      "id": "q5-open",
+      "type": "open-question",
+      "question": "Write a short description of a holiday adventure (2-3 sentences). Use at least one verb in the Past Continuous (e.g., 'was walking', 'were visiting').",
+      "keywords": ["was", "were"],
+      "spellingTolerance": "lenient"
+    }
+  ]
+}

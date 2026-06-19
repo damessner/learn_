@@ -34,6 +34,8 @@ interface VocabularyBuilderProps {
     onStatus: (status: string) => void
   ) => Promise<void>;
   isOralVocabulary?: boolean;
+  practiceMode?: "tiered" | "oral-quiz";
+  setPracticeMode?: (val: "tiered" | "oral-quiz") => void;
 }
 
 export function VocabularyBuilder({
@@ -46,6 +48,8 @@ export function VocabularyBuilder({
   setPictureSupplementation,
   handleMediaUpload,
   isOralVocabulary = false,
+  practiceMode = "tiered",
+  setPracticeMode,
 }: VocabularyBuilderProps) {
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -59,6 +63,8 @@ export function VocabularyBuilder({
   // Auto-supplement state
   const [autoLoading, setAutoLoading] = useState(false);
   const [autoStatus, setAutoStatus] = useState<string | null>(null);
+
+  const isOralQuiz = isOralVocabulary || practiceMode === "oral-quiz";
 
   const handleAutoSupplement = async () => {
     if (!exerciseId.trim()) {
@@ -126,6 +132,23 @@ export function VocabularyBuilder({
           </p>
         </div>
 
+        {/* Practice Mode Selector */}
+        {setPracticeMode && !isOralVocabulary && (
+          <div className="space-y-1.5 pb-4 border-b border-neutral-100 dark:border-neutral-850">
+            <label className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500 block">
+              Practice Format / Mode
+            </label>
+            <select
+              value={practiceMode}
+              onChange={(e) => setPracticeMode(e.target.value as "tiered" | "oral-quiz")}
+              className="text-xs font-mono font-bold bg-transparent border border-neutral-350 dark:border-neutral-750 rounded px-3 py-1.5 outline-none cursor-pointer w-full max-w-xs"
+            >
+              <option value="tiered">Tiered Study Loop (Standard levels 1-3)</option>
+              <option value="oral-quiz">Oral Quiz (Pupils listen to German audio & translate)</option>
+            </select>
+          </div>
+        )}
+
         {/* Text Area */}
         <div className="space-y-2">
           <label className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500 block">
@@ -142,7 +165,7 @@ export function VocabularyBuilder({
         </div>
 
         {/* Checkbox for picture supplementation */}
-        {!isOralVocabulary && (
+        {!isOralQuiz && (
           <div className="flex items-center gap-2 pt-2 border-t border-neutral-100 dark:border-neutral-850">
             <input
               type="checkbox"
@@ -171,13 +194,13 @@ export function VocabularyBuilder({
                 Vocabulary Item Settings
               </h4>
               <p className="text-[11px] text-neutral-450 mt-0.5">
-                {isOralVocabulary 
+                {isOralQuiz 
                   ? "Oral Vocabulary Quiz: Pupils will listen to the German audio and translate to English." 
                   : "Enable TTS audio or images for your vocabulary words."}
               </p>
             </div>
 
-            {pictureSupplementation && !isOralVocabulary && (
+            {pictureSupplementation && !isOralQuiz && (
               <button
                 type="button"
                 disabled={autoLoading}
@@ -190,7 +213,7 @@ export function VocabularyBuilder({
             )}
           </div>
 
-          {autoStatus && pictureSupplementation && !isOralVocabulary && (
+          {autoStatus && pictureSupplementation && !isOralQuiz && (
             <div className="p-3 bg-purple-55/10 border border-purple-200 text-xs text-purple-800 dark:text-purple-300 rounded-lg flex items-center gap-2">
               <Loader2 className="w-4 h-4 animate-spin shrink-0 text-purple-500" />
               <span>{autoStatus}</span>
@@ -209,12 +232,12 @@ export function VocabularyBuilder({
                     <span className="font-bold text-xs text-neutral-800 dark:text-neutral-250 truncate">
                       {item.word}
                     </span>
-                    <span className="text-[10px] text-neutral-400 font-mono">&rarr;</span>
+                    <span className="text-[10px] text-neutral-450 font-mono">&rarr;</span>
                     <span className="text-xs text-neutral-600 dark:text-neutral-450 truncate">
                       {item.translation}
                     </span>
                   </div>
-                  {pictureSupplementation && !isOralVocabulary && (
+                  {pictureSupplementation && !isOralQuiz && (
                     item.image ? (
                       <span className="text-[9px] font-mono text-neutral-450 block mt-0.5 truncate">
                         File: {item.image}
@@ -234,7 +257,7 @@ export function VocabularyBuilder({
 
                 <div className="flex items-center gap-4 shrink-0 self-end sm:self-auto">
                   {/* TTS Checkbox or Required Indicator */}
-                  {!isOralVocabulary ? (
+                  {!isOralQuiz ? (
                     <label className="flex items-center gap-1.5 text-xs font-semibold cursor-pointer select-none">
                       <input
                         type="checkbox"
@@ -249,13 +272,13 @@ export function VocabularyBuilder({
                       <span>TTS Audio</span>
                     </label>
                   ) : (
-                    <span className="text-[10px] px-2 py-0.5 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 font-bold font-mono rounded">
+                    <span className="text-[10px] px-2 py-0.5 bg-blue-100 dark:bg-blue-900/40 text-blue-750 dark:text-blue-300 font-bold font-mono rounded">
                       Audio Required
                     </span>
                   )}
 
                   {/* Picture supplementation tools (if enabled) */}
-                  {pictureSupplementation && !isOralVocabulary && (
+                  {pictureSupplementation && !isOralQuiz && (
                     <>
                       {/* Preview thumbnail */}
                       {item.image && (
@@ -322,7 +345,7 @@ export function VocabularyBuilder({
                           />
                           <label
                             htmlFor={`vocab-upload-${idx}`}
-                            className="border border-neutral-350 dark:border-neutral-750 bg-white dark:bg-neutral-900 px-2 py-1 rounded text-[10px] font-bold font-mono uppercase hover:bg-neutral-100 dark:hover:bg-neutral-850 cursor-pointer transition block"
+                            className="border border-neutral-355 dark:border-neutral-750 bg-white dark:bg-neutral-900 px-2 py-1 rounded text-[10px] font-bold font-mono uppercase hover:bg-neutral-100 dark:hover:bg-neutral-850 cursor-pointer transition block"
                           >
                             Upload
                           </label>

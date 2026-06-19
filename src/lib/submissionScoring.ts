@@ -497,8 +497,10 @@ export function scoreWorksheet(
 
 export function scoreExerciseSubmission(exercise: ExerciseData, answers: Record<string, unknown>): number {
   switch (exercise.type) {
-    case "worksheet":
-      return scoreWorksheet(exercise.questions, answers);
+    case "worksheet": {
+      const questions = exercise.questions || exercise.pages?.flatMap(p => p.questions) || [];
+      return scoreWorksheet(questions as UnknownRecord[], answers);
+    }
     case "multiple-choice":
       return scoreMultipleChoice(exercise, answers);
     case "gap-fill":

@@ -1,0 +1,53 @@
+{
+  "id": "4g-vocab-cybercrime",
+  "title": "Cybercrime & Security Vocabulary",
+  "description": "Learn terms related to computer security and online threats from Unit 2: Whodunit.",
+  "type": "vocabulary",
+  "tags": ["vocabulary", "cybercrime", "technology"],
+  "badgeName": "Cyber Shield",
+  "badgeEmoji": "🛡️",
+  "vocabList": [
+    {
+      "word": "suspect",
+      "translation": "Verdächtiger / Verdächtige",
+      "image": "cybercrime_security.png",
+      "ttsEnabled": true
+    },
+    {
+      "word": "victim",
+      "translation": "Opfer",
+      "image": "cybercrime_security.png",
+      "ttsEnabled": true
+    },
+    {
+      "word": "blackmail",
+      "translation": "Erpressung / erpressen",
+      "image": "cybercrime_security.png",
+      "ttsEnabled": true
+    },
+    {
+      "word": "witness",
+      "translation": "Zeuge / Zeugin",
+      "image": "cybercrime_security.png",
+      "ttsEnabled": true
+    },
+    {
+      "word": "evidence",
+      "translation": "Beweismaterial / Beweise",
+      "image": "cybercrime_security.png",
+      "ttsEnabled": true
+    },
+    {
+      "word": "protect",
+      "translation": "beschützen / schützen",
+      "image": "cybercrime_security.png",
+      "ttsEnabled": true
+    },
+    {
+      "word": "illegal",
+      "translation": "illegal",
+      "image": "cybercrime_security.png",
+      "ttsEnabled": true
+    }
+  ]
+}

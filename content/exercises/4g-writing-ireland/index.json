@@ -1,0 +1,32 @@
+{
+  "id": "4g-writing-ireland",
+  "title": "AI Writing Coach: Irish Holiday Adventure",
+  "description": "Write a short narrative about a holiday adventure in Ireland. Get instant, personalized AI coaching on grammar and style!",
+  "type": "writing-coach",
+  "tags": ["writing", "ai", "past-tenses", "ireland"],
+  "badgeName": "Irish Storyteller",
+  "badgeEmoji": "✍️",
+  "prompt": "Write a short story (60-120 words) describing a holiday adventure in Ireland. Imagine what you were doing when something unexpected happened (e.g. visiting a castle when a storm started, or exploring Dublin when you met a famous musician).",
+  "systemPrompt": "Focus on checking if the user used the Past Continuous for setting the scene and the Past Simple for actions. Give feedback on spelling and check that they mention Irish elements.",
+  "media": "ireland_scenic.png",
+  "criteria": [
+    {
+      "id": "c1",
+      "name": "Past Continuous vs. Simple",
+      "description": "Use the Past Continuous to describe the background action (e.g., 'While we were driving...') and the Past Simple for the main event (e.g., '...the car broke down').",
+      "tip": "Example: 'We were visiting Dublin Castle when it started to pour with rain.'"
+    },
+    {
+      "id": "c2",
+      "name": "Atmosphere & Vocabulary",
+      "description": "Use vocabulary related to travel, sights, or weather (e.g., green, rain, castle, thunder, island, explore).",
+      "tip": "Try words like 'breathtaking', 'historic', or 'dramatic' to describe Ireland."
+    },
+    {
+      "id": "c3",
+      "name": "Word Count (60-120 words)",
+      "description": "Ensure your story is long enough to develop a quick plot, but short enough to remain concise and focused.",
+      "tip": "Check your word count and combine short sentences for better flow."
+    }
+  ]
+}

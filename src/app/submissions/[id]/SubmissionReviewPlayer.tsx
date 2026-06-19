@@ -29,6 +29,12 @@ interface WorksheetQuestionData {
   [key: string]: unknown;
 }
 
+interface WorksheetPageData {
+  id: string;
+  title?: string;
+  questions: WorksheetQuestionData[];
+}
+
 interface SubmissionReviewPlayerProps {
   exercise?: Record<string, unknown>;
   exerciseJson?: string;
@@ -280,100 +286,130 @@ export default function SubmissionReviewPlayer({
       {/* Read-Only Widget rendering */}
       {exercise.type === "worksheet" ? (
         <div className="space-y-8">
-          {(exercise.questions as WorksheetQuestionData[]).map((q, index: number) => {
-            const ChildWidget = WIDGET_REGISTRY[q.type as keyof typeof WIDGET_REGISTRY];
-            if (!ChildWidget) return null;
+          {(() => {
+            const pages: WorksheetPageData[] = exercise.pages && exercise.pages.length > 0
+              ? (exercise.pages as WorksheetPageData[])
+              : [
+                  {
+                    id: "legacy",
+                    title: "",
+                    questions: (exercise.questions as WorksheetQuestionData[]) || [],
+                  },
+                ];
 
-            // Adapt on the fly
-            const adaptedConfig: Record<string, unknown> = {
-              ...q,
-              id: q.id,
-              title: q.question || `${q.type} task`,
-              type: q.type,
-            };
+            let globalQIdx = 0;
 
-            if (q.type === "multiple-choice") {
-              adaptedConfig.questions = [
-                {
-                  id: q.id,
-                  question: q.question || "",
-                  options: q.options || [],
-                  correctOptionIndex: q.correctOptionIndex ?? 0,
-                },
-              ];
-            } else if (q.type === "gap-fill" || q.type === "drag-drop") {
-              adaptedConfig.text = q.text || "";
-            } else if (q.type === "categorization") {
-              adaptedConfig.categories = q.categories || [];
-              adaptedConfig.items = q.items || [];
-            } else if (q.type === "clickable-choice") {
-              adaptedConfig.choices = q.choices || [];
-              adaptedConfig.statements = q.statements || [];
-            } else if (q.type === "matching") {
-              adaptedConfig.pairs = q.pairs || [];
-            } else if (q.type === "media") {
-              adaptedConfig.media = q.media || "";
-            } else if (q.type === "instruction") {
-              adaptedConfig.text = q.text || "";
-            } else if (q.type === "open-question") {
-              adaptedConfig.question = q.question || "";
-              adaptedConfig.keywords = q.keywords || [];
-            } else if (q.type === "ordering") {
-              adaptedConfig.question = q.question || "";
-              adaptedConfig.elements = q.elements || [];
-            }
-
-            return (
-              <div
-                key={q.id}
-                className="p-6 border border-neutral-300 dark:border-neutral-800 rounded bg-white dark:bg-neutral-900 shadow-sm space-y-4"
-              >
-                <div className="flex items-center justify-between border-b pb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-mono font-bold uppercase tracking-wider bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 rounded text-neutral-600 dark:text-neutral-350">
-                      Question {index + 1}
-                    </span>
-                    <span className="text-[10px] font-mono uppercase text-neutral-450">
-                      {getExerciseTypeLabel(q.type)}
-                    </span>
-                  </div>
-
-                  {/* Task Points Display */}
-                  {q.type !== "media" && q.type !== "instruction" && (
-                    <span className="text-[10px] font-mono font-bold text-neutral-500 uppercase">
-                      Max Points: {getTaskMaxPoints(q)}
-                    </span>
-                  )}
-                </div>
-
-                {q.media && q.type !== "media" && (
-                  <div className="max-w-md my-2">
-                    <MediaEmbed src={q.media} assetsPath={assetsPath} />
+            return pages.map((page, pIdx: number) => (
+              <div key={page.id || pIdx} className="space-y-6">
+                {page.title && pages.length > 1 && (
+                  <div className="p-4 border rounded border-neutral-350 dark:border-neutral-850 bg-neutral-50/50 dark:bg-neutral-955/10">
+                    <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-neutral-655 dark:text-neutral-300">
+                      {page.title}
+                    </h3>
                   </div>
                 )}
+                <div className={pages.length > 1 ? "space-y-6 pl-4 border-l-2 border-dashed border-neutral-200 dark:border-neutral-800" : "space-y-6"}>
+                  {page.questions.map((q) => {
+                    const ChildWidget = WIDGET_REGISTRY[q.type as keyof typeof WIDGET_REGISTRY];
+                    if (!ChildWidget) return null;
 
-                <ChildWidget
-                  config={adaptedConfig}
-                  assetsPath={assetsPath}
-                  savedState={savedAnswers?.[q.id]}
-                  onChange={() => {}}
-                  isReadOnly={true}
-                />
+                    const currentQIdx = globalQIdx;
+                    globalQIdx++;
 
-                {/* Hint disclosure */}
-                {q.hint && (
-                  <div className="mt-2 text-xs pt-2 border-t border-neutral-100 dark:border-neutral-850">
-                    <details className="cursor-pointer text-neutral-555 hover:text-black dark:hover:text-white transition">
-                      <summary className="font-semibold select-none font-mono">💡 View Hint</summary>
-                      <div className="mt-1.5 p-2 bg-amber-50/20 dark:bg-amber-950/10 border border-amber-250/30 rounded font-medium text-amber-800 dark:text-amber-305 leading-relaxed">
-                        {q.hint}
+                    // Adapt on the fly
+                    const adaptedConfig: Record<string, unknown> = {
+                      ...q,
+                      id: q.id,
+                      title: q.question || `${q.type} task`,
+                      type: q.type,
+                    };
+
+                    if (q.type === "multiple-choice") {
+                      adaptedConfig.questions = [
+                        {
+                          id: q.id,
+                          question: q.question || "",
+                          options: q.options || [],
+                          correctOptionIndex: q.correctOptionIndex ?? 0,
+                        },
+                      ];
+                    } else if (q.type === "gap-fill" || q.type === "drag-drop") {
+                      adaptedConfig.text = q.text || "";
+                    } else if (q.type === "categorization") {
+                      adaptedConfig.categories = q.categories || [];
+                      adaptedConfig.items = q.items || [];
+                    } else if (q.type === "clickable-choice") {
+                      adaptedConfig.choices = q.choices || [];
+                      adaptedConfig.statements = q.statements || [];
+                    } else if (q.type === "matching") {
+                      adaptedConfig.pairs = q.pairs || [];
+                    } else if (q.type === "media") {
+                      adaptedConfig.media = q.media || "";
+                    } else if (q.type === "instruction") {
+                      adaptedConfig.text = q.text || "";
+                    } else if (q.type === "open-question") {
+                      adaptedConfig.question = q.question || "";
+                      adaptedConfig.keywords = q.keywords || [];
+                    } else if (q.type === "ordering") {
+                      adaptedConfig.question = q.question || "";
+                      adaptedConfig.elements = q.elements || [];
+                    }
+
+                    return (
+                      <div
+                        key={q.id}
+                        className="p-6 border border-neutral-350 dark:border-neutral-800 rounded bg-white dark:bg-neutral-900 shadow-sm space-y-4"
+                      >
+                        <div className="flex items-center justify-between border-b pb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-mono font-bold uppercase tracking-wider bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 rounded text-neutral-600 dark:text-neutral-350">
+                              Question {currentQIdx + 1}
+                            </span>
+                            <span className="text-[10px] font-mono uppercase text-neutral-450">
+                              {getExerciseTypeLabel(q.type)}
+                            </span>
+                          </div>
+
+                          {/* Task Points Display */}
+                          {q.type !== "media" && q.type !== "instruction" && (
+                            <span className="text-[10px] font-mono font-bold text-neutral-500 uppercase">
+                              Max Points: {getTaskMaxPoints(q)}
+                            </span>
+                          )}
+                        </div>
+
+                        {q.media && q.type !== "media" && (
+                          <div className="max-w-md my-2">
+                            <MediaEmbed src={q.media} assetsPath={assetsPath} />
+                          </div>
+                        )}
+
+                        <ChildWidget
+                          config={adaptedConfig}
+                          assetsPath={assetsPath}
+                          savedState={savedAnswers?.[q.id]}
+                          onChange={() => {}}
+                          isReadOnly={true}
+                        />
+
+                        {/* Hint disclosure */}
+                        {q.hint && (
+                          <div className="mt-2 text-xs pt-2 border-t border-neutral-100 dark:border-neutral-850">
+                            <details className="cursor-pointer text-neutral-550 hover:text-black dark:hover:text-white transition">
+                              <summary className="font-semibold select-none font-mono">💡 View Hint</summary>
+                              <div className="mt-1.5 p-2 bg-amber-50/20 dark:bg-amber-955/10 border border-amber-250/30 rounded font-medium text-amber-800 dark:text-amber-305 leading-relaxed">
+                                {q.hint}
+                              </div>
+                            </details>
+                          </div>
+                        )}
                       </div>
-                    </details>
-                  </div>
-                )}
+                    );
+                  })}
+                </div>
               </div>
-            );
-          })}
+            ));
+          })()}
         </div>
       ) : exercise.type === "image-hotspot-quiz" ? (
         <div className="p-6 border border-neutral-300 dark:border-neutral-800 rounded bg-white dark:bg-neutral-900 shadow-sm">

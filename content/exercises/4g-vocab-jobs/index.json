@@ -1,0 +1,47 @@
+{
+  "id": "4g-vocab-jobs",
+  "title": "Professions & Careers Vocabulary",
+  "description": "Learn terms related to jobs, interviews, and workplace success from Unit 4: A Working Life.",
+  "type": "vocabulary",
+  "tags": ["vocabulary", "jobs", "careers"],
+  "badgeName": "Career Starter",
+  "badgeEmoji": "💼",
+  "vocabList": [
+    {
+      "word": "job satisfaction",
+      "translation": "Arbeitszufriedenheit",
+      "image": "professions_interview.png",
+      "ttsEnabled": true
+    },
+    {
+      "word": "working hours",
+      "translation": "Arbeitszeit",
+      "image": "professions_interview.png",
+      "ttsEnabled": true
+    },
+    {
+      "word": "deadline",
+      "translation": "Abgabetermin / Frist",
+      "image": "professions_interview.png",
+      "ttsEnabled": true
+    },
+    {
+      "word": "career advisor",
+      "translation": "Berufsberater / Berufsberaterin",
+      "image": "professions_interview.png",
+      "ttsEnabled": true
+    },
+    {
+      "word": "bonus",
+      "translation": "Bonus / Prämie",
+      "image": "professions_interview.png",
+      "ttsEnabled": true
+    },
+    {
+      "word": "earn",
+      "translation": "verdienen (Geld)",
+      "image": "professions_interview.png",
+      "ttsEnabled": true
+    }
+  ]
+}

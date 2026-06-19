@@ -1,0 +1,78 @@
+{
+  "id": "4g-read-hudson-miracle",
+  "title": "A Miracle on the Hudson",
+  "description": "Step into the shoes of the crew during the emergency landing of Flight 1549 on the Hudson River.",
+  "type": "interactive-reading",
+  "tags": ["reading", "danger", "reported-speech", "interactive"],
+  "badgeName": "Hero Pilot",
+  "badgeEmoji": "✈️",
+  "startPage": "takeoff",
+  "pages": {
+    "takeoff": {
+      "title": "Flight 1549 Takes Off",
+      "text": "It is a freezing winter afternoon in New York. Shortly after takeoff, a flock of birds collides with the aircraft. Both engines lose all thrust.\n\nCaptain Sullenberger takes control. 'My aircraft,' he tells the co-pilot.\n\nYou must decide on your next action immediately.",
+      "media": "hudson_miracle.png",
+      "choices": [
+        {
+          "text": "Try to turn back to LaGuardia Airport",
+          "nextPageId": "laguardia_attempt"
+        },
+        {
+          "text": "Prepare for landing on the Hudson River",
+          "nextPageId": "hudson_prepare"
+        }
+      ],
+      "questions": [
+        {
+          "id": "q1",
+          "type": "open-question",
+          "prompt": "What is the past simple form of the verb 'collide'?",
+          "keywords": ["collided"]
+        }
+      ]
+    },
+    "laguardia_attempt": {
+      "title": "Too Dangerous",
+      "text": "The flight computer calculations show that the aircraft is too low and slow. Trying to turn back would cause a crash in a populated area.\n\nYou must change plans immediately and land on the river!",
+      "choices": [
+        {
+          "text": "Steer towards the Hudson River",
+          "nextPageId": "hudson_prepare"
+        }
+      ],
+      "questions": []
+    },
+    "hudson_prepare": {
+      "title": "Brace for Impact",
+      "text": "You steer the aircraft towards the Hudson River. The flight attendants shout: 'Brace! Brace! Heads down! Stay down!'\n\nThe plane glides smoothly over the bridge and touches down on the freezing water. The fuselage remains intact, but water begins to enter.",
+      "choices": [
+        {
+          "text": "Evacuate onto the wings and slides",
+          "nextPageId": "evacuation"
+        }
+      ],
+      "questions": [
+        {
+          "id": "q2",
+          "type": "multiple-choice",
+          "prompt": "What command did the flight attendants shout?",
+          "options": ["Jump! Jump!", "Brace! Brace!", "Run! Run!"],
+          "correctOptionIdx": 1
+        }
+      ]
+    },
+    "evacuation": {
+      "title": "The Rescue",
+      "text": "Passengers step onto the wings and inflatable slides. Ferries and rescue boats arrive within minutes.\n\nAll 155 people on board are rescued. The captain checks the cabin twice to make sure it is empty. This is a true miracle!\n\nFlight completed successfully! You have earned the Hero Pilot badge.",
+      "choices": [],
+      "questions": [
+        {
+          "id": "q3",
+          "type": "open-question",
+          "prompt": "How many people (passengers and crew) were rescued in total?",
+          "keywords": ["155", "one hundred fifty-five"]
+        }
+      ]
+    }
+  }
+}

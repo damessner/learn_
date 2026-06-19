@@ -1,0 +1,188 @@
+{
+  "id": "4g-explore-canterville",
+  "title": "Canterville Castle Mystery",
+  "description": "Enter the haunted Canterville Chase. Move between rooms, search for clues, and solve the mystery of the Canterville Ghost!",
+  "type": "explore-image-map",
+  "tags": ["vocabulary", "explore", "canterville", "ghost", "literature"],
+  "badgeName": "Ghost Buster",
+  "badgeEmoji": "👻",
+  "startScene": "great_hall",
+  "scenes": {
+    "great_hall": {
+      "image": "canterville_hall.png",
+      "hotspots": [
+        {
+          "id": "hs-fireplace",
+          "shape": "rect",
+          "coords": [9, 58, 20, 32],
+          "action": {
+            "type": "play-audio",
+            "audio": "tts-fireplace.wav"
+          },
+          "popupText": "The massive stone fireplace has logs burning, yet you feel a strange cold draft in the room.",
+          "label": "fireplace"
+        },
+        {
+          "id": "hs-bloodstain",
+          "shape": "polygon",
+          "coords": [33, 80, 66, 80, 55, 93, 38, 93],
+          "action": {
+            "type": "play-audio",
+            "audio": "tts-bloodstain.wav"
+          },
+          "popupText": "The mysterious bloodstain! The housekeeper says it cannot be removed and has been here since 1575.",
+          "label": "bloodstain"
+        },
+        {
+          "id": "hs-stairs",
+          "shape": "rect",
+          "coords": [55, 17, 30, 68],
+          "action": {
+            "type": "change-scene",
+            "scene": "ghost_room"
+          },
+          "popupText": "You climb the spiral staircase to the spooky attic room...",
+          "label": "stairs"
+        },
+        {
+          "id": "hs-lib-door",
+          "shape": "rect",
+          "coords": [56, 54, 10, 14],
+          "action": {
+            "type": "change-scene",
+            "scene": "library"
+          },
+          "popupText": "You walk through the wooden door into the library...",
+          "label": "library door"
+        }
+      ]
+    },
+    "library": {
+      "image": "canterville_library.png",
+      "hotspots": [
+        {
+          "id": "hs-desk",
+          "shape": "rect",
+          "coords": [17, 71, 75, 28],
+          "action": {
+            "type": "play-audio",
+            "audio": "tts-journal.wav"
+          },
+          "popupText": "An open journal lies on the desk next to a candle. It describes the Canterville curse.",
+          "label": "journal"
+        },
+        {
+          "id": "hs-bookshelf",
+          "shape": "rect",
+          "coords": [0, 0, 32, 80],
+          "action": {
+            "type": "play-audio",
+            "audio": "tts-bookshelf.wav"
+          },
+          "popupText": "Towering oak bookshelves stacked with ancient leather-bound grimoires.",
+          "label": "bookshelf"
+        },
+        {
+          "id": "hs-window",
+          "shape": "rect",
+          "coords": [75, 18, 17, 43],
+          "action": {
+            "type": "play-audio",
+            "audio": "tts-window.wav"
+          },
+          "popupText": "Bright moonbeams filter through the gothic stained-glass window.",
+          "label": "window"
+        },
+        {
+          "id": "hs-hall-door",
+          "shape": "rect",
+          "coords": [34, 40, 20, 28],
+          "action": {
+            "type": "change-scene",
+            "scene": "great_hall"
+          },
+          "popupText": "You go back to the Great Hall...",
+          "label": "hallway door"
+        }
+      ]
+    },
+    "ghost_room": {
+      "image": "canterville_attic.png",
+      "hotspots": [
+        {
+          "id": "hs-bed",
+          "shape": "rect",
+          "coords": [15, 43, 56, 45],
+          "action": {
+            "type": "play-audio",
+            "audio": "tts-bed.wav"
+          },
+          "popupText": "A creaky wooden four-poster bed with a dusty patchwork quilt.",
+          "label": "bed"
+        },
+        {
+          "id": "hs-chest",
+          "shape": "rect",
+          "coords": [0, 68, 22, 22],
+          "action": {
+            "type": "play-audio",
+            "audio": "tts-chest.wav"
+          },
+          "popupText": "An old heavy iron-bound oak chest. It is locked tight.",
+          "label": "chest"
+        },
+        {
+          "id": "hs-curtain",
+          "shape": "rect",
+          "coords": [57, 23, 40, 58],
+          "action": {
+            "type": "play-audio",
+            "audio": "tts-ghost.wav"
+          },
+          "popupText": "Ah! You see a faint ghostly silhouette hiding behind the heavy red velvet curtain!",
+          "label": "ghost"
+        },
+        {
+          "id": "hs-hall-stairs",
+          "shape": "rect",
+          "coords": [40, 88, 25, 12],
+          "action": {
+            "type": "change-scene",
+            "scene": "great_hall"
+          },
+          "popupText": "You go down the stairs back to the Great Hall...",
+          "label": "stairs down"
+        }
+      ]
+    }
+  },
+  "gameMode": {
+    "enabled": true,
+    "challenges": [
+      {
+        "id": "c1",
+        "promptText": "Locate the mysterious bloodstain in the Great Hall.",
+        "targetLabel": "bloodstain",
+        "promptAudio": "prompt-bloodstain.wav"
+      },
+      {
+        "id": "c2",
+        "promptText": "Find the open journal in the Library that details the curse.",
+        "targetLabel": "journal",
+        "promptAudio": "prompt-journal.wav"
+      },
+      {
+        "id": "c3",
+        "promptText": "Find the old locked chest in the spooky attic bedroom.",
+        "targetLabel": "chest",
+        "promptAudio": "prompt-chest.wav"
+      },
+      {
+        "id": "c4",
+        "promptText": "Find the Canterville Ghost hiding in the attic room!",
+        "targetLabel": "ghost",
+        "promptAudio": "prompt-ghost.wav"
+      }
+    ]
+  }
+}

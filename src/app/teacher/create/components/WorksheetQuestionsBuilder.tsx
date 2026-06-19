@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Upload, Trash, Search } from "lucide-react";
+import { Upload, Trash, Search, ArrowUp, ArrowDown, Settings } from "lucide-react";
 import { PixabaySearchModal } from "@/components/PixabaySearchModal";
 
 export interface CreatorQuestion {
@@ -40,10 +40,20 @@ export interface CreatorQuestion {
   ttsEnabled?: boolean;
 }
 
+interface WorksheetPageCreator {
+  id: string;
+  title: string;
+  questions: CreatorQuestion[];
+}
+
 interface WorksheetQuestionsBuilderProps {
   exerciseId: string;
-  questions: CreatorQuestion[];
-  setQuestions: React.Dispatch<React.SetStateAction<CreatorQuestion[]>>;
+  pages: WorksheetPageCreator[];
+  setPages: React.Dispatch<React.SetStateAction<WorksheetPageCreator[]>>;
+  enforceGate: boolean;
+  setEnforceGate: (val: boolean) => void;
+  gateRequiredScore: number;
+  setGateRequiredScore: (val: number) => void;
   handleMediaUpload: (
     file: File,
     onUploaded: (filename: string) => void,
@@ -53,80 +63,267 @@ interface WorksheetQuestionsBuilderProps {
 
 export function WorksheetQuestionsBuilder({
   exerciseId,
-  questions,
-  setQuestions,
+  pages = [],
+  setPages,
+  enforceGate,
+  setEnforceGate,
+  gateRequiredScore,
+  setGateRequiredScore,
   handleMediaUpload,
 }: WorksheetQuestionsBuilderProps) {
   const [isPixabayOpen, setIsPixabayOpen] = useState(false);
   const [activeMediaTarget, setActiveMediaTarget] = useState<((filename: string) => void) | null>(null);
   const [activeQuery, setActiveQuery] = useState("");
+  const [activePageIdx, setActivePageIdx] = useState(0);
 
-  const addQuestion = (type: CreatorQuestion["type"]) => {
-    setQuestions((prev) => [
-      ...prev,
-      {
-        id: crypto.randomUUID(),
-        type,
-        question: "",
-        media: "",
-        mediaStatus: "",
-        hint: "",
-        options: ["", ""],
-        correctOptionIndex: 0,
-        text: "",
-        categories: "",
-        categorizationMap: {},
-        choices: "",
-        statements: "",
-        matchingPairs: [
-          {
-            id: crypto.randomUUID(),
-            leftText: "",
-            leftMedia: "",
-            leftMediaStatus: "",
-            rightText: "",
-          },
-        ],
-        keywords: "",
-        orderingSentence: "",
-      },
-    ]);
+  // Safeguard activePageIdx
+  const activePage = pages[activePageIdx] || pages[0] || { id: "p-1", title: "Page 1", questions: [] };
+  const safeActiveIdx = pages[activePageIdx] ? activePageIdx : 0;
+
+  const addPage = () => {
+    const newPage = {
+      id: crypto.randomUUID(),
+      title: `Page ${pages.length + 1}`,
+      questions: [],
+    };
+    setPages((prev) => [...prev, newPage]);
+    setActivePageIdx(pages.length);
   };
 
-  const removeQuestion = (qId: string) => {
-    setQuestions((prev) => prev.filter((q) => q.id !== qId));
+  const deleteActivePage = () => {
+    if (pages.length <= 1) return;
+    if (confirm("Are you sure you want to delete this page and all tasks inside it?")) {
+      setPages((prev) => prev.filter((_, idx) => idx !== safeActiveIdx));
+      setActivePageIdx((prev) => Math.max(0, prev - 1));
+    }
   };
 
-  const updateQuestion = (qId: string, fields: Partial<CreatorQuestion>) => {
-    setQuestions((prev) =>
-      prev.map((q) => (q.id === qId ? { ...q, ...fields } : q))
+  const updatePageTitle = (newTitle: string) => {
+    setPages((prev) =>
+      prev.map((p, idx) => (idx === safeActiveIdx ? { ...p, title: newTitle } : p))
     );
   };
 
-  const updateCategorizationMap = (qId: string, category: string, value: string) => {
-    setQuestions((prev) =>
-      prev.map((q) => {
-        if (q.id === qId) {
-          return {
-            ...q,
-            categorizationMap: {
-              ...q.categorizationMap,
-              [category]: value,
+  const addQuestion = (type: CreatorQuestion["type"]) => {
+    setPages((prev) =>
+      prev.map((p, pIdx) => {
+        if (pIdx !== safeActiveIdx) return p;
+        return {
+          ...p,
+          questions: [
+            ...p.questions,
+            {
+              id: crypto.randomUUID(),
+              type,
+              question: "",
+              media: "",
+              mediaStatus: "",
+              hint: "",
+              options: ["", ""],
+              correctOptionIndex: 0,
+              text: "",
+              categories: "",
+              categorizationMap: {},
+              choices: "",
+              statements: "",
+              matchingPairs: [
+                {
+                  id: crypto.randomUUID(),
+                  leftText: "",
+                  leftMedia: "",
+                  leftMediaStatus: "",
+                  rightText: "",
+                },
+              ],
+              keywords: "",
+              orderingSentence: "",
             },
-          };
-        }
-        return q;
+          ],
+        };
       })
     );
   };
 
+  const removeQuestion = (qId: string) => {
+    setPages((prev) =>
+      prev.map((p, pIdx) => {
+        if (pIdx !== safeActiveIdx) return p;
+        return {
+          ...p,
+          questions: p.questions.filter((q) => q.id !== qId),
+        };
+      })
+    );
+  };
+
+  const updateQuestion = (qId: string, fields: Partial<CreatorQuestion>) => {
+    setPages((prev) =>
+      prev.map((p, pIdx) => {
+        if (pIdx !== safeActiveIdx) return p;
+        return {
+          ...p,
+          questions: p.questions.map((q) => (q.id === qId ? { ...q, ...fields } : q)),
+        };
+      })
+    );
+  };
+
+  const updateCategorizationMap = (qId: string, category: string, value: string) => {
+    setPages((prev) =>
+      prev.map((p, pIdx) => {
+        if (pIdx !== safeActiveIdx) return p;
+        return {
+          ...p,
+          questions: p.questions.map((q) => {
+            if (q.id === qId) {
+              return {
+                ...q,
+                categorizationMap: {
+                  ...q.categorizationMap,
+                  [category]: value,
+                },
+              };
+            }
+            return q;
+          }),
+        };
+      })
+    );
+  };
+
+  const moveQuestion = (qIdx: number, direction: "up" | "down") => {
+    setPages((prev) =>
+      prev.map((p, pIdx) => {
+        if (pIdx !== safeActiveIdx) return p;
+        const newQs = [...p.questions];
+        const targetIdx = direction === "up" ? qIdx - 1 : qIdx + 1;
+        if (targetIdx < 0 || targetIdx >= newQs.length) return p;
+        [newQs[qIdx], newQs[targetIdx]] = [newQs[targetIdx], newQs[qIdx]];
+        return {
+          ...p,
+          questions: newQs,
+        };
+      })
+    );
+  };
+
+  const moveQuestionToPage = (qId: string, targetPageIdx: number) => {
+    if (targetPageIdx === safeActiveIdx) return;
+    setPages((prev) => {
+      const questionToMove = prev[safeActiveIdx].questions.find((q) => q.id === qId);
+      if (!questionToMove) return prev;
+      return prev.map((p, pIdx) => {
+        if (pIdx === safeActiveIdx) {
+          return {
+            ...p,
+            questions: p.questions.filter((q) => q.id !== qId),
+          };
+        }
+        if (pIdx === targetPageIdx) {
+          return {
+            ...p,
+            questions: [...p.questions, questionToMove],
+          };
+        }
+        return p;
+      });
+    });
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
+      {/* Progress Gate Settings */}
+      <div className="p-4 border rounded border-neutral-300 dark:border-neutral-850 bg-neutral-50/30 dark:bg-neutral-950/20 space-y-3">
+        <h3 className="text-xs font-mono font-bold uppercase tracking-wider flex items-center gap-1.5 text-neutral-700 dark:text-neutral-300">
+          <Settings className="w-4 h-4 text-purple-500" />
+          Worksheet Gating Configuration
+        </h3>
+        <div className="flex flex-wrap items-center gap-4 text-xs">
+          <label className="flex items-center gap-1.5 font-semibold cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={enforceGate}
+              onChange={(e) => setEnforceGate(e.target.checked)}
+              className="h-4 w-4 cursor-pointer rounded accent-purple-650"
+            />
+            <span>Require minimum correctness to proceed to next page</span>
+          </label>
+          {enforceGate && (
+            <div className="flex items-center gap-1.5 font-mono">
+              <span>Required Score:</span>
+              <input
+                type="number"
+                min={1}
+                max={100}
+                value={gateRequiredScore}
+                onChange={(e) => setGateRequiredScore(Math.max(1, Math.min(100, Number(e.target.value) || 75)))}
+                className="w-16 border rounded px-2 py-0.5 outline-none text-center font-bold bg-white dark:bg-neutral-900 border-neutral-350 dark:border-neutral-750"
+              />
+              <span>%</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Pages Tabs */}
+      <div className="space-y-3 border-t pt-4">
+        <div className="flex flex-wrap gap-2 items-center">
+          {pages.map((p, pIdx) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => setActivePageIdx(pIdx)}
+              className={`px-3 py-1.5 text-xs font-semibold uppercase font-mono rounded border transition flex items-center gap-1.5 cursor-pointer ${
+                safeActiveIdx === pIdx
+                  ? "bg-black text-white dark:bg-white dark:text-black border-transparent"
+                  : "border-neutral-350 dark:border-neutral-750 text-neutral-500 hover:bg-neutral-50 dark:hover:bg-neutral-800"
+              }`}
+            >
+              <span>{p.title || `Page ${pIdx + 1}`}</span>
+              <span className="text-[10px] opacity-60">({p.questions.length})</span>
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={addPage}
+            className="px-3 py-1.5 text-xs font-semibold uppercase font-mono rounded border border-dashed border-neutral-400 dark:border-neutral-600 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800 transition cursor-pointer"
+          >
+            + Add Page
+          </button>
+        </div>
+
+        {/* Selected Page Editor Settings */}
+        <div className="p-4 border rounded border-neutral-300 dark:border-neutral-800 bg-white dark:bg-neutral-900 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex-1 space-y-1">
+            <label className="text-[10px] font-semibold uppercase tracking-wider text-neutral-450 block">
+              Page Title
+            </label>
+            <input
+              type="text"
+              placeholder={`Page ${safeActiveIdx + 1} Title`}
+              value={activePage.title}
+              onChange={(e) => updatePageTitle(e.target.value)}
+              className="w-full text-xs font-bold border border-neutral-300 dark:border-neutral-700 bg-transparent rounded px-3 py-1.5 outline-none focus:border-black dark:focus:border-white"
+            />
+          </div>
+          {pages.length > 1 && (
+            <button
+              type="button"
+              onClick={deleteActivePage}
+              className="bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-955/10 dark:hover:bg-red-955/20 border border-red-200 dark:border-red-900 font-mono font-bold text-[10px] uppercase px-3 py-2 rounded transition cursor-pointer self-end sm:self-auto shrink-0 flex items-center gap-1"
+            >
+              <Trash className="w-3.5 h-3.5" />
+              Delete Page
+            </button>
+          )}
+        </div>
+      </div>
+
       <h2 className="text-base font-bold font-mono uppercase tracking-wide border-b pb-2">
-        Tasks & Questions List ({questions.length})
+        Tasks & Questions List ({activePage.questions.length} on this page)
       </h2>
 
-      {questions.map((q, qIdx) => {
+      {activePage.questions.map((q, qIdx) => {
         const activeCats = q.categories
           .split(",")
           .map((c) => c.trim())
@@ -159,13 +356,58 @@ export function WorksheetQuestionsBuilder({
                   <option value="instruction">Instruction Card</option>
                 </select>
               </div>
-              <button
-                type="button"
-                onClick={() => removeQuestion(q.id)}
-                className="text-neutral-400 hover:text-red-500 cursor-pointer transition"
-              >
-                <Trash className="w-4 h-4" />
-              </button>
+
+              <div className="flex items-center gap-2">
+                {/* Reordering buttons */}
+                {qIdx > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => moveQuestion(qIdx, "up")}
+                    className="text-neutral-400 hover:text-black dark:hover:text-white cursor-pointer transition p-1 border rounded bg-transparent hover:bg-neutral-50 dark:hover:bg-neutral-800"
+                    title="Move Task Up"
+                  >
+                    <ArrowUp className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                {qIdx < activePage.questions.length - 1 && (
+                  <button
+                    type="button"
+                    onClick={() => moveQuestion(qIdx, "down")}
+                    className="text-neutral-400 hover:text-black dark:hover:text-white cursor-pointer transition p-1 border rounded bg-transparent hover:bg-neutral-50 dark:hover:bg-neutral-800"
+                    title="Move Task Down"
+                  >
+                    <ArrowDown className="w-3.5 h-3.5" />
+                  </button>
+                )}
+
+                {/* Move to another page select */}
+                {pages.length > 1 && (
+                  <div className="flex items-center gap-1.5 border border-neutral-300 dark:border-neutral-750 rounded px-2 py-0.5">
+                    <span className="text-[9px] font-mono text-neutral-450 uppercase font-semibold">Move to page:</span>
+                    <select
+                      value={safeActiveIdx}
+                      onChange={(e) => moveQuestionToPage(q.id, Number(e.target.value))}
+                      className="text-[10px] font-mono font-bold bg-transparent outline-none cursor-pointer text-neutral-600 dark:text-neutral-300 border-none p-0"
+                    >
+                      {pages.map((p, pIdx) => (
+                        <option key={p.id} value={pIdx}>
+                          {p.title || `Page ${pIdx + 1}`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Remove button */}
+                <button
+                  type="button"
+                  onClick={() => removeQuestion(q.id)}
+                  className="text-neutral-400 hover:text-red-500 cursor-pointer transition p-1 border rounded bg-transparent hover:bg-neutral-50 dark:hover:bg-neutral-850"
+                  title="Delete Task"
+                >
+                  <Trash className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
 
             {/* Question prompt inputs */}
@@ -416,7 +658,7 @@ export function WorksheetQuestionsBuilder({
                   </label>
                   <textarea
                     required
-                    placeholder="Is 7 a prime number?##Yes&#13;Is 8 a prime number?##No"
+                    placeholder="Is 7 a prime number?##Yes\nIs 8 a prime number?##No"
                     value={q.statements}
                     onChange={(e) => updateQuestion(q.id, { statements: e.target.value })}
                     rows={4}
@@ -507,7 +749,7 @@ export function WorksheetQuestionsBuilder({
                             onClick={() => {
                               if (!exerciseId.trim()) {
                                 alert("Please specify the Worksheet ID at the top of the form before searching Pixabay.");
-                                  return;
+                                return;
                               }
                               setActiveMediaTarget(() => (fn: string) => {
                                 const newPairs = q.matchingPairs.map((p) =>
@@ -527,7 +769,7 @@ export function WorksheetQuestionsBuilder({
                       </div>
 
                       <div className="flex-1 space-y-1">
-                        <label className="text-[9px] uppercase tracking-wider font-semibold text-neutral-450 block">
+                        <label className="text-[9px] uppercase tracking-wider font-semibold text-neutral-455 block">
                           Right Target Match
                         </label>
                         <input
@@ -647,7 +889,7 @@ export function WorksheetQuestionsBuilder({
       })}
 
       {/* Quick Add Buttons at bottom */}
-      <div className="p-4 border border-dashed rounded flex flex-wrap gap-2 items-center justify-center bg-neutral-50/50 dark:bg-neutral-950/10">
+      <div className="p-4 border border-dashed rounded flex flex-wrap gap-2 items-center justify-center bg-neutral-50/50 dark:bg-neutral-955/10">
         <span className="text-xs font-mono font-bold uppercase tracking-wider text-neutral-500 mr-2">
           + Add task:
         </span>

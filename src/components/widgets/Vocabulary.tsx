@@ -18,6 +18,7 @@ import {
   Trophy 
 } from "lucide-react";
 import { getVocabDefinitionAction } from "@/lib/actions/ai-coach";
+import { OralVocabulary } from "./OralVocabulary";
 
 // --- HELPERS ---
 
@@ -200,7 +201,25 @@ const FALLBACK_DEFINITIONS: Record<string, string> = {
   "teacher": "A person whose job is to help students learn and acquire knowledge."
 };
 
-export const Vocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
+export const Vocabulary: React.FC<WidgetProps<VocabularyConfig>> = (props) => {
+  if (props.config.practiceMode === "oral-quiz") {
+    return (
+      <OralVocabulary
+        config={{
+          ...props.config,
+          type: "oral-vocabulary",
+        }}
+        assetsPath={props.assetsPath}
+        savedState={props.savedState}
+        onChange={props.onChange}
+        isReadOnly={props.isReadOnly}
+      />
+    );
+  }
+  return <VocabularyInner {...props} />;
+};
+
+const VocabularyInner: React.FC<WidgetProps<VocabularyConfig>> = ({
   config,
   assetsPath,
   savedState,

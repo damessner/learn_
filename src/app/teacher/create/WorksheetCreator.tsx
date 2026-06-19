@@ -177,6 +177,12 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
     return true;
   });
 
+  const [vocabPracticeMode, setVocabPracticeMode] = useState<"tiered" | "oral-quiz">(
+    parsedInitialData && parsedInitialData.type === "vocabulary"
+      ? parsedInitialData.practiceMode || "tiered"
+      : "tiered"
+  );
+
   const handleVocabRawTextChange = (newText: string) => {
     setVocabRawText(newText);
     const lines = newText.split("\n").map((line) => line.trim()).filter(Boolean);
@@ -252,96 +258,136 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
   });
 
   // Helper to map exercise data back to CreatorQuestion format
-  const getInitialQuestions = (): CreatorQuestion[] => {
-    if (parsedInitialData && parsedInitialData.type === "worksheet" && Array.isArray(parsedInitialData.questions)) {
-      return (parsedInitialData.questions as Array<Record<string, unknown>>).map((q) => {
-        const qRecord = q as Record<string, unknown>;
-        const categorizationMap: Record<string, string> = {};
-        const qCategories = qRecord.categories as string[] | undefined;
-        const qItems = qRecord.items as Array<Record<string, unknown>> | undefined;
-        if (qCategories && qItems) {
-          qCategories.forEach((cat: string) => {
-            const itemsOfCat = qItems
-              .filter((item) => (item as Record<string, unknown>).category === cat)
-              .map((item) => (item as Record<string, unknown>).name as string);
-            categorizationMap[cat] = itemsOfCat.join(" ## ");
-          });
-        }
-
-        const qStatements = qRecord.statements as Array<Record<string, unknown>> | undefined;
-        const statements = qStatements
-          ? qStatements.map((s) => `${s.text}##${s.correctChoice}`).join("\n")
-          : "";
-
-        const qPairs = qRecord.pairs as Array<Record<string, unknown>> | undefined;
-        const matchingPairs = qPairs
-          ? qPairs.map((p) => ({
-              id: ((p as Record<string, unknown>).id as string) || randomUUID(),
-              leftText: ((p as Record<string, unknown>).leftText as string) || "",
-              leftMedia: ((p as Record<string, unknown>).leftMedia as string) || "",
-              leftMediaStatus: (p as Record<string, unknown>).leftMedia ? "✓ Loaded" : "",
-              rightText: ((p as Record<string, unknown>).rightText as string) || "",
-            }))
-          : [{ id: "initial-pair-1", leftText: "", leftMedia: "", leftMediaStatus: "", rightText: "" }];
-
-        const qKeywords = qRecord.keywords as string[] | undefined;
-        const keywords = qKeywords
-          ? qKeywords.map((k: string) => `##${k}`).join(" ")
-          : "";
-
-        const qElements = qRecord.elements as string[] | undefined;
-        const orderingSentence = qElements
-          ? qElements.join(" ")
-          : "";
-
-        return {
-          id: (qRecord.id as string) || randomUUID(),
-          type: (qRecord.type as CreatorQuestion["type"]) || "multiple-choice",
-          question: (qRecord.question as string) || "",
-          media: (qRecord.media as string) || "",
-          mediaStatus: qRecord.media ? "✓ Loaded" : "",
-          hint: (qRecord.hint as string) || "",
-          options: (qRecord.options as string[]) || ["", ""],
-          correctOptionIndex: (qRecord.correctOptionIndex as number) ?? 0,
-          text: (qRecord.text as string) || "",
-          categories: qCategories ? qCategories.join(", ") : "",
-          categorizationMap,
-          choices: (qRecord.choices as string[]) ? (qRecord.choices as string[]).join(", ") : "",
-          statements,
-          matchingPairs,
-          keywords,
-          orderingSentence,
-          ttsEnabled: !!qRecord.ttsEnabled,
-        } as CreatorQuestion;
+  const parseQuestion = (q: Record<string, unknown>): CreatorQuestion => {
+    const categorizationMap: Record<string, string> = {};
+    const qCategories = q.categories as string[] | undefined;
+    const qItems = q.items as Array<Record<string, unknown>> | undefined;
+    if (qCategories && qItems) {
+      qCategories.forEach((cat: string) => {
+        const itemsOfCat = qItems
+          .filter((item) => (item as Record<string, unknown>).category === cat)
+          .map((item) => (item as Record<string, unknown>).name as string);
+        categorizationMap[cat] = itemsOfCat.join(" ## ");
       });
     }
 
-    return [
-      {
-        id: "initial-question-1",
-        type: "multiple-choice",
-        question: "",
-        media: "",
-        mediaStatus: "",
-        hint: "",
-        options: ["", ""],
-        correctOptionIndex: 0,
-        text: "",
-        categories: "",
-        categorizationMap: {},
-        choices: "",
-        statements: "",
-        matchingPairs: [{ id: "initial-pair-1", leftText: "", leftMedia: "", leftMediaStatus: "", rightText: "" }],
-        keywords: "",
-        orderingSentence: "",
-      },
-    ];
+    const qStatements = q.statements as Array<Record<string, unknown>> | undefined;
+    const statements = qStatements
+      ? qStatements.map((s) => `${s.text}##${s.correctChoice}`).join("\n")
+      : "";
+
+    const qPairs = q.pairs as Array<Record<string, unknown>> | undefined;
+    const matchingPairs = qPairs
+      ? qPairs.map((p) => ({
+          id: ((p as Record<string, unknown>).id as string) || randomUUID(),
+          leftText: ((p as Record<string, unknown>).leftText as string) || "",
+          leftMedia: ((p as Record<string, unknown>).leftMedia as string) || "",
+          leftMediaStatus: (p as Record<string, unknown>).leftMedia ? "✓ Loaded" : "",
+          rightText: ((p as Record<string, unknown>).rightText as string) || "",
+        }))
+      : [{ id: "initial-pair-1", leftText: "", leftMedia: "", leftMediaStatus: "", rightText: "" }];
+
+    const qKeywords = q.keywords as string[] | undefined;
+    const keywords = qKeywords
+      ? qKeywords.map((k: string) => `##${k}`).join(" ")
+      : "";
+
+    const qElements = q.elements as string[] | undefined;
+    const orderingSentence = qElements
+      ? qElements.join(" ")
+      : "";
+
+    return {
+      id: (q.id as string) || randomUUID(),
+      type: (q.type as CreatorQuestion["type"]) || "multiple-choice",
+      question: (q.question as string) || "",
+      media: (q.media as string) || "",
+      mediaStatus: q.media ? "✓ Loaded" : "",
+      hint: (q.hint as string) || "",
+      options: (q.options as string[]) || ["", ""],
+      correctOptionIndex: (q.correctOptionIndex as number) ?? 0,
+      text: (q.text as string) || "",
+      categories: qCategories ? qCategories.join(", ") : "",
+      categorizationMap,
+      choices: (q.choices as string[]) ? (q.choices as string[]).join(", ") : "",
+      statements,
+      matchingPairs,
+      keywords,
+      orderingSentence,
+      ttsEnabled: !!q.ttsEnabled,
+    } as CreatorQuestion;
   };
 
+  interface WorksheetPageCreator {
+    id: string;
+    title: string;
+    questions: CreatorQuestion[];
+  }
+
   // ----------------------------------------------------
-  // STANDARD WORKSHEET MODE STATE
+  // STANDARD WORKSHEET MODE STATE (PAGES & GATING)
   // ----------------------------------------------------
-  const [questions, setQuestions] = useState<CreatorQuestion[]>(getInitialQuestions());
+  const [worksheetPages, setWorksheetPages] = useState<WorksheetPageCreator[]>(() => {
+    if (parsedInitialData && parsedInitialData.type === "worksheet") {
+      if (Array.isArray(parsedInitialData.pages)) {
+        return (parsedInitialData.pages as Array<Record<string, unknown>>).map((p) => {
+          const qList = Array.isArray(p.questions)
+            ? (p.questions as Array<Record<string, unknown>>).map((q) => parseQuestion(q))
+            : [];
+          return {
+            id: (p.id as string) || randomUUID(),
+            title: (p.title as string) || "",
+            questions: qList,
+          };
+        });
+      } else if (Array.isArray(parsedInitialData.questions)) {
+        return [
+          {
+            id: randomUUID(),
+            title: "Page 1",
+            questions: (parsedInitialData.questions as Array<Record<string, unknown>>).map((q) => parseQuestion(q)),
+          },
+        ];
+      }
+    }
+    return [
+      {
+        id: randomUUID(),
+        title: "Page 1",
+        questions: [
+          {
+            id: "initial-question-1",
+            type: "multiple-choice",
+            question: "",
+            media: "",
+            mediaStatus: "",
+            hint: "",
+            options: ["", ""],
+            correctOptionIndex: 0,
+            text: "",
+            categories: "",
+            categorizationMap: {},
+            choices: "",
+            statements: "",
+            matchingPairs: [{ id: "initial-pair-1", leftText: "", leftMedia: "", leftMediaStatus: "", rightText: "" }],
+            keywords: "",
+            orderingSentence: "",
+          },
+        ],
+      },
+    ];
+  });
+
+  const [enforceGate, setEnforceGate] = useState<boolean>(
+    parsedInitialData && parsedInitialData.type === "worksheet"
+      ? !!parsedInitialData.enforceGate
+      : false
+  );
+  const [gateRequiredScore, setGateRequiredScore] = useState<number>(
+    parsedInitialData && parsedInitialData.type === "worksheet" && typeof parsedInitialData.gateRequiredScore === "number"
+      ? parsedInitialData.gateRequiredScore
+      : 75
+  );
 
   // ----------------------------------------------------
   // IMAGE HOTSPOT QUIZ MODE STATE
@@ -657,6 +703,7 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
         contentString = JSON.stringify({
           vocabList: finalVocabList,
           pictureSupplementation: vocabPictureSupplementation,
+          practiceMode: creatorMode === "oral-vocabulary" ? "oral-quiz" : vocabPracticeMode,
         });
       } else if (creatorMode === "writing-coach") {
         if (!coachPrompt.trim()) {
@@ -734,161 +781,178 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
         contentString = JSON.stringify({
           questions: formattedQuestions,
         });
-      } else {
-        if (questions.length === 0) {
-          throw new Error("Please add at least one task to the worksheet.");
+      } else if (creatorMode === "worksheet") {
+        if (worksheetPages.length === 0) {
+          throw new Error("Please add at least one page to the worksheet.");
         }
 
-        const formattedQuestions = questions.map((q, idx) => {
-          const indexStr = `Question ${idx + 1}`;
-
-          const base: Record<string, unknown> = {
-            id: q.id,
-            type: q.type,
-            question: q.question.trim(),
-          };
-
-          if (q.ttsEnabled) base.ttsEnabled = true;
-          if (q.media.trim()) base.media = q.media.trim();
-          if (q.hint.trim()) base.hint = q.hint.trim();
-
-          if (q.type === "multiple-choice") {
-            if (!q.question.trim()) throw new Error(`${indexStr}: Question text is required.`);
-            const filteredOptions = q.options.filter((opt) => opt.trim());
-            if (filteredOptions.length < 2) throw new Error(`${indexStr}: Must provide at least 2 options.`);
-            return {
-              ...base,
-              options: filteredOptions,
-              correctOptionIndex: q.correctOptionIndex,
-            };
-          } else if (q.type === "gap-fill" || q.type === "drag-drop") {
-            if (!q.question.trim()) throw new Error(`${indexStr}: Instructions prompt is required.`);
-            if (!q.text.trim()) throw new Error(`${indexStr}: Text with gaps is required.`);
-            return {
-              ...base,
-              text: q.text.trim(),
-            };
-          } else if (q.type === "categorization") {
-            if (!q.question.trim()) throw new Error(`${indexStr}: Instructions prompt is required.`);
-            const categories = q.categories
-              .split(",")
-              .map((c) => c.trim())
-              .filter(Boolean);
-
-            if (categories.length < 2) throw new Error(`${indexStr}: Enter at least 2 categories.`);
-
-            const items: Array<{ id: string; name: string; category: string }> = [];
-            categories.forEach((cat) => {
-              const itemsString = q.categorizationMap[cat] || "";
-              const parsedItems = itemsString
-                .split("##")
-                .map((i) => i.trim())
-                .filter(Boolean);
-
-              parsedItems.forEach((name) => {
-                items.push({
-                  id: randomUUID(),
-                  name,
-                  category: cat,
-                });
-              });
-            });
-
-            if (items.length === 0) throw new Error(`${indexStr}: Please list at least one sorting item.`);
-            return {
-              ...base,
-              categories,
-              items,
-            };
-          } else if (q.type === "clickable-choice") {
-            if (!q.question.trim()) throw new Error(`${indexStr}: Instructions prompt is required.`);
-            const choices = q.choices
-              .split(",")
-              .map((c) => c.trim())
-              .filter(Boolean);
-
-            if (choices.length < 2) throw new Error(`${indexStr}: Enter at least 2 choices.`);
-
-            const lines = q.statements.split("\n").filter((l) => l.trim());
-            if (lines.length === 0) throw new Error(`${indexStr}: Please add statements in Statement##Choice format.`);
-
-            const statements = lines.map((line, lIdx) => {
-              const parts = line.split("##");
-              if (parts.length < 2) throw new Error(`${indexStr} Line ${lIdx + 1}: Must be Statement##Choice.`);
-              const correctChoice = parts[1].trim();
-
-              if (!choices.includes(correctChoice)) {
-                throw new Error(`${indexStr} Line ${lIdx + 1}: Correct choice "${correctChoice}" is not in choices list.`);
-              }
-
-              return {
-                id: randomUUID(),
-                text: parts[0].trim(),
-                correctChoice,
-              };
-            });
-
-            return {
-              ...base,
-              choices,
-              statements,
-            };
-          } else if (q.type === "matching") {
-            if (!q.question.trim()) throw new Error(`${indexStr}: Instructions prompt is required.`);
-            const validPairs = q.matchingPairs.filter((p) => p.rightText.trim() && (p.leftText.trim() || p.leftMedia.trim()));
-            if (validPairs.length < 2) throw new Error(`${indexStr}: Provide at least 2 matching pairs.`);
-            return {
-              ...base,
-              pairs: validPairs.map((p) => ({
-                id: p.id,
-                leftText: p.leftText.trim() || undefined,
-                leftMedia: p.leftMedia.trim() || undefined,
-                rightText: p.rightText.trim(),
-              })),
-            };
-          } else if (q.type === "media") {
-            if (!q.media.trim()) throw new Error(`${indexStr}: Please upload or specify a media file.`);
-            return {
-              id: q.id,
-              type: "media",
-              media: q.media.trim(),
-            };
-          } else if (q.type === "instruction") {
-            if (!q.text.trim()) throw new Error(`${indexStr}: Instruction text cannot be empty.`);
-            return {
-              id: q.id,
-              type: "instruction",
-              text: q.text.trim(),
-            };
-          } else if (q.type === "open-question") {
-            if (!q.question.trim()) throw new Error(`${indexStr}: Question text is required.`);
-            const keywords = q.keywords
-              .split("##")
-              .map((k) => k.trim())
-              .filter(Boolean);
-
-            return {
-              ...base,
-              keywords,
-            };
-          } else if (q.type === "ordering") {
-            if (!q.question.trim()) throw new Error(`${indexStr}: Question instruction is required.`);
-            const elements = q.orderingSentence
-              .split(" ")
-              .map((e) => e.trim())
-              .filter(Boolean);
-
-            if (elements.length < 2) throw new Error(`${indexStr}: Sentence must have at least 2 words.`);
-            return {
-              ...base,
-              elements,
-            };
+        const formattedPages = worksheetPages.map((p, pIdx) => {
+          const pageTitle = p.title.trim() || `Page ${pIdx + 1}`;
+          if (p.questions.length === 0) {
+            throw new Error(`Page "${pageTitle}": Please add at least one task.`);
           }
 
-          return base;
+          const formattedQuestions = p.questions.map((q, idx) => {
+            const indexStr = `Page "${pageTitle}" Task ${idx + 1}`;
+
+            const base: Record<string, unknown> = {
+              id: q.id,
+              type: q.type,
+              question: q.question.trim(),
+            };
+
+            if (q.ttsEnabled) base.ttsEnabled = true;
+            if (q.media.trim()) base.media = q.media.trim();
+            if (q.hint.trim()) base.hint = q.hint.trim();
+
+            if (q.type === "multiple-choice") {
+              if (!q.question.trim()) throw new Error(`${indexStr}: Question text is required.`);
+              const filteredOptions = q.options.filter((opt) => opt.trim());
+              if (filteredOptions.length < 2) throw new Error(`${indexStr}: Must provide at least 2 options.`);
+              return {
+                ...base,
+                options: filteredOptions,
+                correctOptionIndex: q.correctOptionIndex,
+              };
+            } else if (q.type === "gap-fill" || q.type === "drag-drop") {
+              if (!q.question.trim()) throw new Error(`${indexStr}: Instructions prompt is required.`);
+              if (!q.text.trim()) throw new Error(`${indexStr}: Text with gaps is required.`);
+              return {
+                ...base,
+                text: q.text.trim(),
+              };
+            } else if (q.type === "categorization") {
+              if (!q.question.trim()) throw new Error(`${indexStr}: Instructions prompt is required.`);
+              const categories = q.categories
+                .split(",")
+                .map((c) => c.trim())
+                .filter(Boolean);
+
+              if (categories.length < 2) throw new Error(`${indexStr}: Enter at least 2 categories.`);
+
+              const items: Array<{ id: string; name: string; category: string }> = [];
+              categories.forEach((cat) => {
+                const itemsString = q.categorizationMap[cat] || "";
+                const parsedItems = itemsString
+                  .split("##")
+                  .map((i) => i.trim())
+                  .filter(Boolean);
+
+                parsedItems.forEach((name) => {
+                  items.push({
+                    id: randomUUID(),
+                    name,
+                    category: cat,
+                  });
+                });
+              });
+
+              if (items.length === 0) throw new Error(`${indexStr}: Please list at least one sorting item.`);
+              return {
+                ...base,
+                categories,
+                items,
+              };
+            } else if (q.type === "clickable-choice") {
+              if (!q.question.trim()) throw new Error(`${indexStr}: Instructions prompt is required.`);
+              const choices = q.choices
+                .split(",")
+                .map((c) => c.trim())
+                .filter(Boolean);
+
+              if (choices.length < 2) throw new Error(`${indexStr}: Enter at least 2 choices.`);
+
+              const lines = q.statements.split("\n").filter((l) => l.trim());
+              if (lines.length === 0) throw new Error(`${indexStr}: Please add statements in Statement##Choice format.`);
+
+              const statements = lines.map((line, lIdx) => {
+                const parts = line.split("##");
+                if (parts.length < 2) throw new Error(`${indexStr} Line ${lIdx + 1}: Must be Statement##Choice.`);
+                const correctChoice = parts[1].trim();
+
+                if (!choices.includes(correctChoice)) {
+                  throw new Error(`${indexStr} Line ${lIdx + 1}: Correct choice "${correctChoice}" is not in choices list.`);
+                }
+
+                return {
+                  id: randomUUID(),
+                  text: parts[0].trim(),
+                  correctChoice,
+                };
+              });
+
+              return {
+                ...base,
+                choices,
+                statements,
+              };
+            } else if (q.type === "matching") {
+              if (!q.question.trim()) throw new Error(`${indexStr}: Instructions prompt is required.`);
+              const validPairs = q.matchingPairs.filter((pair) => pair.rightText.trim() && (pair.leftText.trim() || pair.leftMedia.trim()));
+              if (validPairs.length < 2) throw new Error(`${indexStr}: Provide at least 2 matching pairs.`);
+              return {
+                ...base,
+                pairs: validPairs.map((pair) => ({
+                  id: pair.id,
+                  leftText: pair.leftText.trim() || undefined,
+                  leftMedia: pair.leftMedia.trim() || undefined,
+                  rightText: pair.rightText.trim(),
+                })),
+              };
+            } else if (q.type === "media") {
+              if (!q.media.trim()) throw new Error(`${indexStr}: Please upload or specify a media file.`);
+              return {
+                id: q.id,
+                type: "media",
+                media: q.media.trim(),
+              };
+            } else if (q.type === "instruction") {
+              if (!q.text.trim()) throw new Error(`${indexStr}: Instruction text cannot be empty.`);
+              return {
+                id: q.id,
+                type: "instruction",
+                text: q.text.trim(),
+              };
+            } else if (q.type === "open-question") {
+              if (!q.question.trim()) throw new Error(`${indexStr}: Question text is required.`);
+              const keywords = q.keywords
+                .split("##")
+                .map((k) => k.trim())
+                .filter(Boolean);
+
+              return {
+                ...base,
+                keywords,
+              };
+            } else if (q.type === "ordering") {
+              if (!q.question.trim()) throw new Error(`${indexStr}: Question instruction is required.`);
+              const elements = q.orderingSentence
+                .split(" ")
+                .map((e) => e.trim())
+                .filter(Boolean);
+
+              if (elements.length < 2) throw new Error(`${indexStr}: Sentence must have at least 2 words.`);
+              return {
+                ...base,
+                elements,
+              };
+            }
+
+            return base;
+          });
+
+          return {
+            id: p.id,
+            title: pageTitle,
+            questions: formattedQuestions,
+          };
         });
 
-        contentString = JSON.stringify({ questions: formattedQuestions });
+        contentString = JSON.stringify({
+          pages: formattedPages,
+          enforceGate,
+          gateRequiredScore,
+        });
       }
 
       const res = await createWorksheet(
@@ -981,18 +1045,6 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
             >
               <FileText className="w-3.5 h-3.5 text-green-500" />
               Vocabulary Practice
-            </button>
-            <button
-              type="button"
-              onClick={() => setCreatorMode("oral-vocabulary")}
-              className={`px-3 py-1 text-xs font-semibold uppercase font-mono rounded border transition flex items-center gap-1 ${
-                creatorMode === "oral-vocabulary"
-                  ? "bg-black text-white dark:bg-white dark:text-black border-transparent"
-                  : "border-neutral-300 dark:border-neutral-700 text-neutral-500 hover:bg-neutral-50 dark:hover:bg-neutral-800"
-              }`}
-            >
-              <Volume2 className="w-3.5 h-3.5 text-blue-500" />
-              Oral Vocabulary Quiz
             </button>
             <button
               type="button"
@@ -1173,8 +1225,12 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
           {creatorMode === "worksheet" && (
             <WorksheetQuestionsBuilder
               exerciseId={id}
-              questions={questions}
-              setQuestions={setQuestions}
+              pages={worksheetPages}
+              setPages={setWorksheetPages}
+              enforceGate={enforceGate}
+              setEnforceGate={setEnforceGate}
+              gateRequiredScore={gateRequiredScore}
+              setGateRequiredScore={setGateRequiredScore}
               handleMediaUpload={handleMediaUpload}
             />
           )}
@@ -1218,6 +1274,8 @@ export default function WorksheetCreator({ initialData, initialDataJson, courses
               setPictureSupplementation={setVocabPictureSupplementation}
               handleMediaUpload={handleMediaUpload}
               isOralVocabulary={creatorMode === "oral-vocabulary"}
+              practiceMode={vocabPracticeMode}
+              setPracticeMode={setVocabPracticeMode}
             />
           )}
 

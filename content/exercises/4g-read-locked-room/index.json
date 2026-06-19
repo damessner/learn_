@@ -1,0 +1,105 @@
+{
+  "id": "4g-read-locked-room",
+  "title": "The Locked-Room Mystery",
+  "description": "Investigate a high-tech crime at Globex Tech. Solve tasks to unlock clues and catch the thief!",
+  "type": "interactive-reading",
+  "tags": ["reading", "cybercrime", "interactive"],
+  "badgeName": "Super Sleuth",
+  "badgeEmoji": "🕵️",
+  "startPage": "scene1",
+  "pages": {
+    "scene1": {
+      "title": "The Crime Scene",
+      "text": "You arrive at Globex Tech headquarters. The director's office was locked from the inside, yet the prototype microchip has disappeared.\n\nOfficer Miller says: 'We have two suspects. The security guard, who claims he was asleep, and the chief engineer, who claims she was home.'\n\nWhat is your first move?",
+      "media": "detective_mystery.png",
+      "choices": [
+        {
+          "text": "Examine the window for forced entry",
+          "nextPageId": "window_clue"
+        },
+        {
+          "text": "Interrogate the security guard",
+          "nextPageId": "guard_clue"
+        }
+      ],
+      "questions": [
+        {
+          "id": "q1",
+          "type": "multiple-choice",
+          "prompt": "Who was in charge of locking the doors?",
+          "options": ["The Director", "The Security Guard", "The Chief Engineer"],
+          "correctOptionIdx": 1
+        }
+      ]
+    },
+    "window_clue": {
+      "title": "The Dust on the Sill",
+      "text": "The window is closed. You notice the dust on the outside sill is undisturbed. It is unlikely anyone entered here.\n\nSuddenly, you spot a USB drive hidden under the carpet. You plug it into your terminal, but it is encrypted. You need the security term for a secret code.",
+      "choices": [
+        {
+          "text": "Use the keyword to decrypt files",
+          "nextPageId": "decryption_success"
+        },
+        {
+          "text": "Confront the engineer about the drive",
+          "nextPageId": "engineer_confront"
+        }
+      ],
+      "questions": [
+        {
+          "id": "pw_q",
+          "type": "open-question",
+          "prompt": "What is the English term for a secret code used to access a system?",
+          "keywords": ["password", "passcode"]
+        }
+      ]
+    },
+    "guard_clue": {
+      "title": "Interrogating the Guard",
+      "text": "The guard looks nervous. 'I had been working for twelve hours,' he says. 'I had locked all doors before I fell asleep. When I woke up, the chip was gone.'\n\nYou notice a coffee stain on his shirt, but he claims he didn't drink anything that night.",
+      "choices": [
+        {
+          "text": "Examine the coffee machine",
+          "nextPageId": "coffee_machine"
+        },
+        {
+          "text": "Confront him about his lie",
+          "nextPageId": "guard_confront"
+        }
+      ],
+      "questions": [
+        {
+          "id": "tense_q",
+          "type": "multiple-choice",
+          "prompt": "Which tense is used in: 'I had locked all doors'?",
+          "options": ["Past Simple", "Past Continuous", "Past Perfect"],
+          "correctOptionIdx": 2
+        }
+      ]
+    },
+    "decryption_success": {
+      "title": "The Decrypted Log",
+      "text": "Success! The file shows that a digital keycard was used to unlock the door at 2:00 AM. The card belongs to the Chief Engineer!\n\nWhen you show her the logs, she breaks down and confesses that she stole the chip for a rival company.\n\nCase solved! You have earned the Super Sleuth badge!",
+      "choices": [],
+      "questions": []
+    },
+    "engineer_confront": {
+      "title": "Confronting the Engineer",
+      "text": "You show the USB drive to the engineer. Her eyes widen in shock. She admits it is hers, but claims someone else must have stolen it.\n\nWithout concrete proof, she walks away, and the case remains cold. Try again!",
+      "choices": [],
+      "questions": []
+    },
+    "coffee_machine": {
+      "title": "The Poisoned Coffee",
+      "text": "You inspect the coffee machine and find a sleeping pill container nearby. Someone drugged the guard's coffee! The Chief Engineer served him coffee at 10 PM.\n\nYou confront her with this evidence, and she confesses to the theft.\n\nCase solved!",
+      "choices": [],
+      "questions": []
+    },
+    "guard_confront": {
+      "title": "The Guard's Confession",
+      "text": "You point out the coffee stain and the sleeping pills. The guard breaks down: 'I didn't steal it, but the engineer paid me to look the other way!'\n\nYou arrest both the guard and the engineer.\n\nCase solved!",
+      "choices": [],
+      "questions": []
+    }
+  }
+}

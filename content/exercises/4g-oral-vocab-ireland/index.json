@@ -1,0 +1,75 @@
+{
+  "id": "4g-oral-vocab-ireland",
+  "title": "Oral Vocabulary: Welcome to Ireland",
+  "description": "Listen to the German word played aloud, and translate it into English. Speak or type the English term!",
+  "type": "oral-vocabulary",
+  "tags": ["vocabulary", "oral-vocabulary", "ireland"],
+  "badgeName": "Gaelic Speaker",
+  "badgeEmoji": "🗣️",
+  "vocabList": [
+    {
+      "word": "capital city",
+      "translation": "Hauptstadt",
+      "image": "ireland_scenic.png",
+      "ttsEnabled": true,
+      "wordAudio": "tts-vocab-0-word.wav",
+      "translationAudio": "tts-vocab-0-trans.wav"
+    },
+    {
+      "word": "official language",
+      "translation": "Amtssprache",
+      "image": "ireland_scenic.png",
+      "ttsEnabled": true,
+      "wordAudio": "tts-vocab-1-word.wav",
+      "translationAudio": "tts-vocab-1-trans.wav"
+    },
+    {
+      "word": "famine",
+      "translation": "Hungersnot",
+      "image": "ireland_scenic.png",
+      "ttsEnabled": true,
+      "wordAudio": "tts-vocab-2-word.wav",
+      "translationAudio": "tts-vocab-2-trans.wav"
+    },
+    {
+      "word": "landlord",
+      "translation": "Grundbesitzer",
+      "image": "ireland_scenic.png",
+      "ttsEnabled": true,
+      "wordAudio": "tts-vocab-3-word.wav",
+      "translationAudio": "tts-vocab-3-trans.wav"
+    },
+    {
+      "word": "thunder",
+      "translation": "Donner",
+      "image": "ireland_scenic.png",
+      "ttsEnabled": true,
+      "wordAudio": "tts-vocab-4-word.wav",
+      "translationAudio": "tts-vocab-4-trans.wav"
+    },
+    {
+      "word": "faint",
+      "translation": "ohnmächtig werden",
+      "image": "ireland_scenic.png",
+      "ttsEnabled": true,
+      "wordAudio": "tts-vocab-5-word.wav",
+      "translationAudio": "tts-vocab-5-trans.wav"
+    },
+    {
+      "word": "weather",
+      "translation": "Wetter",
+      "image": "ireland_scenic.png",
+      "ttsEnabled": true,
+      "wordAudio": "tts-vocab-6-word.wav",
+      "translationAudio": "tts-vocab-6-trans.wav"
+    },
+    {
+      "word": "fluent",
+      "translation": "fließend",
+      "image": "ireland_scenic.png",
+      "ttsEnabled": true,
+      "wordAudio": "tts-vocab-7-word.wav",
+      "translationAudio": "tts-vocab-7-trans.wav"
+    }
+  ]
+}

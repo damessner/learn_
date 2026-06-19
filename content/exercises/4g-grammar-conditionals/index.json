@@ -1,0 +1,58 @@
+{
+  "id": "4g-grammar-conditionals",
+  "title": "Conditionals Arena: 1st, 2nd, and 3rd",
+  "description": "Master all conditional forms from Unit 10: A Fair World.",
+  "type": "worksheet",
+  "tags": ["grammar", "conditionals", "worksheet"],
+  "badgeName": "Logic Wizard",
+  "badgeEmoji": "🧙‍♂️",
+  "questions": [
+    {
+      "id": "q1-mc",
+      "type": "multiple-choice",
+      "question": "Which sentence shows a 3rd conditional (imagining a different past)?",
+      "options": [
+        "If you work hard, you will earn a bonus.",
+        "If I had more time, I would learn Aborigine survival skills.",
+        "If the pilot had seen the flock of birds, he would have avoided the collision."
+      ],
+      "correctOptionIndex": 2,
+      "hint": "The 3rd conditional uses 'if + past perfect' and 'would have + past participle'."
+    },
+    {
+      "id": "q2-click",
+      "type": "clickable-choice",
+      "question": "Choose the correct verbs to complete the conditional sentences:",
+      "choices": ["will support", "would support", "would have supported", "gets", "got", "had gotten"],
+      "statements": [
+        {
+          "id": "s1",
+          "text": "If we buy Fair Trade chocolate, we [will support] small farmers.",
+          "correctChoice": "will support"
+        },
+        {
+          "id": "s2",
+          "text": "If I was the manager, I [would support] organic products.",
+          "correctChoice": "would support"
+        },
+        {
+          "id": "s3",
+          "text": "If you had told me about the issue, I [would have supported] your decision.",
+          "correctChoice": "would have supported"
+        }
+      ]
+    },
+    {
+      "id": "q3-gap",
+      "type": "gap-fill",
+      "question": "Complete the conditional sentences with the correct verb form:",
+      "text": "1. If you [help] (help) me, we will finish the project today.\n2. If he [had] (have) a car, he would drive to Dublin.\n3. If they had checked the weather forecast, they [would have known] (know) about the storm.\n4. If we don't protect the environment, we [will lose] (lose) beautiful species."
+    },
+    {
+      "id": "q4-order",
+      "type": "ordering",
+      "question": "Rearrange the elements to form a conditional sentence:",
+      "elements": ["If", "she", "had", "arrived", "on", "time,", "she", "would", "have", "met", "the", "director."]
+    }
+  ]
+}

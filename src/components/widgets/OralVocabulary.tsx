@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { WidgetProps, VocabularyConfig } from "./types";
+import { WidgetProps, VocabularyConfig, OralVocabularyConfig } from "./types";
 import { Check, X, Award, Volume2, ArrowRight } from "lucide-react";
 
 export function checkVocabMatch(input: string, target: string): boolean {
@@ -30,7 +30,7 @@ export function checkVocabMatch(input: string, target: string): boolean {
   return false;
 }
 
-export const OralVocabulary: React.FC<WidgetProps<VocabularyConfig>> = ({
+export const OralVocabulary: React.FC<WidgetProps<VocabularyConfig | OralVocabularyConfig>> = ({
   config,
   assetsPath,
   savedState,

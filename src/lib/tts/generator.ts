@@ -84,6 +84,7 @@ interface TTSContentJson {
   pages?: Record<string, TTSReadingPage>;
   tasks?: TTSHotspotTask[];
   pictureSupplementation?: boolean;
+  practiceMode?: string;
 }
 
 export async function generateTTSForExercise(
@@ -120,11 +121,12 @@ export async function generateTTSForExercise(
     }
   } else if (type === "vocabulary" || type === "oral-vocabulary") {
     if (Array.isArray(contentJson.vocabList)) {
+      const isOralQuiz = type === "oral-vocabulary" || (type === "vocabulary" && contentJson.practiceMode === "oral-quiz");
       for (let i = 0; i < contentJson.vocabList.length; i++) {
         const item = contentJson.vocabList[i];
-        // For oral-vocabulary, TTS is mandatory for translated word (German) to query pupils.
+        // For oral-vocabulary (or oral-quiz mode), TTS is mandatory for translated word (German) to query pupils.
         // For standard vocabulary, it is manual per-item toggle.
-        const shouldGenerate = item.ttsEnabled || type === "oral-vocabulary";
+        const shouldGenerate = item.ttsEnabled || isOralQuiz;
         
         if (shouldGenerate) {
           // 1. Generate English word audio
@@ -381,10 +383,11 @@ async function processBuildQueue(
       }
     } else if (type === "vocabulary" || type === "oral-vocabulary") {
       if (Array.isArray(contentJson.vocabList)) {
-        const needsImages = !!contentJson.pictureSupplementation && type !== "oral-vocabulary";
+        const isOralQuiz = type === "oral-vocabulary" || (type === "vocabulary" && contentJson.practiceMode === "oral-quiz");
+        const needsImages = !!contentJson.pictureSupplementation && !isOralQuiz;
         for (let i = 0; i < contentJson.vocabList.length; i++) {
           const item = contentJson.vocabList[i];
-          const shouldGenerateAudio = item.ttsEnabled || type === "oral-vocabulary";
+          const shouldGenerateAudio = item.ttsEnabled || isOralQuiz;
 
           if (shouldGenerateAudio) {
             if (item.word && !item.wordAudio) {
