@@ -21,7 +21,7 @@ _Built for the MORE! 1st-grade AHS/MS curriculum_
 
 Learn is a self-hosted web application for creating, assigning, completing, and reviewing interactive language exercises. It supports 16 exercise types—ranging from multiple choice and gap-fills to image hotspot quizzes, interactive reading, oral vocabulary drills, and media-rich open questions—and handles the full workflow from content authoring to student submission, gradebook analytics, and manual teacher grading override.
 
-Designed around the **MORE!** textbook series for Austrian 1st-grade English classes, but easily extensible to any language teaching context.
+Designed around the **MORE!** textbook series for Austrian English classes (Grades 1–4), but easily extensible to any language teaching context.
 
 ---
 
@@ -46,7 +46,7 @@ Designed around the **MORE!** textbook series for Austrian 1st-grade English cla
 
 ### 👩‍🏫 For Teachers
 
-- **Admin Panel** — Full administrator dashboard for managing users (create, edit, delete), classrooms, and auditing all Aloys AI conversations across the system. Admins can reset passwords, adjust usage quotas, and view conversation transcripts.
+- **Admin Panel** — Full administrator dashboard for managing users (create, edit, delete, activate/deactivate), classrooms, and auditing all Aloys AI conversations across the system. Admins can reset passwords, adjust usage quotas, view conversation transcripts, and manage exercise creator attribution.
 - **Worksheet Creator** — Build mixed-modality exercises in a single worksheet (e.g. multiple-choice, gap-fill, drag-and-drop, categorization, matching, ordering, open questions, media embeds, instruction cards).
 - **Pixabay Image Search Integration** — Search, preview, and download copyright-free public images directly into worksheets or vocabulary flashcards via a secure server proxy.
 - **Text-to-Speech (TTS) Engine** — Automatically generate spoken pronunciation audio for vocabulary items (English & German) via an inline Python-based TTS pipeline. Integrated into the Vocabulary and Oral Vocabulary Quiz builders so audio prompts are created during exercise authoring.
@@ -59,6 +59,12 @@ Designed around the **MORE!** textbook series for Austrian 1st-grade English cla
 - **Grading & Scoring Reviews** — Review student answers, view submission timelines, grade student open responses (media or free text), and overwrite automated scores.
 - **Content Sync** — Synchronize exercises defined as JSON or Markdown on disk directly into the database. Handles soft-deletes smoothly.
 - **Badges System** — Assign custom badge names and emojis to any exercise during creation or editing. Badges are displayed to students upon completion on their dashboard and in the teacher's student profile view, providing visual achievement milestones.
+- **Multi-Page Worksheets** — Split worksheets into multiple pages with optional gate scoring (students must reach a minimum score to advance), enforcing sequential completion and mastery thresholds.
+- **AI Socratic Hints** — Automatically generate Socratic guiding hints for any worksheet question via Gemini, helping students without giving answers.
+- **Classroom AI Diagnostics** — Generate AI-powered diagnostic reports for any classroom, analyzing student performance and providing actionable teaching recommendations.
+- **Ratings System** — Rate exercises 1–5 stars per teacher, with aggregated ratings visible in the teacher pool for quality curation.
+- **Teacher Exercise Pool** — Browse and use exercises shared across teachers, with ratings and metadata for discoverability.
+- **Word of the Day** — Display a featured vocabulary word daily on student dashboards, configurable via exercise tags.
 
 ### 🧑‍🎓 For Students
 
@@ -74,6 +80,11 @@ Designed around the **MORE!** textbook series for Austrian 1st-grade English cla
 - **AI Feedback Quota** — Ask the coach for feedback up to 3 times per text attempt. This guides students through a Socratic revision process (first draft, second draft, and third draft review) before final submission.
 - **Progress Dashboard** — View completed work, check outstanding assignments, and trace due dates.
 - **Badges Showcase** — Earn custom badges for completed exercises (configured by teachers with custom name and emoji). Badges are displayed in a dedicated grid on the student dashboard, organized by exercise, with score achieved.
+- **Multi-Page Worksheet Flow** — Navigate worksheets split across multiple pages with progress tracking and gate requirements (must pass each page before continuing).
+- **Focus Mode (Binaural Beats / Rain Noise)** — Enable ambient focus sounds (binaural beats or rain noise) during assignments generated via the Web Audio API, with adjustable volume. Helps maintain concentration during assessments.
+- **AI Mastery Memes** — Upon completing an assignment, receive a lighthearted AI-generated meme celebrating your achievement.
+- **Socratic AI Hints** — Click the hint icon on any worksheet question to get an AI-generated guiding question without revealing the answer.
+- **Vocabulary Multi-Stage Practice** — Progressive vocabulary practice moving through four stages: Multiple Choice → Hangman → Spelling → Mastered, with automatic advancement based on correct answers and AI-powered English definitions for each word.
 
 ---
 
@@ -93,7 +104,7 @@ Designed around the **MORE!** textbook series for Austrian 1st-grade English cla
 | **Instruction Card**| Render formatted instructional text for worksheets | Non-graded (Informational) |
 | **Image Hotspot Quiz**| Find and tap hidden regions/items on a background image | Automated (tap inside boundary box) |
 | **Interactive Reading**| Branching "choose-your-own-adventure" story choices | Automated (completion path logic) |
-| **Vocabulary Practice**| Interactive flashcard drills for word-translation matching | Automated (spelling or match checks) |
+| **Vocabulary Practice**| Multi-stage progressive practice: Multiple Choice → Hangman → Spelling → Mastered. Tiered mode (auto-advance through stages) or Oral Quiz mode (audio-driven). AI-powered English definitions on demand. | Automated (spelling or match checks via tiered stages) |
 | **Oral Vocabulary Quiz** | Audio-based vocabulary quiz — pupils hear a TTS-generated pronunciation and type the translation | Automated (spelling match) |
 | **Explore Image Map** | Interactive image map with audio hotspots and scene transitions | Non-graded (Exploratory) |
 | **Live Quiz** | Synchronous multiplayer class game with single/multiple choice, text, and order inputs | Automated (speed-based scoring) |
@@ -142,7 +153,8 @@ The application has been hardened to prevent tampering, unauthorized access, and
 - **Authentication**: Encrypted session cookies (AES-256-GCM)
 - **Validation**: Zod Schemas
 - **Aloys AI Tutor**: OpenCode GO / Gemini / Ollama (configurable provider)
-- **TTS Engine**: Python (kokoro-onnx) + Node.js child-process bridge
+- **TTS Engine**: Python (kokoro-onnx) + Node.js child-process bridge (auto-downloads model files on first use)
+- **Web Audio API**: Client-side binaural beats & rain noise focus mode
 - **PWA**: Service Worker, Web App Manifest, offline fallback
 - **Test Runner**: Vitest 3
 
@@ -392,7 +404,7 @@ Pixabay keys are tied to an account and have no in-flight state on our side. Jus
 
 ### Exercise JSON (`index.json`)
 
-Exercises are validated via Zod schemas inside `src/lib/exercises.ts`. An example of a worksheet containing multiple-choice and open questions:
+Exercises are validated via Zod schemas inside `src/lib/exercises.ts`. An example of a multi-page worksheet with a gate score and various question types:
 
 ```json
 {
@@ -401,28 +413,63 @@ Exercises are validated via Zod schemas inside `src/lib/exercises.ts`. An exampl
   "description": "Practice spelling and vocabulary words from Unit 1",
   "type": "worksheet",
   "tags": ["spelling", "unit-1"],
-  "questions": [
+  "enforceGate": true,
+  "gateRequiredScore": 60,
+  "pages": [
     {
-      "id": "q1",
-      "type": "multiple-choice",
-      "question": "What is the spelling of 'apple'?",
-      "options": ["aple", "apple", "applee"],
-      "correctOptionIndex": 1
+      "id": "p1",
+      "title": "Multiple Choice",
+      "questions": [
+        {
+          "id": "q1",
+          "type": "multiple-choice",
+          "question": "What is the spelling of 'apple'?",
+          "options": ["aple", "apple", "applee"],
+          "correctOptionIndex": 1,
+          "ttsEnabled": true
+        }
+      ]
     },
     {
-      "id": "q2",
-      "type": "open-question",
-      "question": "Write a short sentence using the word 'spelling'.",
-      "required": ["spelling##2.0"],
-      "bonus": ["grammar##1.0", "sentence##1.0"],
-      "forbidden": ["badword"],
-      "spellingTolerance": "lenient",
-      "allowAudio": true,
-      "allowImage": true
+      "id": "p2",
+      "title": "Open Questions",
+      "questions": [
+        {
+          "id": "q2",
+          "type": "open-question",
+          "question": "Write a short sentence using the word 'spelling'.",
+          "required": ["spelling##2.0"],
+          "bonus": ["grammar##1.0", "sentence##1.0"],
+          "forbidden": ["badword"],
+          "spellingTolerance": "lenient",
+          "allowAudio": true,
+          "allowImage": true
+        }
+      ]
     }
   ]
 }
 ```
+
+Multi-page worksheets can be authored directly in JSON or built visually using the Worksheet Creator's page editor. Each page can optionally enforce a gate score (`enforceGate` / `gateRequiredScore`) requiring students to reach a minimum percentage before proceeding.
+
+A vocabulary exercise with multi-stage practice modes:
+
+```json
+{
+  "id": "u1-vocab-practice",
+  "title": "Unit 1 Vocabulary",
+  "description": "Vocabulary practice with tiered stages",
+  "type": "vocabulary",
+  "practiceMode": "tiered",
+  "vocabList": [
+    { "word": "apple", "translation": "der Apfel" },
+    { "word": "book", "translation": "das Buch" }
+  ]
+}
+```
+
+The `practiceMode` field accepts `"tiered"` (auto-advance through MC → Hangman → Spelling → Mastered) or `"oral-quiz"` (audio-driven translation prompts).
 
 ## License
 
