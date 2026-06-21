@@ -87,7 +87,12 @@ export default async function TeacherDashboard({
   // Fetch Courses with their exercises
   const courses = await prisma.course.findMany({
     orderBy: { order: "asc" },
-    include: { exercises: { where: { pendingDeletion: false }, orderBy: { order: "asc" } } },
+    include: {
+      exercises: { where: { pendingDeletion: false }, orderBy: { order: "asc" } },
+      courseAssignments: {
+        include: { classroom: { select: { id: true, name: true } } },
+      },
+    },
   });
 
   // Fetch the paginated submissions for assignments belonging to the teacher's classrooms
@@ -406,8 +411,15 @@ export default async function TeacherDashboard({
 
         {/* Courses & Drag-and-Drop */}
         <DragDropWrapper
-          courses={courses}
+          courses={courses.map((c) => ({
+            ...c,
+            courseAssignments: c.courseAssignments.map((ca) => ({
+              id: ca.id,
+              classroom: ca.classroom,
+            })),
+          }))}
           allExercises={exercises}
+          classrooms={classrooms.map((c) => ({ id: c.id, name: c.name }))}
         />
 
         {/* Student Submissions */}

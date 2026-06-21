@@ -152,6 +152,41 @@ export async function removeExerciseFromCourse(exerciseId: string) {
   }
 }
 
+export async function unassignCourse(courseAssignmentId: string) {
+  const teacher = await requireTeacher();
+
+  if (!courseAssignmentId || typeof courseAssignmentId !== "string" || courseAssignmentId.length > 128) {
+    return { error: "Invalid course assignment ID" };
+  }
+
+  try {
+    // Verify this CourseAssignment belongs to one of this teacher's classrooms
+    const ca = await prisma.courseAssignment.findUnique({
+      where: { id: courseAssignmentId },
+      include: { classroom: true },
+    });
+    if (!ca || ca.classroom.teacherId !== teacher.userId) {
+      return { error: "Access denied" };
+    }
+
+    // Delete assignments first (the FK uses onDelete: SetNull, so manual cleanup needed)
+    await prisma.$transaction(async (tx) => {
+      await tx.assignment.deleteMany({
+        where: { courseAssignmentId },
+      });
+      await tx.courseAssignment.delete({
+        where: { id: courseAssignmentId },
+      });
+    });
+
+    revalidatePath("/teacher");
+    return { success: true };
+  } catch (error: unknown) {
+    console.error("Failed to unassign course:", error);
+    return { error: "Failed to unassign course" };
+  }
+}
+
 export async function reorderCourseExercises(courseId: string, exerciseIds: string[]) {
   await requireTeacher();
 
@@ -201,6 +236,14 @@ export async function assignCourse(classroomId: string, courseId: string, dueDat
     const dueDate = dueDateStr ? new Date(dueDateStr) : null;
     if (dueDateStr && isNaN(dueDate!.getTime())) {
       return { error: "Invalid due date" };
+    }
+
+    // Prevent duplicate course assignment
+    const existingCourseAssignment = await prisma.courseAssignment.findFirst({
+      where: { classroomId, courseId },
+    });
+    if (existingCourseAssignment) {
+      return { error: "This course is already assigned to this classroom" };
     }
 
     // Get all exercises in the course

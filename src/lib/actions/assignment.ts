@@ -28,6 +28,18 @@ export async function assignExercise(classroomId: string, exerciseId: string, du
       return { error: "Access denied" };
     }
 
+    // Prevent duplicate standalone assignment for same exercise+classroom
+    const existing = await prisma.assignment.findFirst({
+      where: {
+        classroomId,
+        exerciseId,
+        courseAssignmentId: null,
+      },
+    });
+    if (existing) {
+      return { error: "This exercise is already assigned to this classroom" };
+    }
+
     await prisma.assignment.create({
       data: {
         classroomId,

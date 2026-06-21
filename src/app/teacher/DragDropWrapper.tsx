@@ -2,14 +2,15 @@
 
 import React, { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { addExerciseToCourse } from "@/lib/actions/course";
-import { FolderOpen, FileText, Loader2 } from "lucide-react";
+import { addExerciseToCourse, assignCourse, unassignCourse } from "@/lib/actions/course";
+import { FolderOpen, FileText, Loader2, Check, X } from "lucide-react";
 import Link from "next/link";
 import { getExerciseTypeLabel, getExerciseTypeSymbol, getWorksheetUniqueCode } from "@/lib/exerciseLabels";
 import CreateCourseForm from "./CreateCourseForm";
 import DeleteCourseButton from "./DeleteCourseButton";
 import DeleteExerciseButton from "./DeleteExerciseButton";
 import DuplicateExerciseButton from "./DuplicateExerciseButton";
+import { assignExercise } from "@/lib/actions/assignment";
 
 interface BuildStatus {
   status: string;
@@ -17,9 +18,15 @@ interface BuildStatus {
   message: string;
 }
 
+interface ClassroomOption {
+  id: string;
+  name: string;
+}
+
 export default function DragDropWrapper({
   courses,
   allExercises,
+  classrooms,
 }: {
   courses: {
     id: string;
@@ -32,6 +39,10 @@ export default function DragDropWrapper({
       type: string;
       order: number;
     }[];
+    courseAssignments: {
+      id: string;
+      classroom: { id: string; name: string };
+    }[];
   }[];
   allExercises: {
     id: string;
@@ -39,6 +50,7 @@ export default function DragDropWrapper({
     type: string;
     courseId: string | null;
   }[];
+  classrooms: ClassroomOption[];
 }) {
   const router = useRouter();
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -46,6 +58,110 @@ export default function DragDropWrapper({
   const [droppingToCourse, setDroppingToCourse] = useState<string | null>(null);
   const [dragOverCourse, setDragOverCourse] = useState<string | null>(null);
   const [buildStatuses, setBuildStatuses] = useState<Record<string, BuildStatus>>({});
+
+  // Exercise assignment state
+  const [assigningExercise, setAssigningExercise] = useState<{ id: string; title: string } | null>(null);
+  const [selectedClassrooms, setSelectedClassrooms] = useState<string[]>([]);
+  const [dueDate, setDueDate] = useState("");
+  const [assignLoading, setAssignLoading] = useState(false);
+  const [assignError, setAssignError] = useState<string | null>(null);
+  const [assignSuccess, setAssignSuccess] = useState(false);
+
+  // Course assignment state
+  const [assigningCourse, setAssigningCourse] = useState<{ id: string; title: string } | null>(null);
+  const [courseSelectedClassrooms, setCourseSelectedClassrooms] = useState<string[]>([]);
+  const [courseDueDate, setCourseDueDate] = useState("");
+  const [courseAssignLoading, setCourseAssignLoading] = useState(false);
+  const [courseAssignError, setCourseAssignError] = useState<string | null>(null);
+  const [courseAssignSuccess, setCourseAssignSuccess] = useState(false);
+  const [unassigningCourseAssignment, setUnassigningCourseAssignment] = useState<string | null>(null);
+
+  const handleAssignSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!assigningExercise || selectedClassrooms.length === 0) return;
+
+    setAssignLoading(true);
+    setAssignError(null);
+    setAssignSuccess(false);
+
+    try {
+      const results = await Promise.all(
+        selectedClassrooms.map((classId) =>
+          assignExercise(classId, assigningExercise.id, dueDate || undefined)
+        )
+      );
+
+      const errors = results.filter((res) => res && res.error);
+
+      if (errors.length > 0) {
+        setAssignError(
+          `Failed to assign to some classrooms: ${errors.map((err) => err.error).join(", ")}`
+        );
+      } else {
+        setAssignSuccess(true);
+        setSelectedClassrooms([]);
+        setDueDate("");
+        // Close modal after delay
+        setTimeout(() => {
+          setAssigningExercise(null);
+          setAssignSuccess(false);
+        }, 1500);
+        router.refresh();
+      }
+    } catch {
+      setAssignError("Failed to assign exercise.");
+    } finally {
+      setAssignLoading(false);
+    }
+  };
+
+
+  const handleCourseAssignSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!assigningCourse || courseSelectedClassrooms.length === 0) return;
+
+    setCourseAssignLoading(true);
+    setCourseAssignError(null);
+    setCourseAssignSuccess(false);
+
+    try {
+      const results = await Promise.all(
+        courseSelectedClassrooms.map((classId) =>
+          assignCourse(classId, assigningCourse.id, courseDueDate || undefined)
+        )
+      );
+
+      const errors = results.filter((res) => res && res.error);
+      if (errors.length > 0) {
+        setCourseAssignError(
+          `Failed to assign to some classrooms: ${errors.map((err) => err.error).join(", ")}`
+        );
+      } else {
+        setCourseAssignSuccess(true);
+        setCourseSelectedClassrooms([]);
+        setCourseDueDate("");
+        setTimeout(() => {
+          setAssigningCourse(null);
+          setCourseAssignSuccess(false);
+        }, 1500);
+        router.refresh();
+      }
+    } catch {
+      setCourseAssignError("Failed to assign course.");
+    } finally {
+      setCourseAssignLoading(false);
+    }
+  };
+
+  const handleUnassignCourse = async (courseAssignmentId: string) => {
+    setUnassigningCourseAssignment(courseAssignmentId);
+    const result = await unassignCourse(courseAssignmentId);
+    if (result?.error) {
+      console.error(result.error);
+    }
+    setUnassigningCourseAssignment(null);
+    router.refresh();
+  };
 
   useEffect(() => {
     let active = true;
@@ -165,12 +281,49 @@ export default function DragDropWrapper({
                         {course.exercises.length} worksheet
                         {course.exercises.length !== 1 ? "s" : ""}
                       </span>
+                      <button
+                        onClick={() => {
+                          setAssigningCourse({ id: course.id, title: course.title });
+                          setCourseSelectedClassrooms([]);
+                          setCourseDueDate("");
+                          setCourseAssignError(null);
+                          setCourseAssignSuccess(false);
+                        }}
+                        className="text-[10px] font-bold font-mono uppercase tracking-wider border border-neutral-350 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 px-2 py-1 rounded transition text-neutral-700 dark:text-neutral-300 cursor-pointer"
+                      >
+                        Assign
+                      </button>
                       <DeleteCourseButton
                         courseId={course.id}
                         courseTitle={course.title}
                       />
                     </div>
                   </summary>
+
+                  {/* Assigned classrooms */}
+                  {course.courseAssignments.length > 0 && (
+                    <div className="border-t border-neutral-200 dark:border-neutral-800 px-5 py-2 flex flex-wrap items-center gap-2 bg-neutral-50/30 dark:bg-neutral-950/10">
+                      <span className="text-[9px] font-bold font-mono uppercase tracking-wider text-neutral-500 shrink-0">
+                        Assigned to:
+                      </span>
+                      {course.courseAssignments.map((ca) => (
+                        <span
+                          key={ca.id}
+                          className="inline-flex items-center gap-1.5 text-[10px] bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded font-mono"
+                        >
+                          {ca.classroom.name}
+                          <button
+                            onClick={() => handleUnassignCourse(ca.id)}
+                            disabled={unassigningCourseAssignment === ca.id}
+                            className="hover:text-red-600 dark:hover:text-red-400 cursor-pointer disabled:opacity-50"
+                            title="Unassign course"
+                          >
+                            <X className="w-2.5 h-2.5" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
 
                   {/* Course exercises list */}
                   <div className="border-t border-neutral-200 dark:border-neutral-800">
@@ -218,6 +371,12 @@ export default function DragDropWrapper({
                                   Host Live
                                 </Link>
                               )}
+                              <button
+                                onClick={() => setAssigningExercise(ex)}
+                                className="inline-flex items-center gap-1 border border-neutral-350 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 px-2 py-1 rounded transition text-neutral-700 dark:text-neutral-300 font-sans font-semibold text-xs cursor-pointer"
+                              >
+                                Add to Class
+                              </button>
                               <Link
                                 href={`/teacher/preview/${ex.id}`}
                                 className="inline-flex items-center gap-1 border border-neutral-350 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 px-2 py-1 rounded transition text-neutral-700 dark:text-neutral-300 font-sans font-semibold text-xs"
@@ -350,6 +509,12 @@ export default function DragDropWrapper({
                                   Host Live
                                 </Link>
                               )}
+                              <button
+                                onClick={() => setAssigningExercise(ex)}
+                                className="inline-flex items-center gap-1 border border-neutral-350 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 px-2.5 py-1 rounded transition text-neutral-700 dark:text-neutral-300 font-sans font-semibold text-xs cursor-pointer"
+                              >
+                                Add to Class
+                              </button>
                               <Link
                                 href={`/teacher/preview/${ex.id}`}
                                 className="inline-flex items-center gap-1 border border-neutral-350 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 px-2.5 py-1 rounded transition text-neutral-700 dark:text-neutral-300 font-sans font-semibold text-xs"
@@ -382,6 +547,211 @@ export default function DragDropWrapper({
           </div>
         )}
       </div>
+
+      {/* Course Assignment Modal dialog */}
+      {assigningCourse && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-md border border-neutral-300 dark:border-neutral-800 bg-white dark:bg-neutral-900 rounded p-6 shadow-2xl space-y-5 animate-fade-in relative animate-duration-200">
+            <button
+              onClick={() => setAssigningCourse(null)}
+              className="absolute right-4 top-4 text-neutral-500 hover:text-black dark:hover:text-white cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="space-y-1">
+              <h3 className="text-sm font-bold font-mono uppercase text-neutral-800 dark:text-neutral-300">
+                Assign Course
+              </h3>
+              <p className="text-xs text-neutral-400 font-mono">
+                Course: <strong>{assigningCourse.title}</strong>
+              </p>
+            </div>
+
+            {courseAssignSuccess ? (
+              <div className="flex flex-col items-center justify-center py-6 text-center text-green-700 dark:text-green-400 space-y-2">
+                <Check className="w-10 h-10 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-full p-2 animate-bounce" />
+                <span className="font-mono font-bold text-xs uppercase">Course Assigned!</span>
+              </div>
+            ) : (
+              <form onSubmit={handleCourseAssignSubmit} className="space-y-4 font-mono text-xs">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 block">
+                    Select Classroom(s)
+                  </label>
+                  {classrooms.length === 0 ? (
+                    <p className="text-xs text-neutral-400 italic">No classrooms available.</p>
+                  ) : (
+                    <div className="border border-neutral-300 dark:border-neutral-800 rounded p-3 max-h-36 overflow-y-auto space-y-2">
+                      {classrooms.map((cls) => {
+                        const checked = courseSelectedClassrooms.includes(cls.id);
+                        return (
+                          <label
+                            key={cls.id}
+                            className="flex items-center gap-2 cursor-pointer select-none text-neutral-750 dark:text-neutral-300"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() =>
+                                setCourseSelectedClassrooms((prev) =>
+                                  checked ? prev.filter((id) => id !== cls.id) : [...prev, cls.id]
+                                )
+                              }
+                              className="accent-black dark:accent-white"
+                            />
+                            {cls.name}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 block">
+                    Due Date (Optional)
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={courseDueDate}
+                    onChange={(e) => setCourseDueDate(e.target.value)}
+                    className="w-full bg-neutral-50 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-800 p-2.5 font-mono text-xs focus:outline-none focus:border-black dark:focus:border-white rounded-none"
+                  />
+                </div>
+
+                {courseAssignError && (
+                  <div className="p-2.5 bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-900/50 rounded flex items-center gap-2">
+                    <X className="w-3.5 h-3.5 shrink-0 text-red-500" />
+                    <span className="text-[10px]">{courseAssignError}</span>
+                  </div>
+                )}
+
+                <div className="flex justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setAssigningCourse(null)}
+                    className="px-4 py-2 border border-neutral-350 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 font-bold uppercase text-[10px] rounded cursor-pointer text-neutral-700 dark:text-neutral-300"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={courseAssignLoading || courseSelectedClassrooms.length === 0}
+                    className="px-5 py-2 bg-black text-white dark:bg-white dark:text-black hover:opacity-90 font-bold uppercase text-[10px] rounded cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                  >
+                    {courseAssignLoading ? "Assigning..." : "Assign Course"}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Classroom Assignment Modal dialog */}
+      {assigningExercise && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-md border border-neutral-300 dark:border-neutral-800 bg-white dark:bg-neutral-900 rounded p-6 shadow-2xl space-y-5 animate-fade-in relative animate-duration-200">
+            <button
+              onClick={() => setAssigningExercise(null)}
+              className="absolute right-4 top-4 text-neutral-500 hover:text-black dark:hover:text-white cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="space-y-1">
+              <h3 className="text-sm font-bold font-mono uppercase text-neutral-800 dark:text-neutral-300">
+                Assign Worksheets
+              </h3>
+              <p className="text-xs text-neutral-400 font-mono">
+                Worksheet: <strong>{assigningExercise.title}</strong>
+              </p>
+            </div>
+
+            {assignSuccess ? (
+              <div className="flex flex-col items-center justify-center py-6 text-center text-green-700 dark:text-green-400 space-y-2">
+                <Check className="w-10 h-10 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-full p-2 animate-bounce" />
+                <span className="font-mono font-bold text-xs uppercase">Successfully Assigned!</span>
+              </div>
+            ) : (
+              <form onSubmit={handleAssignSubmit} className="space-y-4 font-mono text-xs">
+                {/* Classrooms mapping */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 block">
+                    Select Classroom(s)
+                  </label>
+                  {classrooms.length === 0 ? (
+                    <p className="text-xs text-neutral-400 italic">No classrooms available.</p>
+                  ) : (
+                    <div className="border border-neutral-300 dark:border-neutral-800 rounded p-3 max-h-36 overflow-y-auto space-y-2">
+                      {classrooms.map((cls) => {
+                        const checked = selectedClassrooms.includes(cls.id);
+                        return (
+                          <label
+                            key={cls.id}
+                            className="flex items-center gap-2 cursor-pointer select-none text-neutral-750 dark:text-neutral-300"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() =>
+                                setSelectedClassrooms((prev) =>
+                                  checked ? prev.filter((id) => id !== cls.id) : [...prev, cls.id]
+                                )
+                              }
+                              className="accent-black dark:accent-white"
+                            />
+                            {cls.name}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Due Date */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 block">
+                    Due Date (Optional)
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={dueDate}
+                    onChange={(e) => setDueDate(e.target.value)}
+                    className="w-full bg-neutral-50 dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-800 p-2.5 font-mono text-xs focus:outline-none focus:border-black dark:focus:border-white rounded-none"
+                  />
+                </div>
+
+                {assignError && (
+                  <div className="p-2.5 bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-900/50 rounded flex items-center gap-2">
+                    <X className="w-3.5 h-3.5 shrink-0 text-red-500" />
+                    <span className="text-[10px]">{assignError}</span>
+                  </div>
+                )}
+
+                {/* Actions */}
+                <div className="flex justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setAssigningExercise(null)}
+                    className="px-4 py-2 border border-neutral-350 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 font-bold uppercase text-[10px] rounded cursor-pointer text-neutral-700 dark:text-neutral-300"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={assignLoading || selectedClassrooms.length === 0}
+                    className="px-5 py-2 bg-black text-white dark:bg-white dark:text-black hover:opacity-90 font-bold uppercase text-[10px] rounded cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                  >
+                    {assignLoading ? "Assigning..." : "Assign Now"}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
     </>
   );
 }
