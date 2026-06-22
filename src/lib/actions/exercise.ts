@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { syncExercisesToDb } from "@/lib/exercises";
 import fs from "fs";
 import path from "path";
-import { requireTeacher } from "./auth-helpers";
+import { requireTeacher, requireAuth } from "./auth-helpers";
 
 export async function triggerManualSync() {
   await requireTeacher();
@@ -336,8 +336,8 @@ export async function duplicateExercise(
   }
 }
 
-export async function rateExerciseAction(exerciseId: string, stars: number) {
-  const teacher = await requireTeacher();
+export async function rateExerciseAction(exerciseId: string, stars: number, feedbackTags?: string) {
+  const user = await requireAuth();
 
   if (!exerciseId || typeof exerciseId !== "string") {
     return { error: "Invalid exercise ID" };
@@ -347,23 +347,28 @@ export async function rateExerciseAction(exerciseId: string, stars: number) {
   }
 
   try {
-    // Upsert rating (one rating per teacher per exercise)
+    // Upsert rating (one rating per user per exercise)
     await prisma.rating.upsert({
       where: {
         exerciseId_teacherId: {
           exerciseId,
-          teacherId: teacher.userId,
+          teacherId: user.userId,
         },
       },
-      update: { stars },
+      update: {
+        stars,
+        feedbackTags: feedbackTags || null,
+      },
       create: {
         exerciseId,
-        teacherId: teacher.userId,
+        teacherId: user.userId,
         stars,
+        feedbackTags: feedbackTags || null,
       },
     });
 
     revalidatePath("/teacher/pool");
+    revalidatePath("/student");
     return { success: true };
   } catch (error) {
     console.error("Failed to rate exercise:", error);

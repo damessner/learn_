@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { createClassroom, fetchTeacherTeams } from "@/lib/actions/classroom";
 import { Plus } from "lucide-react";
 
-export default function CreateClassroomForm() {
+export default function CreateClassroomForm({ onSuccess }: { onSuccess?: () => void }) {
   const [name, setName] = useState("");
   const [teams, setTeams] = useState<{ id: string; displayName: string }[]>([]);
   const [selectedTeamId, setSelectedTeamId] = useState("");
@@ -39,6 +39,7 @@ export default function CreateClassroomForm() {
       } else {
         setName("");
         setSelectedTeamId("");
+        onSuccess?.();
       }
     } catch {
       setError("Failed to create classroom.");

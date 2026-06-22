@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Space_Mono } from "next/font/google";
 import "./globals.css";
 import { PWARegistration } from "@/components/PWARegistration";
+import fs from "fs";
+import path from "path";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -41,14 +43,31 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  let version = "0.2.0";
+  let lastUpdated = "2026-06-22 19:25";
+  try {
+    const pkgPath = path.join(process.cwd(), "package.json");
+    const raw = fs.readFileSync(pkgPath, "utf-8");
+    const parsed = JSON.parse(raw) as { version?: string; lastUpdated?: string };
+    if (parsed.version) version = parsed.version;
+    if (parsed.lastUpdated) lastUpdated = parsed.lastUpdated;
+  } catch {
+    // fallback
+  }
+
   return (
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} ${spaceMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
-        <PWARegistration />
-        {children}
+      <body className="min-h-full flex flex-col justify-between">
+        <div className="flex-1 flex flex-col">
+          <PWARegistration />
+          {children}
+        </div>
+        <footer className="py-4 border-t border-neutral-200 dark:border-neutral-900 bg-neutral-50/50 dark:bg-neutral-950/20 text-center text-[10px] font-mono text-neutral-400">
+          version {version} &middot; last updated {lastUpdated}
+        </footer>
       </body>
     </html>
   );

@@ -1,15 +1,33 @@
 "use client";
 
-import React, { useState, useEffect, useTransition } from "react";
+import React, { useState, useEffect, useTransition, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { addExerciseToCourse, assignCourse, unassignCourse } from "@/lib/actions/course";
-import { FolderOpen, FileText, Loader2, Check, X } from "lucide-react";
+import {
+  addExerciseToCourse,
+  assignCourse,
+  unassignCourse,
+  removeExerciseFromCourse,
+  archiveCourse,
+  unarchiveCourse,
+} from "@/lib/actions/course";
+import {
+  FolderOpen,
+  FileText,
+  Loader2,
+  Check,
+  X,
+  Search,
+  Archive,
+  ArchiveRestore,
+  Plus,
+} from "lucide-react";
 import Link from "next/link";
 import { getExerciseTypeLabel, getExerciseTypeSymbol, getWorksheetUniqueCode } from "@/lib/exerciseLabels";
 import CreateCourseForm from "./CreateCourseForm";
 import DeleteCourseButton from "./DeleteCourseButton";
 import DeleteExerciseButton from "./DeleteExerciseButton";
 import DuplicateExerciseButton from "./DuplicateExerciseButton";
+import CreateClassroomForm from "./CreateClassroomForm";
 import { assignExercise } from "@/lib/actions/assignment";
 
 interface BuildStatus {
@@ -33,6 +51,7 @@ export default function DragDropWrapper({
     title: string;
     description: string | null;
     order: number;
+    archived: boolean;
     exercises: {
       id: string;
       title: string;
@@ -52,8 +71,58 @@ export default function DragDropWrapper({
   }[];
   classrooms: ClassroomOption[];
 }) {
+  const [showCreateClassroomModal, setShowCreateClassroomModal] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortBy, setSortBy] = useState<"title" | "id" | "type" | "course">("title");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+
+  const activeCourses = useMemo(() => courses.filter((c) => !c.archived), [courses]);
+  const archivedCourses = useMemo(() => courses.filter((c) => c.archived), [courses]);
+
+  const handleSort = (field: typeof sortBy) => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setSortBy(field);
+      setSortOrder("asc");
+    }
+  };
+
+  const filteredAndSortedExercises = useMemo(() => {
+    let result = [...allExercises];
+
+    // 1. Search Filter
+    if (searchTerm.trim() !== "") {
+      const term = searchTerm.toLowerCase().trim();
+      result = result.filter(
+        (ex) =>
+          ex.title.toLowerCase().includes(term) ||
+          ex.id.toLowerCase().includes(term) ||
+          getExerciseTypeLabel(ex.type).toLowerCase().includes(term)
+      );
+    }
+
+    // 2. Sorting
+    result.sort((a, b) => {
+      let comparison = 0;
+      if (sortBy === "title") {
+        comparison = a.title.localeCompare(b.title);
+      } else if (sortBy === "id") {
+        comparison = a.id.localeCompare(b.id);
+      } else if (sortBy === "type") {
+        comparison = getExerciseTypeLabel(a.type).localeCompare(getExerciseTypeLabel(b.type));
+      } else if (sortBy === "course") {
+        const aCourse = courses.find((c) => c.id === a.courseId)?.title || "";
+        const bCourse = courses.find((c) => c.id === b.courseId)?.title || "";
+        comparison = aCourse.localeCompare(bCourse);
+      }
+      return sortOrder === "asc" ? comparison : -comparison;
+    });
+
+    return result;
+  }, [allExercises, searchTerm, sortBy, sortOrder, courses]);
+
   const router = useRouter();
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isPending, startTransition] = useTransition();
   const [droppingToCourse, setDroppingToCourse] = useState<string | null>(null);
   const [dragOverCourse, setDragOverCourse] = useState<string | null>(null);
@@ -234,19 +303,28 @@ export default function DragDropWrapper({
         <div className="flex items-center justify-between border-b pb-2">
           <h2 className="text-xl font-bold font-mono uppercase tracking-wide flex items-center gap-2">
             <FolderOpen className="w-5 h-5 text-neutral-500" />
-            Courses ({courses.length})
+            Courses ({activeCourses.length})
           </h2>
-          <CreateCourseForm />
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowCreateClassroomModal(true)}
+              className="flex items-center gap-1 px-3 py-1.5 bg-neutral-800 text-white dark:bg-neutral-200 dark:text-neutral-800 rounded text-xs font-mono uppercase font-semibold hover:opacity-90 transition shadow shrink-0 cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Create Classroom
+            </button>
+            <CreateCourseForm classrooms={classrooms} />
+          </div>
         </div>
 
-        {courses.length === 0 ? (
+        {activeCourses.length === 0 ? (
           <div className="text-center py-12 border border-dashed rounded text-neutral-500">
             No courses created yet. Click &ldquo;+ Create Course&rdquo; above
             to organize your worksheets.
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4">
-            {courses.map((course) => {
+            {activeCourses.map((course) => {
               const isDropTarget = dragOverCourse === course.id;
               const isLoading = droppingToCourse === course.id;
               return (
@@ -259,7 +337,7 @@ export default function DragDropWrapper({
                   onDragLeave={(e) => handleDragLeave(e, course.id)}
                   onDrop={(e) => handleDrop(e, course.id)}
                 >
-                  <summary className="flex items-center justify-between p-5 cursor-pointer list-none hover:bg-neutral-50/50 dark:hover:bg-neutral-950/20 transition">
+                  <summary className="flex items-center justify-between p-5 cursor-pointer list-none hover:bg-neutral-50/50 dark:hover:bg-neutral-955/20 transition">
                     <div className="flex items-center gap-4 flex-1 min-w-0">
                       <FolderOpen className="w-6 h-6 text-neutral-400 shrink-0" />
                       <div className="min-w-0">
@@ -282,7 +360,9 @@ export default function DragDropWrapper({
                         {course.exercises.length !== 1 ? "s" : ""}
                       </span>
                       <button
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
                           setAssigningCourse({ id: course.id, title: course.title });
                           setCourseSelectedClassrooms([]);
                           setCourseDueDate("");
@@ -292,6 +372,20 @@ export default function DragDropWrapper({
                         className="text-[10px] font-bold font-mono uppercase tracking-wider border border-neutral-350 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 px-2 py-1 rounded transition text-neutral-700 dark:text-neutral-300 cursor-pointer"
                       >
                         Assign
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          startTransition(async () => {
+                            await archiveCourse(course.id);
+                            router.refresh();
+                          });
+                        }}
+                        className="text-[10px] font-bold font-mono uppercase tracking-wider border border-neutral-350 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 px-2 py-1 rounded transition text-neutral-700 dark:text-neutral-300 cursor-pointer flex items-center gap-1"
+                      >
+                        <Archive className="w-3 h-3" />
+                        Archive
                       </button>
                       <DeleteCourseButton
                         courseId={course.id}
@@ -408,35 +502,115 @@ export default function DragDropWrapper({
             })}
           </div>
         )}
+
+        {/* Archived Courses Collapsible Details Box */}
+        {archivedCourses.length > 0 && (
+          <details className="group border border-neutral-350 dark:border-neutral-800 rounded bg-neutral-50/50 dark:bg-neutral-950/20 overflow-hidden">
+            <summary className="flex items-center gap-2 p-4 cursor-pointer list-none hover:bg-neutral-100/50 dark:hover:bg-neutral-900/50 transition">
+              <Archive className="w-4 h-4 text-neutral-500" />
+              <span className="text-sm font-bold font-mono uppercase tracking-wider text-neutral-700 dark:text-neutral-300">
+                Archived Courses ({archivedCourses.length})
+              </span>
+            </summary>
+            <div className="p-4 space-y-3 divide-y divide-neutral-200 dark:divide-neutral-805">
+              {archivedCourses.map((course) => (
+                <div key={course.id} className="pt-3 first:pt-0 flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-3">
+                    <FolderOpen className="w-5 h-5 text-neutral-400 shrink-0" />
+                    <div>
+                      <h4 className="font-bold text-neutral-900 dark:text-neutral-100">{course.title}</h4>
+                      {course.description && <p className="text-xs text-neutral-500">{course.description}</p>}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        startTransition(async () => {
+                          await unarchiveCourse(course.id);
+                          router.refresh();
+                        });
+                      }}
+                      className="inline-flex items-center gap-1 border border-neutral-350 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 px-2 py-1 rounded text-[10px] font-bold font-mono uppercase transition text-neutral-750 dark:text-neutral-300 cursor-pointer"
+                    >
+                      <ArchiveRestore className="w-3 h-3" />
+                      Restore
+                    </button>
+                    <DeleteCourseButton courseId={course.id} courseTitle={course.title} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </details>
+        )}
       </div>
 
       {/* All Worksheets Library */}
       <div className="space-y-4">
-        <h2 className="text-xl font-bold font-mono uppercase tracking-wide border-b pb-2 flex items-center gap-2">
-          <FileText className="w-5 h-5 text-neutral-500" />
-          All Worksheets ({allExercises.length})
-        </h2>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-2">
+          <h2 className="text-xl font-bold font-mono uppercase tracking-wide flex items-center gap-2">
+            <FileText className="w-5 h-5 text-neutral-500" />
+            All Worksheets ({filteredAndSortedExercises.length})
+          </h2>
+          {/* Search bar */}
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-neutral-450" />
+            <input
+              type="text"
+              placeholder="Search worksheets..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9 pr-4 py-1.5 w-full bg-transparent border border-neutral-300 dark:border-neutral-800 rounded text-xs font-mono outline-none focus:border-black dark:focus:border-white transition"
+            />
+          </div>
+        </div>
 
-        {allExercises.length === 0 ? (
+        {filteredAndSortedExercises.length === 0 ? (
           <div className="text-center py-12 border border-dashed rounded text-neutral-500">
-            No worksheets created yet. Click &ldquo;+ Create Worksheet&rdquo; to build one.
+            No matching worksheets found.
           </div>
         ) : (
           <div className="border border-neutral-300 dark:border-neutral-800 rounded overflow-hidden bg-white dark:bg-neutral-900 shadow-sm">
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-left">
-                <thead className="text-xs font-mono uppercase bg-neutral-50 dark:bg-neutral-955 border-b border-neutral-300 dark:border-neutral-800 text-neutral-500">
+                <thead className="text-xs font-mono uppercase bg-neutral-50 dark:bg-neutral-955 border-b border-neutral-300 dark:border-neutral-800 text-neutral-500 select-none">
                   <tr>
-                    <th className="px-6 py-3 font-semibold">Title</th>
-                    <th className="px-6 py-3 font-semibold">Exercise ID / Key</th>
-                    <th className="px-6 py-3 font-semibold">Type</th>
-                    <th className="px-6 py-3 font-semibold">Course</th>
+                    <th
+                      onClick={() => handleSort("title")}
+                      className="px-6 py-3 font-semibold cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-900 transition"
+                    >
+                      <div className="flex items-center gap-1">
+                        Title {sortBy === "title" && (sortOrder === "asc" ? "▲" : "▼")}
+                      </div>
+                    </th>
+                    <th
+                      onClick={() => handleSort("id")}
+                      className="px-6 py-3 font-semibold cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-900 transition"
+                    >
+                      <div className="flex items-center gap-1">
+                        Exercise ID / Key {sortBy === "id" && (sortOrder === "asc" ? "▲" : "▼")}
+                      </div>
+                    </th>
+                    <th
+                      onClick={() => handleSort("type")}
+                      className="px-6 py-3 font-semibold cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-900 transition"
+                    >
+                      <div className="flex items-center gap-1">
+                        Type {sortBy === "type" && (sortOrder === "asc" ? "▲" : "▼")}
+                      </div>
+                    </th>
+                    <th
+                      onClick={() => handleSort("course")}
+                      className="px-6 py-3 font-semibold cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-900 transition"
+                    >
+                      <div className="flex items-center gap-1">
+                        Course {sortBy === "course" && (sortOrder === "asc" ? "▲" : "▼")}
+                      </div>
+                    </th>
                     <th className="px-6 py-3 font-semibold text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-200 dark:divide-neutral-800">
-                  {allExercises.map((ex) => {
-                    const course = courses.find((c) => c.id === ex.courseId);
+                  {filteredAndSortedExercises.map((ex) => {
                     return (
                       <tr
                         key={ex.id}
@@ -485,14 +659,32 @@ export default function DragDropWrapper({
                             {getExerciseTypeLabel(ex.type)}
                           </span>
                         </td>
-                        <td className="px-6 py-4 text-neutral-600 dark:text-neutral-400">
-                          {course ? (
-                            <span className="font-semibold text-blue-600 dark:text-blue-400">
-                              {course.title}
-                            </span>
-                          ) : (
-                            <span className="text-neutral-400 italic">None (Standalone)</span>
-                          )}
+                        <td className="px-6 py-4 text-neutral-600 dark:text-neutral-400 font-sans text-xs">
+                          <select
+                            value={ex.courseId || ""}
+                            disabled={isPending}
+                            onChange={(e) => {
+                              const newCourseId = e.target.value;
+                              startTransition(async () => {
+                                if (newCourseId === "") {
+                                  await removeExerciseFromCourse(ex.id);
+                                } else {
+                                  await addExerciseToCourse(ex.id, newCourseId);
+                                }
+                                router.refresh();
+                              });
+                            }}
+                            className="bg-transparent border border-neutral-300 dark:border-neutral-800 text-neutral-800 dark:text-neutral-200 px-2 py-1 rounded outline-none cursor-pointer max-w-40 font-semibold text-xs transition hover:border-neutral-400"
+                          >
+                            <option value="" className="bg-white dark:bg-neutral-900 text-neutral-500">
+                              {ex.courseId ? "None (Standalone)" : "+ Assign Course..."}
+                            </option>
+                            {activeCourses.map((c) => (
+                              <option key={c.id} value={c.id} className="bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100">
+                                {c.title}
+                              </option>
+                            ))}
+                          </select>
                         </td>
                         <td className="px-6 py-4 text-right space-x-2 whitespace-nowrap">
                           {buildStatuses[ex.id]?.status === "processing" ? (
@@ -749,6 +941,21 @@ export default function DragDropWrapper({
                 </div>
               </form>
             )}
+          </div>
+        </div>
+      )}
+      {/* Create Classroom Modal dialog */}
+      {showCreateClassroomModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-md border border-neutral-300 dark:border-neutral-800 bg-white dark:bg-neutral-900 rounded p-6 shadow-2xl space-y-5 animate-fade-in relative animate-duration-200">
+            <button
+              onClick={() => setShowCreateClassroomModal(false)}
+              className="absolute right-4 top-4 text-neutral-500 hover:text-black dark:hover:text-white cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <CreateClassroomForm onSuccess={() => setShowCreateClassroomModal(false)} />
           </div>
         </div>
       )}

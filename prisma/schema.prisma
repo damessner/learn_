@@ -73,6 +73,7 @@ model Course {
   title       String
   description String     @default("")
   order       Int        @default(0)
+  archived    Boolean    @default(false)
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
   creatorId   String?
@@ -148,6 +149,7 @@ model Submission {
   teacherScore   Float?
   reviewedAt     DateTime?
   draft          Boolean    @default(false)
+  duration       Int?       // Completion time in seconds
 
   // Meme Achievements
   memeText       String?
@@ -233,6 +235,7 @@ model Rating {
   exerciseId  String
   teacherId   String
   stars       Int      // 1 to 5
+  feedbackTags String?  // Feedback tags
   createdAt   DateTime @default(now())
 
   exercise    Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)

@@ -5,11 +5,12 @@ import { createCourse } from "@/lib/actions/course";
 import { Plus, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-export default function CreateCourseForm() {
+export default function CreateCourseForm({ classrooms }: { classrooms: { id: string; name: string }[] }) {
   const [isPending, startTransition] = useTransition();
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [selectedClassroomId, setSelectedClassroomId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
@@ -19,12 +20,17 @@ export default function CreateCourseForm() {
 
     startTransition(async () => {
       setError(null);
-      const result = await createCourse(title.trim(), description.trim() || undefined);
+      const result = await createCourse(
+        title.trim(),
+        description.trim() || undefined,
+        selectedClassroomId || undefined
+      );
       if (result?.error) {
         setError(result.error);
       } else {
         setTitle("");
         setDescription("");
+        setSelectedClassroomId("");
         setShowForm(false);
         router.refresh();
       }
@@ -62,6 +68,21 @@ export default function CreateCourseForm() {
         placeholder="Description (optional)"
         className="text-sm border border-neutral-300 dark:border-neutral-700 rounded px-3 py-1.5 bg-transparent outline-none focus:border-black dark:focus:border-white w-56"
       />
+      <select
+        disabled={isPending}
+        value={selectedClassroomId}
+        onChange={(e) => setSelectedClassroomId(e.target.value)}
+        className="text-sm border border-neutral-300 dark:border-neutral-700 rounded px-3 py-1.5 bg-transparent outline-none focus:border-black dark:focus:border-white w-48 text-neutral-800 dark:text-neutral-200"
+      >
+        <option value="" className="bg-white dark:bg-neutral-900 text-neutral-500">
+          -- Assign Classroom (optional) --
+        </option>
+        {classrooms.map((cls) => (
+          <option key={cls.id} value={cls.id} className="bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100">
+            {cls.name}
+          </option>
+        ))}
+      </select>
       <button
         type="submit"
         disabled={isPending || !title.trim()}

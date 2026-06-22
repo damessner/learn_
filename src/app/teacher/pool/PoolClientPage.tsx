@@ -31,6 +31,9 @@ interface SerializedExercise {
   ratingsCount: number;
   averageRating: number;
   myRating: number;
+  pupilAvgScore: number | null;
+  pupilAvgDuration: number | null;
+  pupilFeedbackTags: Array<{ name: string; count: number }>;
 }
 
 interface ClassroomOption {
@@ -465,6 +468,39 @@ export default function PoolClientPage({
                           #{t}
                         </span>
                       ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Pupil Analytics Section */}
+                <div className="px-5 py-3.5 border-t border-neutral-200 dark:border-neutral-800 bg-neutral-50/20 dark:bg-neutral-950/10 space-y-2 text-[10px] font-mono">
+                  <div className="flex justify-between items-center text-neutral-500">
+                    <span>Pupil Avg Score:</span>
+                    <span className="font-extrabold text-neutral-800 dark:text-neutral-200">
+                      {ex.pupilAvgScore !== null ? `${Math.round(ex.pupilAvgScore)}%` : "—"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-neutral-500">
+                    <span>Avg Time Spent:</span>
+                    <span className="font-extrabold text-neutral-800 dark:text-neutral-200">
+                      {ex.pupilAvgDuration !== null
+                        ? `${Math.floor(ex.pupilAvgDuration / 60)}m ${Math.round(ex.pupilAvgDuration % 60)}s`
+                        : "—"}
+                    </span>
+                  </div>
+                  {ex.pupilFeedbackTags && ex.pupilFeedbackTags.length > 0 && (
+                    <div className="space-y-1.5 pt-1 border-t border-dashed border-neutral-200 dark:border-neutral-850">
+                      <span className="text-[9px] uppercase tracking-wide text-neutral-450 font-bold block">Pupil Feedback:</span>
+                      <div className="flex flex-wrap gap-1">
+                        {ex.pupilFeedbackTags.map((tag) => (
+                          <span
+                            key={tag.name}
+                            className="bg-purple-50 dark:bg-purple-950/20 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-900/40 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider"
+                          >
+                            {tag.name} ({tag.count})
+                          </span>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>

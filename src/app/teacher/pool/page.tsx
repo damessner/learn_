@@ -12,7 +12,7 @@ export default async function WorksheetPoolPage() {
     redirect("/login");
   }
 
-  // Fetch all exercises from DB with creators and ratings
+  // Fetch all exercises from DB with creators, ratings, and assignments + submissions
   const exercises = await prisma.exercise.findMany({
     where: { pendingDeletion: false },
     include: {
@@ -23,6 +23,18 @@ export default async function WorksheetPoolPage() {
         },
       },
       ratings: true,
+      assignments: {
+        include: {
+          submissions: {
+            where: { completed: true },
+            select: {
+              score: true,
+              effectiveScore: true,
+              duration: true,
+            },
+          },
+        },
+      },
     },
     orderBy: { title: "asc" },
   });
@@ -45,6 +57,37 @@ export default async function WorksheetPoolPage() {
     // Find current teacher's rating if it exists
     const myRating = ex.ratings.find((r) => r.teacherId === session.userId)?.stars || 0;
 
+    // Collect all pupil submissions for this exercise
+    const allSubmissions = ex.assignments.flatMap((a) => a.submissions);
+
+    // Calculate average score
+    const avgScore = allSubmissions.length > 0
+      ? allSubmissions.reduce((sum, s) => sum + s.effectiveScore, 0) / allSubmissions.length
+      : null;
+
+    // Calculate average duration
+    const validDurations = allSubmissions.filter((s) => s.duration !== null && s.duration > 0);
+    const avgDuration = validDurations.length > 0
+      ? validDurations.reduce((sum, s) => sum + (s.duration || 0), 0) / validDurations.length
+      : null;
+
+    // Calculate most common pupil feedback tags
+    const tagCounts: Record<string, number> = {};
+    ex.ratings.forEach((r) => {
+      if (r.feedbackTags) {
+        r.feedbackTags.split(",").forEach((t) => {
+          const trimmed = t.trim().toLowerCase();
+          if (trimmed) {
+            tagCounts[trimmed] = (tagCounts[trimmed] || 0) + 1;
+          }
+        });
+      }
+    });
+    const commonTags = Object.entries(tagCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([name, count]) => ({ name, count }));
+
     return {
       id: ex.id,
       title: ex.title,
@@ -58,6 +101,9 @@ export default async function WorksheetPoolPage() {
       ratingsCount: ex.ratings.length,
       averageRating: avgRating,
       myRating,
+      pupilAvgScore: avgScore,
+      pupilAvgDuration: avgDuration,
+      pupilFeedbackTags: commonTags,
     };
   });
 

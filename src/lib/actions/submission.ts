@@ -10,7 +10,7 @@ import {
   scoreExerciseSubmission,
 } from "@/lib/submissionScoring";
 
-export async function submitAssignment(assignmentId: string, answers: unknown, clientScore?: number) {
+export async function submitAssignment(assignmentId: string, answers: unknown, clientScore?: number, duration?: number) {
   const student = await requireAuth();
 
   try {
@@ -105,6 +105,7 @@ export async function submitAssignment(assignmentId: string, answers: unknown, c
         score: computedScore,
         effectiveScore,
         attemptNumber,
+        duration: duration || null,
       },
     });
 

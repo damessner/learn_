@@ -3,10 +3,11 @@
 import React, { useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { submitAssignment } from "@/lib/actions/submission";
+import { rateExerciseAction } from "@/lib/actions/exercise";
 import { generateMasteryMeme } from "@/lib/actions/ai-meme";
 import { WIDGET_REGISTRY } from "@/components/widgets";
 import type { ExerciseData } from "@/lib/exercises";
-import { ArrowLeft, Check, AlertTriangle, ArrowRight, RotateCcw, Headphones, Volume2 } from "lucide-react";
+import { ArrowLeft, Check, AlertTriangle, ArrowRight, RotateCcw, Headphones, Volume2, Star } from "lucide-react";
 import { MediaEmbed } from "@/components/widgets/MediaEmbed";
 import Link from "next/link";
 import { getExerciseTypeLabel } from "@/lib/exerciseLabels";
@@ -206,6 +207,11 @@ export default function AssignmentPlayer({
   dueDate,
 }: AssignmentPlayerProps) {
   const router = useRouter();
+  const startTimeRef = React.useRef<number | null>(null);
+
+  React.useEffect(() => {
+    startTimeRef.current = Date.now();
+  }, []);
 
   const exercise = useMemo(() => {
     if (exerciseJson) {
@@ -503,6 +509,13 @@ export default function AssignmentPlayer({
   const [memeData, setMemeData] = useState<{ text: string; imageUrl: string } | null>(null);
   const [memeError, setMemeError] = useState<string | null>(null);
 
+  // Student feedback states
+  const [ratingStars, setRatingStars] = useState<number>(0);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [submittingFeedback, setSubmittingFeedback] = useState(false);
+  const [feedbackSuccess, setFeedbackSuccess] = useState(false);
+  const feedbackTagsSuggestions = ["Easy", "Difficult", "Fun", "Boring", "Confusing", "Helpful", "Clear", "Too Long"];
+
   const handleUnwrapMeme = useCallback(async () => {
     setLoadingMeme(true);
     setMemeError(null);
@@ -682,7 +695,8 @@ export default function AssignmentPlayer({
     setError(null);
 
     try {
-      const res = await submitAssignment(assignmentId, widgetState, score);
+      const duration = startTimeRef.current ? Math.round((Date.now() - startTimeRef.current) / 1000) : 0;
+      const res = await submitAssignment(assignmentId, widgetState, score, duration);
       if (res?.error) {
         setError(res.error);
       } else {
@@ -811,6 +825,90 @@ export default function AssignmentPlayer({
             ) : null}
           </div>
         )}
+
+        {/* Pupil feedback and rating */}
+        <div className="pt-6 border-t border-neutral-200 dark:border-neutral-800 space-y-4">
+          <h3 className="text-sm font-bold font-mono uppercase text-neutral-800 dark:text-neutral-205">
+            How was this worksheet?
+          </h3>
+          {feedbackSuccess ? (
+            <div className="p-4 bg-green-500/5 border border-green-200 dark:border-green-800/40 rounded text-xs font-mono text-green-600 dark:text-green-400">
+              ✓ Thanks! Your feedback has been recorded.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Stars selection */}
+              <div className="flex items-center justify-center gap-1.5">
+                {Array.from({ length: 5 }).map((_, i) => {
+                  const starVal = i + 1;
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setRatingStars(starVal)}
+                      className="text-neutral-300 dark:text-neutral-700 hover:scale-110 transition cursor-pointer"
+                    >
+                      <Star
+                        className={`w-7 h-7 ${
+                          starVal <= ratingStars
+                            ? "text-amber-400 fill-current"
+                            : "text-neutral-300 dark:text-neutral-700"
+                        }`}
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Suggestions feedback tag chips */}
+              <div className="flex flex-wrap gap-1.5 justify-center max-w-xs mx-auto">
+                {feedbackTagsSuggestions.map((tag) => {
+                  const isSelected = selectedTags.includes(tag);
+                  return (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => {
+                        setSelectedTags((prev) =>
+                          isSelected ? prev.filter((t) => t !== tag) : [...prev, tag]
+                        );
+                      }}
+                      className={`px-2 py-1 rounded-full text-[10px] font-mono border transition cursor-pointer select-none ${
+                        isSelected
+                          ? "bg-purple-600 text-white border-purple-600 dark:bg-purple-500 dark:border-purple-500 font-bold"
+                          : "border-neutral-300 dark:border-neutral-750 text-neutral-600 dark:text-neutral-400 hover:border-neutral-400"
+                      }`}
+                    >
+                      {tag}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Submit button */}
+              <button
+                type="button"
+                disabled={ratingStars === 0 || submittingFeedback}
+                onClick={async () => {
+                  setSubmittingFeedback(true);
+                  try {
+                    const res = await rateExerciseAction(exercise.id, ratingStars, selectedTags.join(","));
+                    if (res?.success) {
+                      setFeedbackSuccess(true);
+                    }
+                  } catch (err) {
+                    console.error("Failed to submit student rating:", err);
+                  } finally {
+                    setSubmittingFeedback(false);
+                  }
+                }}
+                className="w-full bg-black text-white dark:bg-white dark:text-black font-semibold font-mono text-xs py-2 rounded uppercase tracking-wider hover:opacity-90 transition disabled:opacity-50 cursor-pointer"
+              >
+                {submittingFeedback ? "Submitting..." : "Submit Rating"}
+              </button>
+            </div>
+          )}
+        </div>
 
         <div className="flex flex-col gap-3 pt-2">
           <Link

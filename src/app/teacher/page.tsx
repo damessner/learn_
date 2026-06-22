@@ -4,15 +4,10 @@ import { prisma } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
 import SyncButton from "./SyncButton";
-import SyncRosterButton from "./SyncRosterButton";
-import CreateClassroomForm from "./CreateClassroomForm";
-import AssignExerciseForm from "./AssignExerciseForm";
 import Link from "next/link";
 import {
   ExternalLink,
-  Users,
   BookOpen,
-  Calendar,
   Sparkles,
   FileText,
   Crosshair,
@@ -153,8 +148,14 @@ export default async function TeacherDashboard({
               </a>
             )}
             <Link
+              href="/teacher/classrooms"
+              className="border border-neutral-350 dark:border-neutral-850 bg-black text-white dark:bg-white dark:text-black font-mono text-xs uppercase tracking-wider py-1.5 px-4 hover:opacity-90 transition flex items-center gap-1.5"
+            >
+              🏫 Classrooms & Insights
+            </Link>
+            <Link
               href="/teacher/aloys"
-              className="border border-neutral-300 dark:border-neutral-800 bg-transparent text-black dark:text-white font-mono text-xs uppercase tracking-wider py-1.5 px-4 rounded-none hover:border-black dark:hover:border-white transition"
+              className="border border-neutral-350 dark:border-neutral-800 bg-transparent text-black dark:text-white font-mono text-xs uppercase tracking-wider py-1.5 px-4 rounded-none hover:border-black dark:hover:border-white transition"
             >
               🩺 Aloys Logs
             </Link>
@@ -299,138 +300,6 @@ export default async function TeacherDashboard({
               </span>
             </Link>
           </div>
-        </div>
-
-        {/* Configuration Forms */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="p-6 border border-neutral-200 dark:border-neutral-900 rounded-none bg-white/40 dark:bg-black/20 backdrop-blur-sm">
-            <CreateClassroomForm />
-          </div>
-
-          <div className="p-6 border border-neutral-200 dark:border-neutral-900 rounded-none bg-white/40 dark:bg-black/20 backdrop-blur-sm">
-            <AssignExerciseForm
-              classrooms={classrooms.map((c) => ({ id: c.id, name: c.name, msGraphClassId: c.msGraphClassId }))}
-              exercises={exercises.map((e) => ({
-                id: e.id,
-                title: e.title,
-                type: e.type,
-              }))}
-              courses={courses.map((c) => ({ id: c.id, title: c.title }))}
-            />
-          </div>
-        </div>
-
-        {/* Classrooms List */}
-        <div className="space-y-4">
-          <h2 className="text-xl font-bold font-mono uppercase tracking-wide border-b pb-2 flex items-center gap-2">
-            <Users className="w-5 h-5 text-neutral-500" />
-            Classrooms ({classrooms.length})
-          </h2>
-
-          {classrooms.length === 0 ? (
-            <div className="text-center py-12 border border-dashed border-neutral-300 dark:border-neutral-800 rounded-none text-neutral-500 font-mono text-xs uppercase">
-              No classrooms created yet. Use the form above to create one.
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {classrooms.map((classroom) => (
-                <div
-                  key={classroom.id}
-                  className="border border-neutral-200 dark:border-neutral-900 rounded-none bg-white/40 dark:bg-black/20 backdrop-blur-sm p-5 space-y-4 flex flex-col justify-between hover:border-black dark:hover:border-white transition duration-200"
-                >
-                  <div className="space-y-3">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h3 className="font-bold text-lg text-neutral-900 dark:text-neutral-100 flex items-center gap-2">
-                          {classroom.name}
-                          <Link
-                            href={`/teacher/classrooms/${classroom.id}`}
-                            className="inline-flex items-center gap-0.5 text-[9px] uppercase font-mono tracking-widest bg-transparent hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black px-2 py-0.5 border border-neutral-300 dark:border-neutral-800 rounded-none text-neutral-600 dark:text-neutral-300 transition duration-150"
-                          >
-                            Gradebook
-                            <ExternalLink className="w-2.5 h-2.5" />
-                          </Link>
-                        </h3>
-                        <p className="text-xs text-neutral-500 flex items-center gap-1 mt-0.5">
-                          Join Code:{" "}
-                          <code className="bg-transparent border border-neutral-250 dark:border-neutral-800 px-1.5 py-0.5 rounded-none font-mono font-bold text-neutral-800 dark:text-neutral-200">
-                            {classroom.joinCode}
-                          </code>
-                        </p>
-                        {classroom.msGraphClassId && (
-                          <div className="mt-2">
-                            <SyncRosterButton classroomId={classroom.id} />
-                          </div>
-                        )}
-                      </div>
-                      <span className="text-[10px] border border-neutral-300 dark:border-neutral-800 bg-transparent text-neutral-600 dark:text-neutral-350 px-2 py-0.5 rounded-none font-mono tracking-widest uppercase font-bold">
-                        {classroom.students.length} Pupils
-                      </span>
-                    </div>
-
-                    {/* Students list */}
-                    {classroom.students.length > 0 && (
-                      <div className="text-xs space-y-1 border-t border-neutral-200 dark:border-neutral-900 pt-2">
-                        <span className="text-[10px] font-mono font-bold text-neutral-450 uppercase block tracking-wider">
-                          Students:
-                        </span>
-                        <div className="flex flex-wrap gap-1">
-                          {classroom.students.map((cs) => (
-                            <span
-                              key={cs.studentId}
-                              className="bg-transparent border border-neutral-200 dark:border-neutral-850 rounded-none px-1.5 py-0.5 text-neutral-700 dark:text-neutral-300 font-mono text-[10px] uppercase"
-                            >
-                              {cs.student.username}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Active Assignments */}
-                    <div className="space-y-1.5 border-t border-neutral-200 dark:border-neutral-900 pt-2">
-                      <span className="text-[10px] font-mono font-bold text-neutral-450 uppercase block tracking-wider">
-                        Assigned Exercises:
-                      </span>
-                      {classroom.assignments.length === 0 ? (
-                        <span className="text-xs text-neutral-400 italic block">
-                          No exercises assigned yet.
-                        </span>
-                      ) : (
-                        <div className="space-y-1">
-                          {classroom.assignments.map((as) => (
-                            <Link
-                              key={as.id}
-                              href={`/teacher/assignments/${as.id}`}
-                              className="text-xs flex items-center justify-between p-2 rounded-none bg-white/40 dark:bg-black/20 backdrop-blur-sm border border-neutral-200 dark:border-neutral-900 hover:border-black dark:hover:border-white transition duration-150"
-                            >
-                              <span className="font-semibold text-neutral-800 dark:text-neutral-200">
-                                {as.exercise.title}
-                              </span>
-                              <div className="flex items-center gap-2">
-                                {as.dueDate && (
-                                  <span className="text-[9px] text-neutral-500 flex items-center gap-0.5 font-mono">
-                                    <Calendar className="w-3 h-3" />
-                                    {new Date(as.dueDate).toLocaleDateString(
-                                      "en-GB"
-                                    )}
-                                  </span>
-                                )}
-                                <span className="text-[9px] bg-neutral-200 dark:bg-neutral-850 text-neutral-600 dark:text-neutral-450 px-1 rounded font-bold font-mono">
-                                  {as.submissions.length} sub(s)
-                                </span>
-                                <ExternalLink className="w-3 h-3 text-neutral-400 shrink-0" />
-                              </div>
-                            </Link>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
 
         {/* Courses & Drag-and-Drop */}

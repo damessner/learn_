@@ -4,8 +4,8 @@ import { prisma } from "@/lib/db";
 import { revalidatePath } from "next/cache";
 import { requireTeacher } from "./auth-helpers";
 
-export async function createCourse(title: string, description?: string) {
-  await requireTeacher();
+export async function createCourse(title: string, description?: string, classroomId?: string) {
+  const teacher = await requireTeacher();
 
   if (!title || title.trim() === "") {
     return { error: "Course title is required" };
@@ -25,7 +25,7 @@ export async function createCourse(title: string, description?: string) {
     });
     const nextOrder = (maxOrder?.order ?? -1) + 1;
 
-    await prisma.course.create({
+    const newCourse = await prisma.course.create({
       data: {
         title: title.trim(),
         description: description?.trim() || "",
@@ -33,6 +33,15 @@ export async function createCourse(title: string, description?: string) {
         creatorId: teacher.userId,
       },
     });
+
+    if (classroomId) {
+      await prisma.courseAssignment.create({
+        data: {
+          classroomId,
+          courseId: newCourse.id,
+        },
+      });
+    }
 
     revalidatePath("/teacher");
     return { success: true };
@@ -123,7 +132,10 @@ export async function addExerciseToCourse(exerciseId: string, courseId: string) 
   }
 
   try {
-    const course = await prisma.course.findUnique({ where: { id: courseId } });
+    const course = await prisma.course.findUnique({
+      where: { id: courseId },
+      include: { courseAssignments: true }
+    });
     if (!course) return { error: "Course not found" };
     if (teacher.role !== "ADMIN" && course.creatorId && course.creatorId !== teacher.userId) {
       return { error: "Access denied: You do not own this course" };
@@ -141,6 +153,25 @@ export async function addExerciseToCourse(exerciseId: string, courseId: string) 
       where: { id: exerciseId },
       data: { courseId, order: nextOrder },
     });
+
+    // Auto-create assignment for each classroom this course is assigned to
+    if (course.courseAssignments && course.courseAssignments.length > 0) {
+      for (const ca of course.courseAssignments) {
+        const exists = await prisma.assignment.findFirst({
+          where: { classroomId: ca.classroomId, exerciseId }
+        });
+        if (!exists) {
+          await prisma.assignment.create({
+            data: {
+              classroomId: ca.classroomId,
+              exerciseId,
+              dueDate: ca.dueDate,
+              courseAssignmentId: ca.id
+            }
+          });
+        }
+      }
+    }
 
     revalidatePath("/teacher");
     return { success: true };
@@ -160,7 +191,7 @@ export async function removeExerciseFromCourse(exerciseId: string) {
   try {
     const exercise = await prisma.exercise.findUnique({
       where: { id: exerciseId },
-      include: { course: true },
+      include: { course: { include: { courseAssignments: true } } },
     });
     if (!exercise) return { error: "Exercise not found" };
     if (exercise.course && teacher.role !== "ADMIN" && exercise.course.creatorId && exercise.course.creatorId !== teacher.userId) {
@@ -171,6 +202,17 @@ export async function removeExerciseFromCourse(exerciseId: string) {
       where: { id: exerciseId },
       data: { courseId: null, order: 0 },
     });
+
+    // Auto-delete assignment matching this exercise from course assignments
+    if (exercise.course && exercise.course.courseAssignments.length > 0) {
+      const caIds = exercise.course.courseAssignments.map(ca => ca.id);
+      await prisma.assignment.deleteMany({
+        where: {
+          exerciseId,
+          courseAssignmentId: { in: caIds }
+        }
+      });
+    }
 
     revalidatePath("/teacher");
     return { success: true };
@@ -286,10 +328,6 @@ export async function assignCourse(classroomId: string, courseId: string, dueDat
       orderBy: { order: "asc" },
     });
 
-    if (exercises.length === 0) {
-      return { error: "Course has no exercises to assign" };
-    }
-
     // Check if any exercises inside the course are already assigned to that classroom
     const exerciseIds = exercises.map((e) => e.id);
     const duplicates = await prisma.assignment.findMany({
@@ -349,5 +387,59 @@ export async function assignCourse(classroomId: string, courseId: string, dueDat
   } catch (error) {
     console.error("Failed to assign course:", error);
     return { error: "Failed to assign course" };
+  }
+}
+
+export async function archiveCourse(id: string) {
+  const teacher = await requireTeacher();
+
+  if (!id || typeof id !== "string" || id.length > 128) {
+    return { error: "Invalid course ID" };
+  }
+
+  try {
+    const course = await prisma.course.findUnique({ where: { id } });
+    if (!course) return { error: "Course not found" };
+    if (teacher.role !== "ADMIN" && course.creatorId && course.creatorId !== teacher.userId) {
+      return { error: "Access denied: You do not own this course" };
+    }
+
+    await prisma.course.update({
+      where: { id },
+      data: { archived: true },
+    });
+
+    revalidatePath("/teacher");
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to archive course:", error);
+    return { error: "Database error while archiving course" };
+  }
+}
+
+export async function unarchiveCourse(id: string) {
+  const teacher = await requireTeacher();
+
+  if (!id || typeof id !== "string" || id.length > 128) {
+    return { error: "Invalid course ID" };
+  }
+
+  try {
+    const course = await prisma.course.findUnique({ where: { id } });
+    if (!course) return { error: "Course not found" };
+    if (teacher.role !== "ADMIN" && course.creatorId && course.creatorId !== teacher.userId) {
+      return { error: "Access denied: You do not own this course" };
+    }
+
+    await prisma.course.update({
+      where: { id },
+      data: { archived: false },
+    });
+
+    revalidatePath("/teacher");
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to unarchive course:", error);
+    return { error: "Database error while unarchiving course" };
   }
 }
