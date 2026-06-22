@@ -29,7 +29,7 @@ export async function GET() {
     "User.Read",
     "Team.ReadBasic.All",
     "TeamMember.Read.All",
-    "EducationAssignments.ReadWrite"
+    "EduAssignments.ReadWrite"
   ].join(" ");
 
   const authUrl = new URL("https://login.microsoftonline.com/common/oauth2/v2.0/authorize");

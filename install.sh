@@ -370,6 +370,8 @@ BGENV
   # Write hash in single quotes so dotenv never expands the $2b$10$... bcrypt prefix
   printf "BREAKGLASS_PASSWORD_HASH='%s'\n" "$bg_hash" >> "${INSTALL_DIR}/.env"
   chown "$LEARN_USER":"$LEARN_USER" "${INSTALL_DIR}/.env" 2>/dev/null || true
+  chmod 600 "${INSTALL_DIR}/.env" 2>/dev/null || true
+  chmod 600 "${INSTALL_DIR}"/*.db 2>/dev/null || true
   ok "Break-glass credential generated"
 
   echo ""

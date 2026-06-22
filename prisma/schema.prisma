@@ -28,6 +28,7 @@ model User {
   submissions       Submission[]
   aloysConversations AloysConversation[]
   createdExercises  Exercise[]         @relation("CreatorExercises")
+  createdCourses    Course[]           @relation("CreatorCourses")
   ratings           Rating[]
 
   // Microsoft Integration
@@ -74,10 +75,12 @@ model Course {
   order       Int        @default(0)
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
+  creatorId   String?
 
   // Relations
   exercises      Exercise[]
   courseAssignments CourseAssignment[]
+  creator     User?      @relation("CreatorCourses", fields: [creatorId], references: [id], onDelete: SetNull)
 }
 
 model Exercise {

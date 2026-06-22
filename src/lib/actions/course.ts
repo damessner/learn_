@@ -30,6 +30,7 @@ export async function createCourse(title: string, description?: string) {
         title: title.trim(),
         description: description?.trim() || "",
         order: nextOrder,
+        creatorId: teacher.userId,
       },
     });
 
@@ -42,7 +43,7 @@ export async function createCourse(title: string, description?: string) {
 }
 
 export async function updateCourse(id: string, title: string, description?: string) {
-  await requireTeacher();
+  const teacher = await requireTeacher();
 
   if (!id || typeof id !== "string" || id.length > 128) {
     return { error: "Invalid course ID" };
@@ -58,6 +59,12 @@ export async function updateCourse(id: string, title: string, description?: stri
   }
 
   try {
+    const course = await prisma.course.findUnique({ where: { id } });
+    if (!course) return { error: "Course not found" };
+    if (teacher.role !== "ADMIN" && course.creatorId && course.creatorId !== teacher.userId) {
+      return { error: "Access denied: You do not own this course" };
+    }
+
     await prisma.course.update({
       where: { id },
       data: {
@@ -75,13 +82,19 @@ export async function updateCourse(id: string, title: string, description?: stri
 }
 
 export async function deleteCourse(id: string) {
-  await requireTeacher();
+  const teacher = await requireTeacher();
 
   if (!id || typeof id !== "string" || id.length > 128) {
     return { error: "Invalid course ID" };
   }
 
   try {
+    const course = await prisma.course.findUnique({ where: { id } });
+    if (!course) return { error: "Course not found" };
+    if (teacher.role !== "ADMIN" && course.creatorId && course.creatorId !== teacher.userId) {
+      return { error: "Access denied: You do not own this course" };
+    }
+
     // Ungroup all exercises in this course (set courseId to null)
     await prisma.exercise.updateMany({
       where: { courseId: id },
@@ -100,7 +113,7 @@ export async function deleteCourse(id: string) {
 }
 
 export async function addExerciseToCourse(exerciseId: string, courseId: string) {
-  await requireTeacher();
+  const teacher = await requireTeacher();
 
   if (!exerciseId || typeof exerciseId !== "string" || exerciseId.length > 128) {
     return { error: "Invalid exercise ID" };
@@ -110,6 +123,12 @@ export async function addExerciseToCourse(exerciseId: string, courseId: string) 
   }
 
   try {
+    const course = await prisma.course.findUnique({ where: { id: courseId } });
+    if (!course) return { error: "Course not found" };
+    if (teacher.role !== "ADMIN" && course.creatorId && course.creatorId !== teacher.userId) {
+      return { error: "Access denied: You do not own this course" };
+    }
+
     // Get the current max order in this course
     const maxOrder = await prisma.exercise.findFirst({
       where: { courseId },
@@ -132,13 +151,22 @@ export async function addExerciseToCourse(exerciseId: string, courseId: string) 
 }
 
 export async function removeExerciseFromCourse(exerciseId: string) {
-  await requireTeacher();
+  const teacher = await requireTeacher();
 
   if (!exerciseId || typeof exerciseId !== "string" || exerciseId.length > 128) {
     return { error: "Invalid exercise ID" };
   }
 
   try {
+    const exercise = await prisma.exercise.findUnique({
+      where: { id: exerciseId },
+      include: { course: true },
+    });
+    if (!exercise) return { error: "Exercise not found" };
+    if (exercise.course && teacher.role !== "ADMIN" && exercise.course.creatorId && exercise.course.creatorId !== teacher.userId) {
+      return { error: "Access denied: You do not own the course containing this exercise" };
+    }
+
     await prisma.exercise.update({
       where: { id: exerciseId },
       data: { courseId: null, order: 0 },
@@ -188,7 +216,7 @@ export async function unassignCourse(courseAssignmentId: string) {
 }
 
 export async function reorderCourseExercises(courseId: string, exerciseIds: string[]) {
-  await requireTeacher();
+  const teacher = await requireTeacher();
 
   // Validate inputs
   if (!courseId || typeof courseId !== "string" || courseId.length > 128) {
@@ -204,6 +232,12 @@ export async function reorderCourseExercises(courseId: string, exerciseIds: stri
   }
 
   try {
+    const course = await prisma.course.findUnique({ where: { id: courseId } });
+    if (!course) return { error: "Course not found" };
+    if (teacher.role !== "ADMIN" && course.creatorId && course.creatorId !== teacher.userId) {
+      return { error: "Access denied: You do not own this course" };
+    }
+
     await prisma.$transaction(async (tx) => {
       for (let i = 0; i < exerciseIds.length; i++) {
         await tx.exercise.update({

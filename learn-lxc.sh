@@ -417,6 +417,8 @@ BGENV"
   # Write hash in single quotes so dotenv never expands the \$2b\$10\$... bcrypt prefix
   pct exec "$CT_ID" -- bash -c "printf \"BREAKGLASS_PASSWORD_HASH='%s'\\n\" '${bg_hash}' >> /opt/learn/.env"
   pct exec "$CT_ID" -- chown learn:learn /opt/learn/.env
+  pct exec "$CT_ID" -- chmod 600 /opt/learn/.env
+  pct exec "$CT_ID" -- bash -c "chmod 600 /opt/learn/*.db 2>/dev/null || true"
   ok "Break-glass credential generated"
 
   echo ""
