@@ -7,6 +7,7 @@ import { assignCourse } from "@/lib/actions/course";
 interface ClassroomOption {
   id: string;
   name: string;
+  msGraphClassId?: string | null;
 }
 
 interface ExerciseOption {
@@ -39,6 +40,12 @@ export default function AssignExerciseForm({
   const [classroomIds, setClassroomIds] = useState<string[]>([]);
   const [exerciseId, setExerciseId] = useState("");
   const [dueDate, setDueDate] = useState("");
+  const [syncToTeams, setSyncToTeams] = useState(false);
+  const [exerciseFilter, setExerciseFilter] = useState("");
+
+  const filteredExercises = exercises.filter((e) =>
+    e.title.toLowerCase().includes(exerciseFilter.toLowerCase())
+  );
 
   // Course assignment state
   const [courseClassroomIds, setCourseClassroomIds] = useState<string[]>([]);
@@ -61,7 +68,7 @@ export default function AssignExerciseForm({
     try {
       const results = await Promise.all(
         classroomIds.map((id) =>
-          assignExercise(id, exerciseId, dueDate || undefined)
+          assignExercise(id, exerciseId, dueDate || undefined, syncToTeams)
         )
       );
 
@@ -78,6 +85,7 @@ export default function AssignExerciseForm({
         setExerciseId("");
         setDueDate("");
         setClassroomIds([]);
+        setExerciseFilter("");
         setTimeout(() => setStatus(null), 3000);
       }
     } catch {
@@ -204,9 +212,24 @@ export default function AssignExerciseForm({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="space-y-1">
-              <label className="text-[10px] font-semibold uppercase tracking-wider text-neutral-450">
-                Select Exercise
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-[10px] font-semibold uppercase tracking-wider text-neutral-450">
+                  Select Exercise
+                </label>
+                <a
+                  href="/teacher/pool"
+                  className="text-[10px] font-semibold text-neutral-500 hover:text-black dark:hover:text-white transition uppercase font-mono"
+                >
+                  Worksheet Pool &rarr;
+                </a>
+              </div>
+              <input
+                type="text"
+                placeholder="Search exercise..."
+                value={exerciseFilter}
+                onChange={(e) => setExerciseFilter(e.target.value)}
+                className="w-full text-xs border border-neutral-300 dark:border-neutral-750 rounded px-3 py-1.5 bg-transparent outline-none focus:border-black dark:focus:border-white mb-2"
+              />
               <select
                 required
                 disabled={loading}
@@ -215,7 +238,7 @@ export default function AssignExerciseForm({
                 className="w-full text-sm border border-neutral-300 dark:border-neutral-750 rounded px-3 py-1.5 bg-transparent outline-none focus:border-black dark:focus:border-white"
               >
                 <option value="">-- Choose Exercise --</option>
-                {exercises.map((e) => (
+                {filteredExercises.map((e) => (
                   <option key={e.id} value={e.id}>
                     {e.title} ({e.type})
                   </option>
@@ -236,6 +259,25 @@ export default function AssignExerciseForm({
               />
             </div>
           </div>
+
+          {classrooms.some((c) => classroomIds.includes(c.id) && c.msGraphClassId) && (
+            <div className="flex items-center gap-2 border border-dashed border-[#ff2a2e]/30 dark:border-[#ff2a2e]/20 p-2.5 bg-[#ff2a2e]/5 dark:bg-[#ff2a2e]/2 rounded-none">
+              <input
+                type="checkbox"
+                id="sync-to-teams"
+                checked={syncToTeams}
+                disabled={loading}
+                onChange={(e) => setSyncToTeams(e.target.checked)}
+                className="w-3.5 h-3.5 accent-[#ff2a2e] cursor-pointer"
+              />
+              <label
+                htmlFor="sync-to-teams"
+                className="text-[10px] font-mono uppercase tracking-widest font-bold text-[#ff2a2e] cursor-pointer select-none"
+              >
+                Publish to Microsoft Teams
+              </label>
+            </div>
+          )}
 
           <div className="flex items-center justify-between gap-4">
             <button

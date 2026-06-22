@@ -86,6 +86,20 @@ describe("scoreWorksheet", () => {
     expect(result).toBeCloseTo(66.666, 1);
   });
 
+  it("scores gap-fill with select: format correctly", () => {
+    const questions = [
+      { id: "q1", type: "gap-fill", text: "I <<select:am##is##are>> a teacher." },
+    ];
+    const answersCorrect = {
+      q1: { answers: { 0: "am" } },
+    };
+    const answersIncorrect = {
+      q1: { answers: { 0: "is" } },
+    };
+    expect(scoreWorksheet(questions, answersCorrect)).toBe(100);
+    expect(scoreWorksheet(questions, answersIncorrect)).toBe(0);
+  });
+
   it("returns 0 for all excluded question types", () => {
     const questions = [
       { id: "q1", type: "media" },

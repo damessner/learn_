@@ -1,0 +1,97 @@
+{
+  "id": "4g-grammar-past-perfect",
+  "title": "Past Perfect: Detective Case Solver",
+  "description": "Master the Past Perfect tense (had + Past Participle) and contrast it with the Past Simple (Units 2 & 5).",
+  "type": "worksheet",
+  "tags": ["grammar", "past-perfect", "worksheet"],
+  "badgeName": "Detective Inspector",
+  "badgeEmoji": "🕵️‍♂️",
+  "questions": [
+    {
+      "id": "intro",
+      "type": "instruction",
+      "text": "### Grammatical Rules: Past Perfect vs. Past Simple\n\n1. **Use**: We use the **Past Perfect** to talk about an action that happened **before** another action in the past.\n   * *Example*: When the detective arrived (Past Simple), the thief **had already escaped** (Past Perfect).\n2. **Structure**:\n   * **Positive**: Subject + **had** + **Past Participle** (e.g., *had seen*, *had broken*)\n   * **Negative**: Subject + **had not (hadn't)** + **Past Participle**\n   * **Question**: **Had** + Subject + **Past Participle**?\n3. **Signal Words**: *already*, *just*, *never*, *before*, *after*, *by the time*."
+    },
+    {
+      "id": "q1-mc",
+      "type": "multiple-choice",
+      "question": "Which action happened first in this sentence? 'By the time the police arrived, the hacker had deleted the files.'",
+      "options": [
+          "The police arrived.",
+          "The hacker deleted the files.",
+          "Both actions happened at the exact same time."
+      ],
+      "correctOptionIndex": 1,
+      "hint": "The action in the Past Perfect (had deleted) is the one that occurred first."
+    },
+    {
+      "id": "q2-click",
+      "type": "clickable-choice",
+      "question": "Identify the correct past tense to complete the detective's timeline:",
+      "choices": ["had left", "left", "had stolen", "stole", "had closed", "closed"],
+      "statements": [
+        {
+          "id": "s1",
+          "text": "Before the security guard noticed the open window, the thief [had left] the museum.",
+          "correctChoice": "had left"
+        },
+        {
+          "id": "s2",
+          "text": "We discovered that someone [had stolen] the golden statue from the main hall.",
+          "correctChoice": "had stolen"
+        },
+        {
+          "id": "s3",
+          "text": "By midnight, the curator [had closed] all the galleries.",
+          "correctChoice": "had closed"
+        }
+      ]
+    },
+    {
+      "id": "q3-gap",
+      "type": "gap-fill",
+      "question": "Complete the crime scene report with the correct forms of the verbs (Past Simple or Past Perfect):",
+      "text": "Inspector Vance [arrived|had arrived|arrives] (arrive) at the manor house at 9:00 PM. The butler informed him that the guests [had finished|finished|finish] (finish) dinner an hour earlier. However, Lord Canterville was not in the dining room. He [had disappeared|disappeared|disappearing] (disappear) mysteriously. Vance checked the library and noticed that someone [had broken] (break) the padlock on the cabinet. A valuable painting, which Lord Canterville [had bought|bought] (buy) in Paris last year, was gone. Vance realised the thief [had planned] (plan) this crime very carefully before executing it."
+    },
+    {
+      "id": "q4-match",
+      "type": "matching",
+      "question": "Match the causes in the Past Perfect with their effects in the Past Simple:",
+      "pairs": [
+        {
+          "id": "p1",
+          "leftText": "Because she had forgotten her key...",
+          "rightText": "...she could not open the study door."
+        },
+        {
+          "id": "p2",
+          "leftText": "Since the suspect had lied to the police before...",
+          "rightText": "...nobody believed his new alibi."
+        },
+        {
+          "id": "p3",
+          "leftText": "After the butler had cleared the table...",
+          "rightText": "...he went to the kitchen to rest."
+        },
+        {
+          "id": "p4",
+          "leftText": "Because the rain had stopped...",
+          "rightText": "...we looked for footprints in the garden."
+        }
+      ]
+    },
+    {
+      "id": "q5-order",
+      "type": "ordering",
+      "question": "Rearrange the words to make a correct Past Perfect question:",
+      "elements": ["Had", "the", "witness", "seen", "the", "suspect", "before", "the", "lights", "went", "out?"]
+    },
+    {
+      "id": "q6-open",
+      "type": "open-question",
+      "question": "Write a short paragraph (2-3 sentences) explaining what you had done yesterday before your favorite TV show started. Use at least one verb in the Past Perfect (had + past participle).",
+      "keywords": ["had"],
+      "spellingTolerance": "lenient"
+    }
+  ]
+}

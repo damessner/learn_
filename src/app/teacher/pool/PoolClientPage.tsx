@@ -72,6 +72,55 @@ export default function PoolClientPage({
   // Error/Success messages for rating
   const [ratingStatus, setRatingStatus] = useState<Record<string, { success?: boolean; error?: string }>>({});
 
+  // Bulk Assign State
+  const [selectedExerciseIds, setSelectedExerciseIds] = useState<string[]>([]);
+
+  const handleToggleSelectExercise = (id: string) => {
+    setSelectedExerciseIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkAssignSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (selectedExerciseIds.length === 0 || selectedClassrooms.length === 0) return;
+
+    setAssignLoading(true);
+    setAssignError(null);
+    setAssignSuccess(false);
+
+    try {
+      const promises: Promise<{ error?: string } | void>[] = [];
+      selectedExerciseIds.forEach((exerciseId) => {
+        selectedClassrooms.forEach((classId) => {
+          promises.push(assignExercise(classId, exerciseId, dueDate || undefined));
+        });
+      });
+
+      const results = await Promise.all(promises);
+      const errors = results.filter((res): res is { error: string } => !!(res && res.error));
+
+      if (errors.length > 0) {
+        setAssignError(
+          `Failed to assign some worksheets: ${errors.map((err) => err.error).join(", ")}`
+        );
+      } else {
+        setAssignSuccess(true);
+        setSelectedExerciseIds([]);
+        setSelectedClassrooms([]);
+        setDueDate("");
+        setTimeout(() => {
+          setAssignSuccess(false);
+          router.refresh();
+        }, 2000);
+      }
+    } catch {
+      setAssignError("Failed to assign exercises.");
+    } finally {
+      setAssignLoading(false);
+    }
+  };
+
   // Filter & Sort Exercises
   const filteredExercises = useMemo(() => {
     return initialExercises
@@ -262,6 +311,98 @@ export default function PoolClientPage({
         </div>
       </div>
 
+      {/* Bulk Assign Panel */}
+      {selectedExerciseIds.length > 0 && (
+        <div className="p-5 border border-indigo-300 dark:border-indigo-800 rounded bg-indigo-50/50 dark:bg-indigo-950/15 space-y-4 animate-fade-in">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h3 className="text-sm font-bold font-mono uppercase text-indigo-900 dark:text-indigo-350">
+                Bulk Assign Worksheets
+              </h3>
+              <p className="text-xs text-neutral-500 font-mono mt-0.5">
+                Selected <strong>{selectedExerciseIds.length}</strong> worksheet(s): {" "}
+                <span className="text-neutral-600 dark:text-neutral-400">
+                  {initialExercises.filter(ex => selectedExerciseIds.includes(ex.id)).map(ex => `"${ex.title}"`).join(", ")}
+                </span>
+              </p>
+            </div>
+            <button
+              onClick={() => setSelectedExerciseIds([])}
+              className="text-[10px] font-mono font-bold uppercase tracking-wider text-red-650 hover:underline cursor-pointer select-none"
+            >
+              Clear Selection
+            </button>
+          </div>
+
+          <form onSubmit={handleBulkAssignSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end font-mono text-xs">
+            {/* Select classroom */}
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-bold uppercase tracking-wider text-neutral-500 block">
+                Select Classroom(s)
+              </label>
+              <div className="border border-neutral-300 dark:border-neutral-800 rounded p-2.5 max-h-28 overflow-y-auto space-y-1.5 bg-white dark:bg-neutral-900">
+                {classrooms.map((cls) => {
+                  const checked = selectedClassrooms.includes(cls.id);
+                  return (
+                    <label key={cls.id} className="flex items-center gap-2 cursor-pointer select-none text-neutral-755 dark:text-neutral-300">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() =>
+                          setSelectedClassrooms((prev) =>
+                            checked ? prev.filter((id) => id !== cls.id) : [...prev, cls.id]
+                          )
+                        }
+                        className="accent-black dark:accent-white"
+                      />
+                      {cls.name}
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Due date */}
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-bold uppercase tracking-wider text-neutral-500 block">
+                Due Date (Optional)
+              </label>
+              <input
+                type="datetime-local"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                className="w-full bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-800 p-2 py-2.5 font-mono text-xs focus:outline-none focus:border-black dark:focus:border-white rounded"
+              />
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex gap-2 justify-end">
+              <button
+                type="submit"
+                disabled={assignLoading || selectedClassrooms.length === 0}
+                className="w-full px-5 py-2.5 bg-black text-white dark:bg-white dark:text-black hover:opacity-90 font-bold uppercase text-[10px] rounded cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
+              >
+                {assignLoading ? "Assigning..." : "Assign Bulk Now"}
+              </button>
+            </div>
+          </form>
+
+          {assignError && (
+            <div className="p-2.5 bg-red-50 dark:bg-red-955/20 text-red-700 dark:text-red-305 border border-red-200 dark:border-red-900/50 rounded flex items-center gap-2 text-xs">
+              <X className="w-3.5 h-3.5 shrink-0 text-red-500" />
+              <span>{assignError}</span>
+            </div>
+          )}
+
+          {assignSuccess && (
+            <div className="p-2.5 bg-green-50 dark:bg-green-950/20 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800 rounded flex items-center gap-2 text-xs">
+              <Check className="w-3.5 h-3.5 shrink-0 text-green-550" />
+              <span>Bulk assignment completed successfully!</span>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Grid List */}
       {filteredExercises.length === 0 ? (
         <div className="text-center py-20 border border-dashed border-neutral-300 dark:border-neutral-800 rounded bg-white dark:bg-neutral-900 text-neutral-500 font-mono text-sm space-y-2">
@@ -285,15 +426,24 @@ export default function PoolClientPage({
                     <span className="text-[9px] font-mono font-bold uppercase tracking-wider bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-350 px-2 py-0.5 rounded">
                       {getExerciseTypeLabel(ex.type)}
                     </span>
-                    {ex.badgeName && (
-                      <span
-                        className="text-[10px] font-mono font-semibold flex items-center gap-1 text-amber-600"
-                        title={`Awards: ${ex.badgeName}`}
-                      >
-                        <span>{ex.badgeEmoji || "🏆"}</span>
-                        <span>{ex.badgeName}</span>
-                      </span>
-                    )}
+                    <div className="flex items-center gap-2.5">
+                      {ex.badgeName && (
+                        <span
+                          className="text-[10px] font-mono font-semibold flex items-center gap-1 text-amber-600"
+                          title={`Awards: ${ex.badgeName}`}
+                        >
+                          <span>{ex.badgeEmoji || "🏆"}</span>
+                          <span>{ex.badgeName}</span>
+                        </span>
+                      )}
+                      <input
+                        type="checkbox"
+                        checked={selectedExerciseIds.includes(ex.id)}
+                        onChange={() => handleToggleSelectExercise(ex.id)}
+                        className="w-4 h-4 accent-black dark:accent-white cursor-pointer rounded-sm border-neutral-300 dark:border-neutral-700 shrink-0"
+                        title="Select worksheet for bulk assignment"
+                      />
+                    </div>
                   </div>
 
                   <h3 className="text-sm font-bold font-mono uppercase text-neutral-900 dark:text-neutral-100 line-clamp-1">

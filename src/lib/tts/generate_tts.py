@@ -38,7 +38,15 @@ def main():
         lang = payload.get("lang", "en-us") # "en-us" or "de"
         output_file = payload.get("output_file", "")
 
-        if lang != "de":
+        if lang == "de":
+            import re
+            # E.g. "Verdächtiger / Verdächtige" -> "Verdächtiger" (take first option)
+            if "/" in text:
+                text = text.split("/")[0].strip()
+            # Remove any parenthesized notes (e.g. "(Geld)", "(pl.)", etc.)
+            text = re.sub(r'\([^)]*\)', '', text)
+            text = re.sub(r'\s+', ' ', text).strip()
+        else:
             import re
             # E.g. "(to) notice" -> "to notice"
             text = re.sub(r'\((to)\)\s*', r'\1 ', text)

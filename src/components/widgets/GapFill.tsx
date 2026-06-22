@@ -28,11 +28,20 @@ export const GapFill: React.FC<WidgetProps<GapFillConfig>> = ({
     while ((match = regex.exec(config.text)) !== null) {
       partsList.push(config.text.substring(lastIndex, match.index));
 
-      const rawContent = match[1] || match[2] || "";
-      // Split on ## or | — first item is the correct answer, rest are distractors
-      const parts = rawContent.split(/##|\|/);
+      let rawContent = match[1] || match[2] || "";
+      let isDropdown = false;
+      let parts: string[] = [];
 
-      if (parts.length > 1 && parts[0].trim() !== "") {
+      if (rawContent.startsWith("select:")) {
+        isDropdown = true;
+        rawContent = rawContent.substring("select:".length);
+        parts = rawContent.split(/##|\|/).map(p => p.trim());
+      } else {
+        parts = rawContent.split(/##|\|/).map(p => p.trim());
+        isDropdown = parts.length > 1 && parts[0] !== "";
+      }
+
+      if (isDropdown) {
         // Dropdown selection
         const correctAnswer = parts[0];
         // Deterministic shuffle using the gap index as seed so order is stable

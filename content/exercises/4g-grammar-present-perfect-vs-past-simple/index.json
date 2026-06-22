@@ -1,0 +1,97 @@
+{
+  "id": "4g-grammar-present-perfect-vs-past-simple",
+  "title": "Present Perfect vs. Past Simple: The Collector's Choice",
+  "description": "Contrast Present Perfect (connection to present) with Past Simple (finished past) (Unit 8: Obsessed!).",
+  "type": "worksheet",
+  "tags": ["grammar", "present-perfect", "past-simple", "worksheet"],
+  "badgeName": "Tense Champion",
+  "badgeEmoji": "🏆",
+  "questions": [
+    {
+      "id": "intro",
+      "type": "instruction",
+      "text": "### Present Perfect vs. Past Simple\n\n1. **Present Perfect** (Subject + have/has + Past Participle):\n   * **Usage**: Connects the past to the present. Used for experiences, changes, or states starting in the past and continuing now.\n   * **Signal Words**: *since* (point in time), *for* (duration), *already*, *yet*, *ever*, *never*, *just*.\n   * *Example*: I **have collected** stamps **since** 2020 (I still collect them).\n2. **Past Simple** (Subject + verb-ed / irregular form):\n   * **Usage**: Describes completed actions in the past with no connection to the present.\n   * **Signal Words**: *yesterday*, *last week*, *ago*, *in 2018*.\n   * *Example*: I **started** my collection three years **ago**."
+    },
+    {
+      "id": "q1-mc",
+      "type": "multiple-choice",
+      "question": "Which sentence correctly uses the present perfect with a duration signal?",
+      "options": [
+        "He has lived in London since five years.",
+        "He has lived in London for five years.",
+        "He lived in London for five years ago."
+      ],
+      "correctOptionIndex": 1,
+      "hint": "We use 'for' for a period/duration of time (e.g., five years) and 'since' for a starting point (e.g., 2018)."
+    },
+    {
+      "id": "q2-click",
+      "type": "clickable-choice",
+      "question": "Choose the correct tense based on the time expressions:",
+      "choices": ["have collected", "collected", "has bought", "bought", "have lost", "lost"],
+      "statements": [
+        {
+          "id": "s1",
+          "text": "I [have collected] old coins since I was ten years old.",
+          "correctChoice": "have collected"
+        },
+        {
+          "id": "s2",
+          "text": "Yesterday, my uncle [bought] a rare book at the auction.",
+          "correctChoice": "bought"
+        },
+        {
+          "id": "s3",
+          "text": "Oh no! I [have lost] my collection keys! Can you help me look for them?",
+          "correctChoice": "have lost"
+        }
+      ]
+    },
+    {
+      "id": "q3-gap",
+      "type": "gap-fill",
+      "question": "Fill in the correct forms of the verbs (Present Perfect or Past Simple):",
+      "text": "Mr. Sandman is a passionate art collector. He [has owned|owned] (own) a small gallery in Vienna for fifteen years. He [bought|has bought] (buy) his very first painting in 2012 when he [visited|has visited] (visit) Paris. Since then, he [has travelled|travelled] (travel) to many countries to find rare pieces. Last month, he [found|has found] (find) a beautiful old sketch in a local bookshop. So far, he [has spent] (spend) thousands of euros on his collection, but he says he has never regretted a single purchase."
+    },
+    {
+      "id": "q4-match",
+      "type": "matching",
+      "question": "Match the signal words/expressions to the correct tense category:",
+      "pairs": [
+        {
+          "id": "p1",
+          "leftText": "three days ago",
+          "rightText": "Past Simple"
+        },
+        {
+          "id": "p2",
+          "leftText": "since last summer",
+          "rightText": "Present Perfect"
+        },
+        {
+          "id": "p3",
+          "leftText": "in 2015",
+          "rightText": "Past Simple"
+        },
+        {
+          "id": "p4",
+          "leftText": "already / yet",
+          "rightText": "Present Perfect"
+        }
+      ]
+    },
+    {
+      "id": "q5-order",
+      "type": "ordering",
+      "question": "Rearrange the words to make a correct Present Perfect question:",
+      "elements": ["How", "long", "have", "you", "known", "your", "best", "friend?"]
+    },
+    {
+      "id": "q6-open",
+      "type": "open-question",
+      "question": "Write 2 sentences about something you have collected or owned for a long time. Use 'since' or 'for' in one sentence, and specify when you got it in the other (using Past Simple).",
+      "keywords": ["have", "for", "since"],
+      "spellingTolerance": "lenient"
+    }
+  ]
+}

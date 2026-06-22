@@ -97,7 +97,7 @@ export async function submitAssignment(assignmentId: string, answers: unknown, c
     const effectiveScore = computedScore * multiplier;
 
     // Always create a new submission row — never overwrite
-    await prisma.submission.create({
+    const sub = await prisma.submission.create({
       data: {
         assignmentId,
         studentId: student.userId,
@@ -108,8 +108,30 @@ export async function submitAssignment(assignmentId: string, answers: unknown, c
       },
     });
 
+    // Sync score to Microsoft Teams if linked
+    if (assignment.msGraphAssignmentId && assignment.classroom.msGraphClassId) {
+      const studentUser = await prisma.user.findUnique({
+        where: { id: student.userId },
+        select: { microsoftId: true },
+      });
+
+      if (studentUser && studentUser.microsoftId) {
+        const { submitGradeToTeams } = await import("@/lib/microsoftGraph");
+        submitGradeToTeams(
+          assignment.classroom.teacherId,
+          assignment.classroom.msGraphClassId,
+          assignment.msGraphAssignmentId,
+          studentUser.microsoftId,
+          effectiveScore,
+          100
+        ).catch((err) => {
+          console.error("Failed to sync grade to Teams on submit:", err);
+        });
+      }
+    }
+
     revalidatePath("/student");
-    return { success: true, attemptNumber, multiplier, effectiveScore, score: computedScore };
+    return { success: true, id: sub.id, attemptNumber, multiplier, effectiveScore, score: computedScore };
   } catch (error) {
     console.error("Failed to submit assignment:", error);
     return { error: "Failed to record submission" };
@@ -155,6 +177,28 @@ export async function overrideSubmissionGrade(
         reviewedAt: new Date(),
       },
     });
+
+    // Sync override score to Microsoft Teams if linked
+    if (submission.assignment.msGraphAssignmentId && submission.assignment.classroom.msGraphClassId) {
+      const studentUser = await prisma.user.findUnique({
+        where: { id: submission.studentId },
+        select: { microsoftId: true },
+      });
+
+      if (studentUser && studentUser.microsoftId) {
+        const { submitGradeToTeams } = await import("@/lib/microsoftGraph");
+        submitGradeToTeams(
+          teacher.userId,
+          submission.assignment.classroom.msGraphClassId,
+          submission.assignment.msGraphAssignmentId,
+          studentUser.microsoftId,
+          teacherScore,
+          100
+        ).catch((err) => {
+          console.error("Failed to sync override grade to Teams:", err);
+        });
+      }
+    }
 
     revalidatePath(`/submissions/${submissionId}`);
     return { success: true };

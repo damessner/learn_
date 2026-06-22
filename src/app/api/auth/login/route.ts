@@ -9,6 +9,7 @@ import {
   buildRateLimitKey,
 } from "@/lib/rateLimit";
 import { headers } from "next/headers";
+import { BREAKGLASS_USERNAME, BREAKGLASS_PASSWORD_HASH } from "@/lib/env";
 
 export async function POST(request: Request) {
   try {
@@ -45,6 +46,46 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+
+    // ── Break-glass emergency admin login ──────────────────────────────────
+    // Activates ONLY when BREAKGLASS_PASSWORD_HASH is set in .env AND the
+    // username matches. Bypasses the DB password entirely.
+    if (BREAKGLASS_PASSWORD_HASH && normalizedUsername === BREAKGLASS_USERNAME) {
+      const isBreakGlass = await bcrypt.compare(password, BREAKGLASS_PASSWORD_HASH);
+      if (!isBreakGlass) {
+        recordFailedAttempt(rateLimitKey);
+        return NextResponse.json(
+          { error: "Invalid username or password" },
+          { status: 400 }
+        );
+      }
+
+      // Audit trail — always visible in journalctl / server logs
+      console.error(
+        `🚨 BREAK-GLASS LOGIN ip="${ip}" username="${normalizedUsername}" ts="${new Date().toISOString()}"`
+      );
+
+      // Upsert a DB row so every ORM call throughout the app works normally.
+      // The password is controlled entirely by .env — not by the DB record.
+      const bgUser = await prisma.user.upsert({
+        where: { username: normalizedUsername },
+        update: { active: true, role: "ADMIN", passwordHash: BREAKGLASS_PASSWORD_HASH },
+        create: {
+          username: normalizedUsername,
+          passwordHash: BREAKGLASS_PASSWORD_HASH,
+          role: "ADMIN",
+          active: true,
+        },
+      });
+
+      clearRateLimit(rateLimitKey);
+      await setSession({ userId: bgUser.id, username: bgUser.username, role: "ADMIN" });
+      return NextResponse.json({
+        success: true,
+        user: { id: bgUser.id, username: bgUser.username, role: "ADMIN" },
+      });
+    }
+    // ── End break-glass ────────────────────────────────────────────────────
 
     const user = await prisma.user.findUnique({
       where: { username: normalizedUsername },

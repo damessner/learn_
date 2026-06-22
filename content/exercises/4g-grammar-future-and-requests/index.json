@@ -1,0 +1,97 @@
+{
+  "id": "4g-grammar-future-and-requests",
+  "title": "Future Schedules & Requests: Amy's Travel Planner",
+  "description": "Learn to use the Present Simple for timetables (future schedules) and express requests using 'want someone to do something' (Unit 7: Travelling Down Under).",
+  "type": "worksheet",
+  "tags": ["grammar", "future", "requests", "worksheet"],
+  "badgeName": "Travel Organiser",
+  "badgeEmoji": "✈️",
+  "questions": [
+    {
+      "id": "intro",
+      "type": "instruction",
+      "text": "### Future Schedules & Requests (want someone to do)\n\n1. **Present Simple for Future Schedules**:\n   * **Usage**: We use the Present Simple to talk about fixed future events like timetables, programs, flights, train schedules, or calendar dates.\n   * *Example*: The train **leaves** at 8:30 AM tomorrow. / The exhibition **starts** next Monday.\n2. **Want/Ask/Tell Someone to do Something**:\n   * **Structure**: Subject + **want / ask / tell** + **person** + **to-infinitive**.\n   * **Negative**: Subject + **want / ask / tell** + **person** + **not to-infinitive**.\n   * *Example*: My parents **want me to study** hard.\n   * *Example*: The guide **asked us not to touch** the Aborigine drawings."
+    },
+    {
+      "id": "q1-mc",
+      "type": "multiple-choice",
+      "question": "Which sentence correctly expresses a request in English?",
+      "options": [
+        "She wants that I help her with the bags.",
+        "She wants me to help her with the bags.",
+        "She wants me helping her with the bags."
+      ],
+      "correctOptionIndex": 1,
+      "hint": "We cannot say 'want that someone does' in English. Use the pattern: want + person (me) + to-infinitive (to help)."
+    },
+    {
+      "id": "q2-click",
+      "type": "clickable-choice",
+      "question": "Choose the correct verb forms to complete the travel descriptions:",
+      "choices": ["leaves", "will leave", "want us to pack", "want that we pack", "starts", "will start"],
+      "statements": [
+        {
+          "id": "s1",
+          "text": "Our flight to Sydney [leaves] at 6:00 AM on Friday.",
+          "correctChoice": "leaves"
+        },
+        {
+          "id": "s2",
+          "text": "The tour leaders [want us to pack] warm clothes for the outback.",
+          "correctChoice": "want us to pack"
+        },
+        {
+          "id": "s3",
+          "text": "The Aborigine culture exhibition [starts] at 10:00 AM tomorrow.",
+          "correctChoice": "starts"
+        }
+      ]
+    },
+    {
+      "id": "q3-gap",
+      "type": "gap-fill",
+      "question": "Complete the email from Amy using the correct forms of the verbs (Present Simple for future, or infinitive requests):",
+      "text": "Hi Lily! I am so excited about our trip down under. The airport shuttle [picks|will pick] (pick) us up at 4:00 AM on Monday, because our flight [departs|departing] (depart) at 7:15 AM. My dad wants [us to check|us check] (us/check) in online the night before. He also asked [us not to bring] (us/not/bring) too much luggage. The first excursion in Sydney [begins|begin] (begin) at 2:00 PM on Tuesday. The guide wants [everyone to meet] (everyone/meet) in the hotel lobby. I can't wait! See you soon, Amy."
+    },
+    {
+      "id": "q4-match",
+      "type": "matching",
+      "question": "Match the situation to the corresponding request:",
+      "pairs": [
+        {
+          "id": "p1",
+          "leftText": "It is very cold in the bus.",
+          "rightText": "She wants him to close the window."
+        },
+        {
+          "id": "p2",
+          "leftText": "The students are making too much noise.",
+          "rightText": "The teacher asks them to be quiet."
+        },
+        {
+          "id": "p3",
+          "leftText": "We have a test tomorrow morning.",
+          "rightText": "The school wants us to study hard."
+        },
+        {
+          "id": "p4",
+          "leftText": "The outback track is very dangerous.",
+          "rightText": "The guide tells them not to walk alone."
+        }
+      ]
+    },
+    {
+      "id": "q5-order",
+      "type": "ordering",
+      "question": "Rearrange the words to form a correct request sentence:",
+      "elements": ["My", "mother", "wants", "me", "to", "take", "pictures", "of", "the", "kangaroos."]
+    },
+    {
+      "id": "q6-open",
+      "type": "open-question",
+      "question": "Write 2 sentences describing what your family wants you to do (or not to do) before you go on holiday. Use the pattern 'want me to' or 'ask me to'.",
+      "keywords": ["want", "me", "to"],
+      "spellingTolerance": "lenient"
+    }
+  ]
+}

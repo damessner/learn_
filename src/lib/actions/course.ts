@@ -256,6 +256,35 @@ export async function assignCourse(classroomId: string, courseId: string, dueDat
       return { error: "Course has no exercises to assign" };
     }
 
+    // Check if any exercises inside the course are already assigned to that classroom
+    const exerciseIds = exercises.map((e) => e.id);
+    const duplicates = await prisma.assignment.findMany({
+      where: {
+        classroomId,
+        exerciseId: { in: exerciseIds },
+      },
+      include: {
+        exercise: true,
+        courseAssignment: {
+          include: {
+            course: true,
+          },
+        },
+      },
+    });
+
+    if (duplicates.length > 0) {
+      const dupDescriptions = duplicates.map((d) => {
+        if (d.courseAssignment) {
+          return `"${d.exercise.title}" (in course "${d.courseAssignment.course.title}")`;
+        }
+        return `"${d.exercise.title}" (standalone)`;
+      });
+      return {
+        error: `Cannot assign course. The following exercises are already assigned to this classroom: ${dupDescriptions.join(", ")}`,
+      };
+    }
+
     // Create the CourseAssignment and individual Assignments in a transaction
     await prisma.$transaction(async (tx) => {
       const courseAssignment = await tx.courseAssignment.create({

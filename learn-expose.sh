@@ -303,7 +303,7 @@ Type=exec
 ExecStart=/usr/local/bin/cloudflared tunnel --url http://localhost:${APP_PORT}
 Restart=always
 RestartSec=5
-User=root
+User=nobody
 
 [Install]
 WantedBy=multi-user.target
@@ -328,6 +328,15 @@ UNIT
     warn "Could not detect tunnel URL automatically."
     note "Check: journalctl -u cloudflared-quick -n 20 --no-pager"
     CLOUDFLARE_QUICK_URL="<check journalctl -u cloudflared-quick>"
+  fi
+
+  # Enable secure cookies — Cloudflare Quick Tunnel always delivers HTTPS to clients
+  if [[ -f "${LEARN_DIR}/.env" ]]; then
+    sed -i 's|^# SECURE_COOKIE=.*|SECURE_COOKIE="true"|' "${LEARN_DIR}/.env" 2>/dev/null || true
+    if systemctl is-active --quiet learn.service 2>/dev/null; then
+      systemctl restart learn.service 2>/dev/null || true
+    fi
+    ok "SECURE_COOKIE enabled (Cloudflare provides HTTPS)"
   fi
 }
 
@@ -804,6 +813,9 @@ summary() {
       echo ""
       warn "⚠️  This URL changes on restart! For a permanent URL, use option 3."
       note "Check URL after reboot: journalctl -u cloudflared-quick | grep trycloudflare"
+      note "Port ${APP_PORT} is only reachable via the tunnel. To also block direct LAN"
+      note "access to port ${APP_PORT}, add a firewall rule dropping tcp dport ${APP_PORT} from"
+      note "non-loopback interfaces (Proxmox UI firewall or nftables inside the container)."
       ;;
 
     cloudflare)

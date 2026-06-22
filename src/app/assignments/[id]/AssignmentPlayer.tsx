@@ -12,6 +12,8 @@ import Link from "next/link";
 import { getExerciseTypeLabel } from "@/lib/exerciseLabels";
 import WidgetErrorBoundary from "@/components/widgets/WidgetErrorBoundary";
 import { getTaskMaxPoints } from "@/lib/points";
+import { scoreQuestionByType } from "@/lib/submissionScoring";
+
 export { getTaskMaxPoints } from "@/lib/points";
 
 interface WorksheetQuestionData {
@@ -151,7 +153,7 @@ const WorksheetQuestionRow: React.FC<WorksheetQuestionRowProps> = ({
         <div className="mt-2 text-xs pt-2 border-t border-neutral-100 dark:border-neutral-850">
           <details className="cursor-pointer text-neutral-550 hover:text-black dark:hover:text-white transition">
             <summary className="font-semibold select-none font-mono">💡 Need a hint?</summary>
-            <div className="mt-1.5 p-2 bg-amber-50/20 dark:bg-amber-950/10 border border-amber-250/30 rounded font-medium text-amber-800 dark:text-amber-300 leading-relaxed">
+            <div className="mt-1.5 p-2 bg-amber-50/20 dark:bg-amber-955/10 border border-amber-250/30 rounded font-medium text-amber-800 dark:text-amber-300 leading-relaxed">
               {q.hint}
             </div>
           </details>
@@ -160,6 +162,35 @@ const WorksheetQuestionRow: React.FC<WorksheetQuestionRowProps> = ({
     </div>
   );
 };
+
+function isQuestionStateComplete(type: string, state: any): boolean {
+  if (state === undefined || state === null) return false;
+  if (type === "multiple-choice") {
+    return state.answers !== undefined && Object.keys(state.answers).length > 0;
+  }
+  if (type === "gap-fill") {
+    return state.answers !== undefined && Object.keys(state.answers).length > 0;
+  }
+  if (type === "drag-drop") {
+    return state.placements !== undefined && Object.keys(state.placements).length > 0;
+  }
+  if (type === "categorization") {
+    return state.placements !== undefined && Object.keys(state.placements).length > 0;
+  }
+  if (type === "matching") {
+    return state.matches !== undefined && Object.keys(state.matches).length > 0;
+  }
+  if (type === "clickable-choice") {
+    return state.selections !== undefined && Object.keys(state.selections).length > 0;
+  }
+  if (type === "ordering") {
+    return state.placed !== undefined && Array.isArray(state.placed) && state.placed.length > 0;
+  }
+  if (type === "open-question") {
+    return !!(state.response?.trim() || state.audioUrl || state.imageUrl);
+  }
+  return true;
+}
 
 export default function AssignmentPlayer({
   assignmentId,
@@ -198,27 +229,94 @@ export default function AssignmentPlayer({
     return initialSavedAnswers;
   }, [initialSavedAnswers, savedAnswersJson]);
 
+  const flatQuestions = useMemo(() => {
+    if (exercise.type === "worksheet") {
+      if (Array.isArray(exercise.pages)) {
+        return exercise.pages.flatMap((p: { questions?: WorksheetQuestionData[] }) => p.questions || []);
+      }
+      return (exercise.questions as WorksheetQuestionData[]) || [];
+    }
+    return [];
+  }, [exercise]);
+
   const isPastDue = useMemo(() => {
     if (!dueDate) return false;
     return new Date() > new Date(dueDate);
   }, [dueDate]);
 
-  // Widget state variables
-  const [widgetState, setWidgetState] = useState<Record<string, unknown> | null>(() => {
+  // Pre-calculate initial child completions, scores, total score and completeness
+  const initialChildState = useMemo(() => {
+    let restoredState: Record<string, unknown> | null = null;
+    let isRedo = false;
     if (typeof window !== "undefined") {
-      const saved = localStorage.getItem(`draft_${assignmentId}`);
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch {
-          // ignore parse errors
+      isRedo = new URLSearchParams(window.location.search).get("redo") === "true";
+      if (isRedo) {
+        localStorage.removeItem(`draft_${assignmentId}`);
+      } else {
+        const saved = localStorage.getItem(`draft_${assignmentId}`);
+        if (saved) {
+          try {
+            restoredState = JSON.parse(saved);
+          } catch {
+            // ignore
+          }
         }
       }
     }
-    return savedAnswers || (exercise.type === "worksheet" ? {} : null);
+    if (!restoredState && !isRedo) {
+      restoredState = savedAnswers || null;
+    }
+
+    const completions: Record<string, boolean> = {};
+    const scores: Record<string, number> = {};
+
+    if (restoredState && exercise.type === "worksheet") {
+      flatQuestions.forEach((q: WorksheetQuestionData) => {
+        if (q.type === "media" || q.type === "instruction") return;
+        const qState = restoredState?.[q.id];
+        if (qState !== undefined && qState !== null) {
+          const score = scoreQuestionByType(q as any, qState);
+          scores[q.id] = score;
+          completions[q.id] = isQuestionStateComplete(q.type, qState);
+        } else {
+          completions[q.id] = false;
+          scores[q.id] = 0;
+        }
+      });
+    }
+
+    return { restoredState, completions, scores };
+  }, [savedAnswers, exercise, flatQuestions, assignmentId]);
+
+  // Widget state variables
+  const [widgetState, setWidgetState] = useState<Record<string, unknown> | null>(() => initialChildState.restoredState || (exercise.type === "worksheet" ? {} : null));
+  const [childCompletions, setChildCompletions] = useState<Record<string, boolean>>(() => initialChildState.completions);
+  const [childScores, setChildScores] = useState<Record<string, number>>(() => initialChildState.scores);
+
+  const [score, setScore] = useState(() => {
+    if (exercise.type === "worksheet") {
+      let totalMax = 0;
+      let totalEarned = 0;
+      flatQuestions.forEach((q: WorksheetQuestionData) => {
+        const maxPts = getTaskMaxPoints(q);
+        const childPct = initialChildState.scores[q.id] ?? 0;
+        totalMax += maxPts;
+        totalEarned += (childPct / 100) * maxPts;
+      });
+      return totalMax > 0 ? (totalEarned / totalMax) * 100 : 0;
+    }
+    return 0;
   });
-  const [isComplete, setIsComplete] = useState(false);
-  const [score, setScore] = useState(0);
+
+  const [isComplete, setIsComplete] = useState(() => {
+    if (exercise.type === "worksheet") {
+      return flatQuestions.every((q: WorksheetQuestionData) => {
+        if (q.type === "media" || q.type === "instruction") return true;
+        return initialChildState.completions[q.id] === true;
+      });
+    }
+    return false;
+  });
 
   React.useEffect(() => {
     if (typeof window !== "undefined" && role === "STUDENT" && widgetState) {
@@ -399,6 +497,7 @@ export default function AssignmentPlayer({
   }, [cleanupAudio]);
 
   // --- AI Mastery Meme States & Action triggers ---
+  const [submissionId, setSubmissionId] = useState<string | null>(null);
   const [unwrappedMeme, setUnwrappedMeme] = useState(false);
   const [loadingMeme, setLoadingMeme] = useState(false);
   const [memeData, setMemeData] = useState<{ text: string; imageUrl: string } | null>(null);
@@ -409,7 +508,7 @@ export default function AssignmentPlayer({
     setMemeError(null);
     setUnwrappedMeme(true);
     try {
-      const res = await generateMasteryMeme(exercise.title || "English Learning");
+      const res = await generateMasteryMeme(exercise.title || "English Learning", submissionId);
       if (res.success && res.text && res.imageUrl) {
         setMemeData({ text: res.text, imageUrl: res.imageUrl });
       } else {
@@ -420,7 +519,7 @@ export default function AssignmentPlayer({
     } finally {
       setLoadingMeme(false);
     }
-  }, [exercise.title]);
+  }, [exercise.title, submissionId]);
 
 
   const [loading, setLoading] = useState(false);
@@ -444,15 +543,7 @@ export default function AssignmentPlayer({
     setScore(currentScore);
   }, []);
 
-  const flatQuestions = useMemo(() => {
-    if (exercise.type === "worksheet") {
-      if (Array.isArray(exercise.pages)) {
-        return exercise.pages.flatMap((p: { questions?: WorksheetQuestionData[] }) => p.questions || []);
-      }
-      return (exercise.questions as WorksheetQuestionData[]) || [];
-    }
-    return [];
-  }, [exercise]);
+
 
   const pages = useMemo(() => {
     if (exercise.type === "worksheet") {
@@ -480,8 +571,7 @@ export default function AssignmentPlayer({
   const [gateAlertVisible, setGateAlertVisible] = useState(false);
   const currentPage = pages[currentPageIdx];
 
-  const [childCompletions, setChildCompletions] = useState<Record<string, boolean>>({});
-  const [childScores, setChildScores] = useState<Record<string, number>>({});
+
 
   const isCurrentPageComplete = useMemo(() => {
     if (!currentPage?.questions) return true;
@@ -599,6 +689,7 @@ export default function AssignmentPlayer({
         if (typeof window !== "undefined") {
           localStorage.removeItem(`draft_${assignmentId}`);
         }
+        setSubmissionId(res?.id || null);
         setSubmitted(true);
         setSubmitScore(res?.score ?? score);
         setSubmitEffectiveScore(res?.effectiveScore ?? score * multiplier);

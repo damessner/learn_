@@ -1,0 +1,97 @@
+{
+  "id": "4g-grammar-word-formation",
+  "title": "Word Formation: The School Magazine Editor",
+  "description": "Learn to use prefixes (un-, dis-, im-, mis-, re-) and suffixes (-ful, -less, -ness, -ment, -tion) to form new words (Unit 12: A school mag).",
+  "type": "worksheet",
+  "tags": ["grammar", "word-formation", "vocabulary", "worksheet"],
+  "badgeName": "Master Editor",
+  "badgeEmoji": "✍️",
+  "questions": [
+    {
+      "id": "intro",
+      "type": "instruction",
+      "text": "### Word Formation: Prefixes and Suffixes\n\nWe can make new words in English by adding prefixes (before the word) or suffixes (after the word).\n\n1. **Prefixes** (often change the meaning to the opposite):\n   * **un-**: *happy -> unhappy*, *kind -> unkind*\n   * **dis-**: *agree -> disagree*, *like -> dislike*, *appear -> disappear*\n   * **im-** (before 'm' or 'p'): *possible -> impossible*, *polite -> impolite*\n   * **mis-** (wrongly): *understand -> misunderstand*\n   * **re-** (again): *write -> rewrite*, *build -> rebuild*\n2. **Suffixes** (often change the word class, e.g., verb to noun or noun to adjective):\n   * **-ful** (full of): *help -> helpful*, *beauty -> beautiful*\n   * **-less** (without): *hope -> hopeless*, *harm -> harmless*, *care -> careless*\n   * **-ness** (makes abstract nouns from adjectives): *sad -> sadness*, *dark -> darkness*\n   * **-ment** (makes nouns from verbs): *agree -> agreement*, *excite -> excitement*\n   * **-tion / -ion**: *direct -> direction*, *invent -> invention*"
+    },
+    {
+      "id": "q1-mc",
+      "type": "multiple-choice",
+      "question": "What is the correct opposite of the adjective 'patient'?",
+      "options": [
+        "unpatient",
+        "impatient",
+        "dispatient"
+      ],
+      "correctOptionIndex": 1,
+      "hint": "Adjectives starting with 'p' or 'm' usually take the prefix 'im-' to form the opposite."
+    },
+    {
+      "id": "q2-click",
+      "type": "clickable-choice",
+      "question": "Choose the correct formed words to edit the school magazine drafts:",
+      "choices": ["harmless", "harmful", "agreement", "agreeance", "exciteful", "excitement"],
+      "statements": [
+        {
+          "id": "s1",
+          "text": "Don't worry about that small garden spider, it is completely [harmless].",
+          "correctChoice": "harmless"
+        },
+        {
+          "id": "s2",
+          "text": "The editors reached a final [agreement] on the magazine layout.",
+          "correctChoice": "agreement"
+        },
+        {
+          "id": "s3",
+          "text": "You could feel the [excitement] in the classroom before the school holidays.",
+          "correctChoice": "excitement"
+        }
+      ]
+    },
+    {
+      "id": "q3-gap",
+      "type": "gap-fill",
+      "question": "Complete the editor's article for the school magazine by writing the correct forms of the words in brackets:",
+      "text": "Our school magazine has just published its summer edition. The editor-in-chief was worried that the project was [impossible|unpossible] (possible) to finish on time. However, our team worked with great [enthusiasm|enthusiastic] (enthusiasm) to clear up the pages. We had a minor [misunderstanding] (understand) about the cover photo, but we quickly sorted it out. Writing articles is very [creative|creatively] (create) work. We hope the readers will find our reviews [helpful|helpless] (help) and enjoy the sports articles [happily|happy] (happy)."
+    },
+    {
+      "id": "q4-match",
+      "type": "matching",
+      "question": "Match the verbs or adjectives to their correct noun suffixes:",
+      "pairs": [
+        {
+          "id": "p1",
+          "leftText": "excite",
+          "rightText": "excitement"
+        },
+        {
+          "id": "p2",
+          "leftText": "dark",
+          "rightText": "darkness"
+        },
+        {
+          "id": "p3",
+          "leftText": "direct",
+          "rightText": "direction"
+        },
+        {
+          "id": "p4",
+          "leftText": "disappoint",
+          "rightText": "disappointment"
+        }
+      ]
+    },
+    {
+      "id": "q5-order",
+      "type": "ordering",
+      "question": "Rearrange the elements to form a sentence containing prefix/suffix words:",
+      "elements": ["The", "careless", "driver", "disappeared", "quickly", "after", "the", "accident."]
+    },
+    {
+      "id": "q6-open",
+      "type": "open-question",
+      "question": "Write 2 sentences. Use a word starting with the prefix 'un-' or 'dis-' in the first sentence, and a noun ending in the suffix '-ness' or '-ment' in the second.",
+      "keywords": ["un", "dis", "ness", "ment"],
+      "spellingTolerance": "lenient"
+    }
+  ]
+}

@@ -4,46 +4,11 @@ import { prisma } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
 import Link from "next/link";
-import { Play, AlertCircle, BookOpen, Users, RotateCcw, Trophy, FolderOpen, Award, Brain } from "lucide-react";
-import { getExerciseTypeLabel } from "@/lib/exerciseLabels";
 import JoinClassroomForm from "./JoinClassroomForm";
 import { getExerciseFromDisk } from "@/lib/exercises";
 import { getOrGenerateWordOfTheDay } from "@/lib/gemini";
 import { WordOfTheDayCard } from "@/components/WordOfTheDayCard";
-
-function renderDueDateBadge(dueDate: Date | null, isCompleted: boolean) {
-  if (isCompleted || !dueDate) return null;
-
-  const due = new Date(dueDate);
-  const now = new Date();
-  
-  // Set times to midnight for date-only comparison
-  const dueMidnight = new Date(due.getFullYear(), due.getMonth(), due.getDate());
-  const nowMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  
-  const timeDiff = dueMidnight.getTime() - nowMidnight.getTime();
-  const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
-
-  if (timeDiff < 0) {
-    return (
-      <span className="text-[9px] font-bold uppercase tracking-wider font-mono px-2 py-0.5 rounded bg-red-50 text-red-700 dark:bg-red-950/20 dark:text-red-400 border border-red-200/50 dark:border-red-900/50">
-        Overdue
-      </span>
-    );
-  } else if (daysDiff <= 1) {
-    return (
-      <span className="text-[9px] font-bold uppercase tracking-wider font-mono px-2 py-0.5 rounded bg-amber-50 text-amber-700 dark:bg-amber-950/20 dark:text-amber-400 border border-amber-200/50 dark:border-amber-900/50 animate-pulse">
-        Due Soon
-      </span>
-    );
-  } else {
-    return (
-      <span className="text-[9px] font-bold uppercase tracking-wider font-mono px-2 py-0.5 rounded bg-blue-50 text-blue-700 dark:bg-blue-950/20 dark:text-blue-400 border border-blue-200/50 dark:border-blue-900/50">
-        Due in {daysDiff} day{daysDiff !== 1 ? "s" : ""}
-      </span>
-    );
-  }
-}
+import StudentDashboardTabs, { TodoItem, CompletedItem, BadgeItem } from "./StudentDashboardTabs";
 
 export default async function StudentDashboard() {
   const session = await getSession();
@@ -166,33 +131,178 @@ export default async function StudentDashboard() {
     });
   });
 
-  // Extract all earned badges from completed assignments
-  const earnedBadges: Array<{
-    exerciseId: string;
-    worksheetTitle: string;
-    badgeName: string;
-    badgeEmoji: string;
-    completedAt: Date;
-    score: number;
-  }> = [];
+  // Fetch submissions that have generated memes
+  const memeSubmissions = await prisma.submission.findMany({
+    where: {
+      studentId: session.userId,
+      memeText: { not: null },
+      memeImageUrl: { not: null },
+    },
+    include: {
+      assignment: {
+        include: {
+          exercise: true,
+        },
+      },
+    },
+    orderBy: { completedAt: "desc" },
+  });
+
+  const mappedMemeSubmissions = memeSubmissions.map((s) => ({
+    id: s.id,
+    completedAt: s.completedAt.toISOString(),
+    memeText: s.memeText,
+    memeImageUrl: s.memeImageUrl,
+    assignment: {
+      exercise: {
+        title: s.assignment.exercise.title,
+      },
+    },
+  }));
+
+  // Fetch all submissions for streak and stats calculation
+  const allSubmissions = await prisma.submission.findMany({
+    where: { studentId: session.userId },
+    orderBy: { completedAt: "desc" },
+  });
+
+  // Calculate active streak
+  const calculateStreak = (submissions: { completedAt: Date }[]): number => {
+    if (submissions.length === 0) return 0;
+    
+    // Format dates to local YYYY-MM-DD
+    const uniqueDates = Array.from(
+      new Set(
+        submissions.map((s) => {
+          const d = new Date(s.completedAt);
+          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        })
+      )
+    ).sort((a, b) => b.localeCompare(a));
+
+    if (uniqueDates.length === 0) return 0;
+
+    const getLocalDateStr = (date: Date) => {
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+    };
+
+    const todayStr = getLocalDateStr(new Date());
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = getLocalDateStr(yesterday);
+
+    const newestDate = uniqueDates[0];
+    if (newestDate !== todayStr && newestDate !== yesterdayStr) {
+      return 0;
+    }
+
+    let currentStreak = 0;
+    const currentDate = new Date(newestDate);
+
+    for (let i = 0; i < uniqueDates.length; i++) {
+      const expectedStr = getLocalDateStr(currentDate);
+      if (uniqueDates.includes(expectedStr)) {
+        currentStreak++;
+        currentDate.setDate(currentDate.getDate() - 1);
+      } else {
+        break;
+      }
+    }
+    return currentStreak;
+  };
+
+  const streak = calculateStreak(allSubmissions);
+
+  // Calculate completed past 7 days
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const completedThisWeek = allSubmissions.filter((s) => s.completedAt >= sevenDaysAgo).length;
+
+  // Best score
+  const bestScore = allSubmissions.length > 0 ? Math.max(...allSubmissions.map((s) => s.effectiveScore)) : 0;
+
+  // Total attempts
+  const totalAttempts = allSubmissions.length;
+
+  const statistics = {
+    streak,
+    completedThisWeek,
+    bestScore,
+    totalAttempts,
+  };
+
+  const earnedBadges: BadgeItem[] = [];
+
+  const todoAssignments: TodoItem[] = [];
+  const completedAssignments: CompletedItem[] = [];
 
   classroomsJoined.forEach((cs) => {
+    const classroomName = cs.classroom.name;
+
     // Standalone assignments
     cs.classroom.assignments.forEach((as) => {
-      if (as.submissions.length > 0) {
-        const latestSub = as.submissions[0];
-        const exercise = as.exercise;
-        const name = exercise.badgeName || exercise.title;
-        const emoji = exercise.badgeEmoji || "🏆";
-        
-        if (!earnedBadges.some((b) => b.exerciseId === exercise.id)) {
+      const submissions = as.submissions;
+      const attemptCount = submissions.length;
+      const isCompleted = attemptCount > 0;
+
+      const assignmentData = {
+        id: as.id,
+        dueDate: as.dueDate ? as.dueDate.toISOString() : null,
+        createdAt: as.createdAt.toISOString(),
+        exercise: {
+          id: as.exercise.id,
+          title: as.exercise.title,
+          type: as.exercise.type,
+          badgeName: as.exercise.badgeName,
+          badgeEmoji: as.exercise.badgeEmoji,
+        },
+      };
+
+      if (!isCompleted) {
+        todoAssignments.push({
+          assignment: assignmentData,
+          classroomName,
+        });
+      } else {
+        const exerciseContent = getExerciseFromDisk(as.exercise.id);
+        const isSpacedRetrieval = !!(exerciseContent?.type === "worksheet" && exerciseContent.enhancements?.spacedRetrieval);
+        let isSpacedReviewReady = false;
+        if (isSpacedRetrieval && submissions.length > 0) {
+          const latestCompleted = new Date(submissions[0].completedAt);
+          const diffDays = (Date.now() - latestCompleted.getTime()) / (1000 * 60 * 60 * 24);
+          isSpacedReviewReady = diffDays >= 3;
+        }
+
+        completedAssignments.push({
+          assignment: assignmentData,
+          classroomName,
+          submissions: submissions.map((s) => ({
+            id: s.id,
+            score: s.score,
+            effectiveScore: s.effectiveScore,
+            attemptNumber: s.attemptNumber,
+            completedAt: s.completedAt.toISOString(),
+            teacherScore: s.teacherScore,
+            memeText: s.memeText,
+            memeImageUrl: s.memeImageUrl,
+          })),
+          attemptCount,
+          bestEffective: Math.max(...submissions.map((s) => s.effectiveScore)),
+          isSpacedReviewReady,
+        });
+
+        // Add badge if completed
+        const name = as.exercise.badgeName || as.exercise.title;
+        const emoji = as.exercise.badgeEmoji || "🏆";
+        if (!earnedBadges.some((b) => b.exerciseId === as.exercise.id)) {
           earnedBadges.push({
-            exerciseId: exercise.id,
-            worksheetTitle: exercise.title,
+            exerciseId: as.exercise.id,
+            assignmentId: as.id,
+            worksheetTitle: as.exercise.title,
             badgeName: name,
             badgeEmoji: emoji,
-            completedAt: latestSub.completedAt,
-            score: Math.max(...as.submissions.map((s) => s.effectiveScore)),
+            completedAt: submissions[0].completedAt.toISOString(),
+            score: Math.max(...submissions.map((s) => s.effectiveScore)),
           });
         }
       }
@@ -201,25 +311,80 @@ export default async function StudentDashboard() {
     // Course assignments
     cs.classroom.courseAssignments.forEach((ca) => {
       ca.assignments.forEach((as) => {
-        if (as.submissions.length > 0) {
-          const latestSub = as.submissions[0];
-          const exercise = as.exercise;
-          const name = exercise.badgeName || exercise.title;
-          const emoji = exercise.badgeEmoji || "🏆";
+        const submissions = as.submissions;
+        const attemptCount = submissions.length;
+        const isCompleted = attemptCount > 0;
 
-          if (!earnedBadges.some((b) => b.exerciseId === exercise.id)) {
+        const assignmentData = {
+          id: as.id,
+          dueDate: as.dueDate ? as.dueDate.toISOString() : null,
+          createdAt: as.createdAt.toISOString(),
+          exercise: {
+            id: as.exercise.id,
+            title: as.exercise.title,
+            type: as.exercise.type,
+            badgeName: as.exercise.badgeName,
+            badgeEmoji: as.exercise.badgeEmoji,
+          },
+        };
+
+        if (!isCompleted) {
+          todoAssignments.push({
+            assignment: assignmentData,
+            classroomName,
+          });
+        } else {
+          const exerciseContent = getExerciseFromDisk(as.exercise.id);
+          const isSpacedRetrieval = !!(exerciseContent?.type === "worksheet" && exerciseContent.enhancements?.spacedRetrieval);
+          let isSpacedReviewReady = false;
+          if (isSpacedRetrieval && submissions.length > 0) {
+            const latestCompleted = new Date(submissions[0].completedAt);
+            const diffDays = (Date.now() - latestCompleted.getTime()) / (1000 * 60 * 60 * 24);
+            isSpacedReviewReady = diffDays >= 3;
+          }
+
+          completedAssignments.push({
+            assignment: assignmentData,
+            classroomName,
+            submissions: submissions.map((s) => ({
+              id: s.id,
+              score: s.score,
+              effectiveScore: s.effectiveScore,
+              attemptNumber: s.attemptNumber,
+              completedAt: s.completedAt.toISOString(),
+              teacherScore: s.teacherScore,
+              memeText: s.memeText,
+              memeImageUrl: s.memeImageUrl,
+            })),
+            attemptCount,
+            bestEffective: Math.max(...submissions.map((s) => s.effectiveScore)),
+            isSpacedReviewReady,
+          });
+
+          // Add badge if completed
+          const name = as.exercise.badgeName || as.exercise.title;
+          const emoji = as.exercise.badgeEmoji || "🏆";
+          if (!earnedBadges.some((b) => b.exerciseId === as.exercise.id)) {
             earnedBadges.push({
-              exerciseId: exercise.id,
-              worksheetTitle: exercise.title,
+              exerciseId: as.exercise.id,
+              assignmentId: as.id,
+              worksheetTitle: as.exercise.title,
               badgeName: name,
               badgeEmoji: emoji,
-              completedAt: latestSub.completedAt,
-              score: Math.max(...as.submissions.map((s) => s.effectiveScore)),
+              completedAt: submissions[0].completedAt.toISOString(),
+              score: Math.max(...submissions.map((s) => s.effectiveScore)),
             });
           }
         }
       });
     });
+  });
+
+  // Sort todoAssignments by due date (items with null due dates can go last)
+  todoAssignments.sort((a, b) => {
+    if (!a.assignment.dueDate) return 1;
+    if (!b.assignment.dueDate) return -1;
+    return new Date(a.assignment.dueDate).getTime() - new Date(b.assignment.dueDate).getTime();
   });
 
   return (
@@ -326,405 +491,14 @@ export default async function StudentDashboard() {
 
         {/* Join Classroom Form */}
         <JoinClassroomForm />
-
-        {/* Badges Section */}
-        {earnedBadges.length > 0 && (
-          <div className="border border-purple-200 dark:border-purple-900 rounded-none bg-gradient-to-r from-purple-50/50 to-indigo-50/50 dark:from-purple-950/10 dark:to-indigo-950/10 p-6 space-y-4 shadow-sm">
-            <h2 className="text-xs font-bold font-mono uppercase tracking-wider text-purple-700 dark:text-purple-400 flex items-center gap-2">
-              <Award className="w-4 h-4 shrink-0" />
-              My Badges ({earnedBadges.length})
-            </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-              {earnedBadges.map((badge) => (
-                <div
-                  key={badge.exerciseId}
-                  className="p-4 border border-purple-200/60 dark:border-purple-900/30 bg-white/60 dark:bg-black/35 rounded-none shadow-sm flex flex-col items-center text-center justify-between gap-3 hover:scale-[1.02] hover:border-purple-400 transition-all duration-200"
-                >
-                  <div className="w-12 h-12 flex items-center justify-center text-3xl bg-purple-100 dark:bg-purple-950/50 rounded-full border border-purple-200 dark:border-purple-900 shadow-inner">
-                    {badge.badgeEmoji || "🏆"}
-                  </div>
-                  <div className="space-y-1">
-                    <h3 className="font-bold text-xs text-neutral-900 dark:text-neutral-100 line-clamp-1" title={badge.badgeName}>
-                      {badge.badgeName}
-                    </h3>
-                    <p className="text-[9px] text-neutral-500 uppercase tracking-wide font-mono line-clamp-1" title={badge.worksheetTitle}>
-                      {badge.worksheetTitle}
-                    </p>
-                  </div>
-                  <span className="text-[9px] font-mono bg-purple-100/50 dark:bg-purple-950/30 text-purple-800 dark:text-purple-300 px-2 py-0.5 rounded-none font-bold uppercase tracking-wider">
-                    Score: {badge.score.toFixed(0)}%
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Classrooms & Assignments */}
-        {classroomsJoined.length === 0 ? (
-          <div className="text-center py-12 border border-dashed border-neutral-300 dark:border-neutral-800 rounded-none text-neutral-500 space-y-4 font-mono text-xs uppercase">
-            <p>You have not joined any classrooms yet.</p>
-            <p className="text-[10px] normal-case text-neutral-450 max-w-md mx-auto">
-              Enter a join code above or register a new student account using a classroom Join Code provided by your teacher.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-8">
-            {classroomsJoined.map(({ classroom }) => (
-              <div
-                key={classroom.id}
-                className="border border-neutral-200 dark:border-neutral-900 rounded-none bg-white/40 dark:bg-black/20 backdrop-blur-sm p-6 space-y-4"
-              >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-neutral-200 dark:border-neutral-900 pb-3">
-                  <div>
-                    <h2 className="text-xl font-bold font-mono uppercase text-neutral-900 dark:text-neutral-100 flex items-center gap-2">
-                      <Users className="w-5 h-5 text-neutral-500" />
-                      {classroom.name}
-                    </h2>
-                    <p className="text-xs text-neutral-500">
-                      Teacher: <span className="font-semibold">{classroom.teacher.username}</span>
-                    </p>
-                  </div>
-                  <span className="text-[10px] font-mono uppercase border border-neutral-300 dark:border-neutral-800 px-2.5 py-0.5 rounded-none text-neutral-600 dark:text-neutral-400 self-start sm:self-center">
-                    Join Code: {classroom.joinCode}
-                  </span>
-                </div>
-
-                {/* Course Sections */}
-                {classroom.courseAssignments.length > 0 && (
-                  <div className="space-y-3">
-                    {classroom.courseAssignments.map((courseAssignment) => {
-                      const totalCount = courseAssignment.assignments.length;
-                      const completedCount = courseAssignment.assignments.filter(
-                        (a) => a.submissions.length > 0
-                      ).length;
-
-                      return (
-                        <details
-                          key={courseAssignment.id}
-                          className="group border border-neutral-200 dark:border-neutral-900 rounded-none overflow-hidden"
-                        >
-                          <summary className="flex items-center justify-between gap-3 px-4 py-3 cursor-pointer bg-white/40 dark:bg-black/20 hover:bg-neutral-50 dark:hover:bg-neutral-950/45 border-b border-neutral-200 dark:border-neutral-900 transition text-sm font-mono uppercase list-none [&::-webkit-details-marker]:hidden">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <FolderOpen className="w-4 h-4 shrink-0 text-neutral-500" />
-                              <span className="font-bold text-neutral-900 dark:text-neutral-100 truncate">
-                                {courseAssignment.course.title}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-3 shrink-0">
-                              <span className="text-[10px] text-neutral-500 whitespace-nowrap">
-                                {completedCount}/{totalCount} completed
-                              </span>
-                              {courseAssignment.dueDate && (
-                                <span className="text-[10px] text-neutral-500 font-mono whitespace-nowrap">
-                                  Due: {new Date(courseAssignment.dueDate).toLocaleDateString("en-GB")}
-                                </span>
-                              )}
-                            </div>
-                          </summary>
-
-                          <div className="divide-y divide-neutral-200 dark:divide-neutral-900">
-                            {courseAssignment.assignments.map((assignment) => {
-                              const submissions = assignment.submissions;
-                              const attemptCount = submissions.length;
-                              const isCompleted = attemptCount > 0;
-
-                              const exerciseContent = getExerciseFromDisk(assignment.exercise.id);
-                              const isSpacedRetrieval = !!(exerciseContent?.type === "worksheet" && exerciseContent.enhancements?.spacedRetrieval);
-                              let isSpacedReviewReady = false;
-                              if (isSpacedRetrieval && isCompleted && submissions.length > 0) {
-                                const latestCompleted = new Date(submissions[0].completedAt);
-                                const diffDays = (Date.now() - latestCompleted.getTime()) / (1000 * 60 * 60 * 24);
-                                isSpacedReviewReady = diffDays >= 3;
-                              }
-
-                              const bestEffective = isCompleted
-                                ? Math.max(...submissions.map((s) => s.effectiveScore))
-                                : null;
-
-                              return (
-                                <div
-                                  key={assignment.id}
-                                  className="py-3.5 px-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white/5 dark:bg-black/5"
-                                >
-                                  <div className="space-y-1">
-                                    <h4 className="font-bold text-sm text-neutral-900 dark:text-neutral-200">
-                                      {assignment.exercise.title}
-                                    </h4>
-                                    <div className="flex flex-wrap items-center gap-3 text-xs text-neutral-500">
-                                      <span className="font-mono uppercase text-[9px] border border-neutral-250 dark:border-neutral-850 px-1.5 py-0.5 rounded-none">
-                                        {getExerciseTypeLabel(assignment.exercise.type)}
-                                      </span>
-                                      {assignment.dueDate && (
-                                        <span className="font-mono text-[10px]">
-                                          Due: {new Date(assignment.dueDate).toLocaleDateString("en-GB")}
-                                        </span>
-                                      )}
-                                      {renderDueDateBadge(assignment.dueDate, isCompleted)}
-                                      {isSpacedReviewReady && (
-                                        <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider font-mono px-2 py-0.5 rounded bg-indigo-55 text-indigo-700 dark:bg-indigo-950/20 dark:text-indigo-400 border border-indigo-200/50 dark:border-indigo-900/50 animate-pulse">
-                                          <Brain className="w-3 h-3 shrink-0" />
-                                          Spaced Review Ready
-                                        </span>
-                                      )}
-                                      {isCompleted && attemptCount > 0 && (
-                                        <details className="text-xs text-neutral-550 mt-2 select-none w-full">
-                                          <summary className="cursor-pointer hover:text-black dark:hover:text-white transition font-mono font-semibold flex items-center gap-1">
-                                            History ({attemptCount} attempt{attemptCount !== 1 ? "s" : ""})
-                                          </summary>
-                                          <ul className="mt-1.5 space-y-1.5 pl-3 border-l border-neutral-250 dark:border-neutral-800">
-                                            {submissions.map((sub, sIdx) => {
-                                              const subNum = attemptCount - sIdx;
-                                              const subScore = sub.teacherScore !== null ? sub.teacherScore : sub.effectiveScore;
-                                              return (
-                                                <li key={sub.id} className="flex items-center justify-between text-[11px] font-mono py-0.5">
-                                                  <span>
-                                                    Attempt #{subNum} · {new Date(sub.completedAt).toLocaleDateString("en-GB")}
-                                                  </span>
-                                                  <div className="flex items-center gap-2">
-                                                    <span className="font-bold">{subScore}%</span>
-                                                    <Link
-                                                      href={`/submissions/${sub.id}`}
-                                                      className="text-neutral-450 hover:text-black dark:hover:text-white underline"
-                                                    >
-                                                      Review
-                                                    </Link>
-                                                  </div>
-                                                </li>
-                                              );
-                                            })}
-                                          </ul>
-                                        </details>
-                                      )}
-                                    </div>
-                                  </div>
-
-                                  <div className="flex items-center gap-3 self-end sm:self-center shrink-0">
-                                    {isCompleted ? (
-                                      <div className="flex items-center gap-3">
-                                        <div className="flex items-center gap-1.5 text-xs text-green-700 dark:text-green-400 border border-green-500 bg-green-500/5 px-2.5 py-1.5 rounded-none font-mono">
-                                          <Trophy className="w-3.5 h-3.5 shrink-0" />
-                                          <div className="flex flex-col leading-tight">
-                                            <span className="font-bold">
-                                              {bestEffective?.toFixed(0)}%
-                                            </span>
-                                            <span className="text-[9px] font-mono opacity-80 uppercase tracking-wider">
-                                              Best Score
-                                            </span>
-                                          </div>
-                                        </div>
-
-                                        <Link
-                                          href={`/assignments/${assignment.id}`}
-                                          className={`flex items-center gap-1.5 text-[10px] font-bold uppercase font-mono border px-3 py-2 rounded-none transition duration-150 ${
-                                            isSpacedReviewReady
-                                              ? "border-indigo-500 bg-indigo-500 hover:bg-indigo-600 text-white dark:border-indigo-550 dark:bg-indigo-650 dark:hover:bg-indigo-700"
-                                              : "border-neutral-300 dark:border-neutral-800 bg-transparent hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black text-neutral-700 dark:text-neutral-300"
-                                          }`}
-                                          title={`Attempt #${attemptCount + 1} — score ×${attemptCount === 1 ? "75" : attemptCount === 2 ? "50" : "25"}%`}
-                                        >
-                                          {isSpacedReviewReady ? (
-                                            <>
-                                              <Brain className="w-3 h-3" />
-                                              Review
-                                            </>
-                                          ) : (
-                                            <>
-                                              <RotateCcw className="w-3 h-3" />
-                                              Redo
-                                            </>
-                                          )}
-                                        </Link>
-                                      </div>
-                                    ) : (
-                                      <div className="flex items-center gap-3">
-                                        <div className="flex items-center gap-1.5 text-[9px] uppercase font-mono border border-neutral-300 dark:border-neutral-800 text-neutral-600 dark:text-neutral-400 px-2 py-1 rounded-none">
-                                          <AlertCircle className="w-3.5 h-3.5" />
-                                          <span>Not Started</span>
-                                        </div>
-                                        <Link
-                                          href={`/assignments/${assignment.id}`}
-                                          className="flex items-center gap-1.5 bg-black text-white dark:bg-white dark:text-black border border-black dark:border-white px-4 py-2 rounded-none text-xs font-bold font-mono uppercase hover:bg-transparent hover:text-black dark:hover:bg-transparent dark:hover:text-white transition duration-200 cursor-pointer"
-                                        >
-                                          <Play className="w-3 h-3 fill-current" />
-                                          Start
-                                        </Link>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </details>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* Standalone Assignments (no courseAssignmentId) */}
-                {(() => {
-                  const standaloneAssignments = classroom.assignments.filter(
-                    (a) => !a.courseAssignmentId
-                  );
-                  return standaloneAssignments.length > 0 ? (
-                    <div className="space-y-3">
-                      <h3 className="text-xs font-bold uppercase tracking-widest text-[#ff2a2e] flex items-center gap-1.5">
-                        <BookOpen className="w-3.5 h-3.5" />
-                        Assignments
-                      </h3>
-
-                      <div className="divide-y divide-neutral-200 dark:divide-neutral-900 border border-neutral-200 dark:border-neutral-900 rounded-none overflow-hidden">
-                        {standaloneAssignments.map((assignment) => {
-                          const submissions = assignment.submissions;
-                          const attemptCount = submissions.length;
-                          const isCompleted = attemptCount > 0;
-
-                          const exerciseContent = getExerciseFromDisk(assignment.exercise.id);
-                          const isSpacedRetrieval = !!(exerciseContent?.type === "worksheet" && exerciseContent.enhancements?.spacedRetrieval);
-                          let isSpacedReviewReady = false;
-                          if (isSpacedRetrieval && isCompleted && submissions.length > 0) {
-                            const latestCompleted = new Date(submissions[0].completedAt);
-                            const diffDays = (Date.now() - latestCompleted.getTime()) / (1000 * 60 * 60 * 24);
-                            isSpacedReviewReady = diffDays >= 3;
-                          }
-
-                          // Best effective score across all attempts
-                          const bestEffective = isCompleted
-                            ? Math.max(...submissions.map((s) => s.effectiveScore))
-                            : null;
-
-                          return (
-                            <div
-                              key={assignment.id}
-                              className="py-3.5 px-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white/5 dark:bg-black/5"
-                            >
-                              <div className="space-y-1.5">
-                                <h4 className="font-bold text-sm text-neutral-900 dark:text-neutral-200">
-                                  {assignment.exercise.title}
-                                </h4>
-                                <div className="flex flex-wrap items-center gap-3 text-xs text-neutral-500">
-                                  <span className="font-mono uppercase text-[9px] border border-neutral-250 dark:border-neutral-850 px-1.5 py-0.5 rounded-none">
-                                    {getExerciseTypeLabel(assignment.exercise.type)}
-                                  </span>
-                                  {assignment.dueDate && (
-                                    <span className="font-mono text-[10px]">
-                                      Due: {new Date(assignment.dueDate).toLocaleDateString("en-GB")}
-                                    </span>
-                                  )}
-                                  {renderDueDateBadge(assignment.dueDate, isCompleted)}
-                                  {isSpacedReviewReady && (
-                                    <span className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider font-mono px-2 py-0.5 rounded bg-indigo-55 text-indigo-700 dark:bg-indigo-950/20 dark:text-indigo-400 border border-indigo-200/50 dark:border-indigo-900/50 animate-pulse">
-                                      <Brain className="w-3 h-3 shrink-0" />
-                                      Spaced Review Ready
-                                    </span>
-                                  )}
-                                  {isCompleted && attemptCount > 0 && (
-                                    <details className="text-xs text-neutral-550 mt-2 select-none w-full">
-                                      <summary className="cursor-pointer hover:text-black dark:hover:text-white transition font-mono font-semibold flex items-center gap-1">
-                                        History ({attemptCount} attempt{attemptCount !== 1 ? "s" : ""})
-                                      </summary>
-                                      <ul className="mt-1.5 space-y-1.5 pl-3 border-l border-neutral-250 dark:border-neutral-800">
-                                        {submissions.map((sub, sIdx) => {
-                                          const subNum = attemptCount - sIdx;
-                                          const subScore = sub.teacherScore !== null ? sub.teacherScore : sub.effectiveScore;
-                                          return (
-                                            <li key={sub.id} className="flex items-center justify-between text-[11px] font-mono py-0.5">
-                                              <span>
-                                                Attempt #{subNum} · {new Date(sub.completedAt).toLocaleDateString("en-GB")}
-                                              </span>
-                                              <div className="flex items-center gap-2">
-                                                <span className="font-bold">{subScore}%</span>
-                                                <Link
-                                                  href={`/submissions/${sub.id}`}
-                                                  className="text-neutral-450 hover:text-black dark:hover:text-white underline"
-                                                >
-                                                  Review
-                                                </Link>
-                                              </div>
-                                            </li>
-                                          );
-                                        })}
-                                      </ul>
-                                    </details>
-                                  )}
-                                </div>
-                              </div>
-
-                              <div className="flex items-center gap-3 self-end sm:self-center shrink-0">
-                                {isCompleted ? (
-                                  <div className="flex items-center gap-3">
-                                    {/* Best effective score badge */}
-                                    <div className="flex items-center gap-1.5 text-xs text-green-700 dark:text-green-400 border border-green-500 bg-green-500/5 px-2.5 py-1.5 rounded-none font-mono">
-                                      <Trophy className="w-3.5 h-3.5 shrink-0" />
-                                      <div className="flex flex-col leading-tight">
-                                        <span className="font-bold">
-                                          {bestEffective?.toFixed(0)}%
-                                        </span>
-                                        <span className="text-[9px] font-mono opacity-80 uppercase tracking-wider">
-                                          Best Score
-                                        </span>
-                                      </div>
-                                    </div>
-
-                                    {/* Redo button */}
-                                    <Link
-                                      href={`/assignments/${assignment.id}`}
-                                      className={`flex items-center gap-1.5 text-[10px] font-bold uppercase font-mono border px-3 py-2 rounded-none transition duration-150 ${
-                                        isSpacedReviewReady
-                                          ? "border-indigo-500 bg-indigo-500 hover:bg-indigo-655 text-white dark:border-indigo-550 dark:bg-indigo-650 dark:hover:bg-indigo-700"
-                                          : "border-neutral-300 dark:border-neutral-800 bg-transparent hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black text-neutral-700 dark:text-neutral-300"
-                                      }`}
-                                      title={`Attempt #${attemptCount + 1} — score ×${attemptCount === 1 ? "75" : attemptCount === 2 ? "50" : "25"}%`}
-                                    >
-                                      {isSpacedReviewReady ? (
-                                        <>
-                                          <Brain className="w-3 h-3" />
-                                          Review
-                                        </>
-                                      ) : (
-                                        <>
-                                          <RotateCcw className="w-3 h-3" />
-                                          Redo
-                                        </>
-                                      )}
-                                    </Link>
-                                  </div>
-                                ) : (
-                                  <div className="flex items-center gap-3">
-                                    <div className="flex items-center gap-1.5 text-[9px] uppercase font-mono border border-neutral-300 dark:border-neutral-800 text-neutral-600 dark:text-neutral-400 px-2 py-1 rounded-none">
-                                      <AlertCircle className="w-3.5 h-3.5" />
-                                      <span>Not Started</span>
-                                    </div>
-                                    <Link
-                                      href={`/assignments/${assignment.id}`}
-                                      className="flex items-center gap-1.5 bg-black text-white dark:bg-white dark:text-black border border-black dark:border-white px-4 py-2 rounded-none text-xs font-bold font-mono uppercase hover:bg-transparent hover:text-black dark:hover:bg-transparent dark:hover:text-white transition duration-200 cursor-pointer"
-                                    >
-                                      <Play className="w-3 h-3 fill-current" />
-                                      Start
-                                    </Link>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ) : null;
-                })()}
-
-                {/* Empty state when there are neither course nor standalone assignments */}
-                {classroom.courseAssignments.length === 0 &&
-                  classroom.assignments.filter((a) => !a.courseAssignmentId).length === 0 && (
-                    <p className="text-xs text-neutral-450 italic">
-                      No exercises assigned yet. Check back later!
-                    </p>
-                  )}
-              </div>
-            ))}
-          </div>
-        )}
+        <StudentDashboardTabs
+          todoAssignments={todoAssignments}
+          completedAssignments={completedAssignments}
+          earnedBadges={earnedBadges}
+          memeSubmissions={mappedMemeSubmissions}
+          classroomsJoined={classroomsJoined}
+          statistics={statistics}
+        />
       </main>
     </>
   );

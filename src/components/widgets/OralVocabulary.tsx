@@ -30,6 +30,15 @@ export function checkVocabMatch(input: string, target: string): boolean {
   return false;
 }
 
+export const cleanGermanTextForTTS = (text: string): string => {
+  let cleaned = text;
+  if (cleaned.includes("/")) {
+    cleaned = cleaned.split("/")[0].trim();
+  }
+  cleaned = cleaned.replace(/\([^)]*\)/g, "");
+  return cleaned.replace(/\s+/g, " ").trim();
+};
+
 export const OralVocabulary: React.FC<WidgetProps<VocabularyConfig | OralVocabularyConfig>> = ({
   config,
   assetsPath,
@@ -73,6 +82,8 @@ export const OralVocabulary: React.FC<WidgetProps<VocabularyConfig | OralVocabul
     return (savedAnswers[startIdx] as string) || "";
   });
 
+  const [playbackSpeed, setPlaybackSpeed] = useState<"normal" | "slow">("normal");
+
   const activeWord = vocabList[activeIdx];
 
   // Report changes to parent
@@ -101,23 +112,52 @@ export const OralVocabulary: React.FC<WidgetProps<VocabularyConfig | OralVocabul
     );
   }, [answers, correctItems, activeIdx, isCompleted, vocabList, feedback]);
 
-  // Play pronunciation
+  // Play pronunciation twice
   const handlePlayAudio = useCallback(() => {
     if (!activeWord) return;
-    // The German translation audio file: e.g. "tts-vocab-0-trans.wav"
     const audioFile = activeWord.translationAudio || `tts-vocab-${activeIdx}-trans.wav`;
     const url = `${assetsPath}${audioFile}`;
     const audio = new Audio(url);
-    audio.play().catch((err) => {
-      console.error("Audio playback failed:", err);
-      // Fallback: browser speech synthesis in German
-      if (typeof window !== "undefined" && window.speechSynthesis) {
-        const utterance = new SpeechSynthesisUtterance(activeWord.translation);
-        utterance.lang = "de-DE";
-        window.speechSynthesis.speak(utterance);
+    
+    // Apply speed adjustment
+    const rate = playbackSpeed === "slow" ? 0.75 : 1.0;
+    audio.defaultPlaybackRate = rate;
+    audio.playbackRate = rate;
+    
+    let playCount = 0;
+    const playNext = () => {
+      audio.play().catch((err) => {
+        console.error("Audio playback failed:", err);
+        // Fallback: browser speech synthesis in German
+        if (typeof window !== "undefined" && window.speechSynthesis) {
+          window.speechSynthesis.cancel();
+          const cleanedText = cleanGermanTextForTTS(activeWord.translation);
+          const utterance1 = new SpeechSynthesisUtterance(cleanedText);
+          utterance1.lang = "de-DE";
+          utterance1.rate = rate;
+          const utterance2 = new SpeechSynthesisUtterance(cleanedText);
+          utterance2.lang = "de-DE";
+          utterance2.rate = rate;
+
+          window.speechSynthesis.speak(utterance1);
+          utterance1.onend = () => {
+            setTimeout(() => {
+              window.speechSynthesis.speak(utterance2);
+            }, 1000);
+          };
+        }
+      });
+      playCount++;
+    };
+
+    audio.addEventListener("ended", () => {
+      if (playCount < 2) {
+        setTimeout(playNext, 1000);
       }
     });
-  }, [activeWord, activeIdx, assetsPath]);
+
+    playNext();
+  }, [activeWord, activeIdx, assetsPath, playbackSpeed]);
 
   // Auto-play audio when active index changes
   useEffect(() => {
@@ -204,13 +244,42 @@ export const OralVocabulary: React.FC<WidgetProps<VocabularyConfig | OralVocabul
                         onClick={() => {
                           const audioFile = item.translationAudio || `tts-vocab-${idx}-trans.wav`;
                           const audio = new Audio(`${assetsPath}${audioFile}`);
-                          audio.play().catch(() => {
-                            if (typeof window !== "undefined" && window.speechSynthesis) {
-                              const utterance = new SpeechSynthesisUtterance(item.translation);
-                              utterance.lang = "de-DE";
-                              window.speechSynthesis.speak(utterance);
+                          
+                          const rate = playbackSpeed === "slow" ? 0.75 : 1.0;
+                          audio.defaultPlaybackRate = rate;
+                          audio.playbackRate = rate;
+                          
+                          let playCount = 0;
+                          const playNext = () => {
+                            audio.play().catch(() => {
+                              if (typeof window !== "undefined" && window.speechSynthesis) {
+                                window.speechSynthesis.cancel();
+                                const cleanedText = cleanGermanTextForTTS(item.translation);
+                                const utterance1 = new SpeechSynthesisUtterance(cleanedText);
+                                utterance1.lang = "de-DE";
+                                utterance1.rate = rate;
+                                const utterance2 = new SpeechSynthesisUtterance(cleanedText);
+                                utterance2.lang = "de-DE";
+                                utterance2.rate = rate;
+
+                                window.speechSynthesis.speak(utterance1);
+                                utterance1.onend = () => {
+                                  setTimeout(() => {
+                                    window.speechSynthesis.speak(utterance2);
+                                  }, 1000);
+                                };
+                              }
+                            });
+                            playCount++;
+                          };
+
+                          audio.addEventListener("ended", () => {
+                            if (playCount < 2) {
+                              setTimeout(playNext, 1000);
                             }
                           });
+
+                          playNext();
                         }}
                         className="inline-flex items-center gap-1 hover:underline text-blue-600 cursor-pointer"
                       >
@@ -285,6 +354,31 @@ export const OralVocabulary: React.FC<WidgetProps<VocabularyConfig | OralVocabul
         >
           <Volume2 className="w-10 h-10" />
         </button>
+
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setPlaybackSpeed("normal")}
+            className={`px-3 py-1 text-[10px] font-mono font-bold uppercase border rounded transition cursor-pointer ${
+              playbackSpeed === "normal"
+                ? "bg-neutral-900 text-white border-neutral-900 dark:bg-white dark:text-black dark:border-white shadow-sm"
+                : "border-neutral-300 text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-900"
+            }`}
+          >
+            Normal Speed
+          </button>
+          <button
+            type="button"
+            onClick={() => setPlaybackSpeed("slow")}
+            className={`px-3 py-1 text-[10px] font-mono font-bold uppercase border rounded transition cursor-pointer ${
+              playbackSpeed === "slow"
+                ? "bg-neutral-900 text-white border-neutral-900 dark:bg-white dark:text-black dark:border-white shadow-sm"
+                : "border-neutral-300 text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-900"
+            }`}
+          >
+            Slow Speed (0.75x)
+          </button>
+        </div>
 
         <span className="text-[10px] text-neutral-450 uppercase font-mono font-bold tracking-wider">
           Listen carefully and write the English translation

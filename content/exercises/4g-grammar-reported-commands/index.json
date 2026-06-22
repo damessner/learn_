@@ -1,0 +1,97 @@
+{
+  "id": "4g-grammar-reported-commands",
+  "title": "Reported Commands & Requests: School Trip Rules",
+  "description": "Learn to report commands and requests using 'told / asked someone (not) to do something' (Unit 3 & 4 extension).",
+  "type": "worksheet",
+  "tags": ["grammar", "reported-speech", "commands", "worksheet"],
+  "badgeName": "Rule Enforcer",
+  "badgeEmoji": "📋",
+  "questions": [
+    {
+      "id": "intro",
+      "type": "instruction",
+      "text": "### Reported Commands and Requests\n\nWhen we report what someone told us to do (commands) or asked us to do (requests), we change the sentence structure:\n\n1. **Commands (told)**:\n   * **Direct**: \"Sit down!\" the teacher said.\n   * **Reported**: The teacher **told us to sit** down.\n2. **Requests (asked)**:\n   * **Direct**: \"Please open the window, Leo,\" Sarah said.\n   * **Reported**: Sarah **asked Leo to open** the window.\n3. **Negative Commands (not to)**:\n   * **Direct**: \"Don't run in the corridor!\" the principal said.\n   * **Reported**: The principal **told us not to run** in the corridor.\n4. **Key Rule**: We use **told / asked + person + (not) to + base verb**. Never use *that* or *should* for reported commands!\n   * *Incorrect*: The guide told us that we don't touch the statue."
+    },
+    {
+      "id": "q1-mc",
+      "type": "multiple-choice",
+      "question": "Which sentence shows the correct reported version of: 'Don't feed the animals!' the zookeeper said to us.",
+      "options": [
+        "The zookeeper told us to not feed the animals.",
+        "The zookeeper told us not to feed the animals.",
+        "The zookeeper said us that we don't feed the animals."
+      ],
+      "correctOptionIndex": 1,
+      "hint": "Put 'not' before the to-infinitive: 'told us NOT TO feed'."
+    },
+    {
+      "id": "q2-click",
+      "type": "clickable-choice",
+      "question": "Choose the correct reporting verbs and infinitives to complete the guide's rules:",
+      "choices": ["told us to buy", "asked us to buy", "told us not to make", "told us to make", "asked us to wait", "asked us wait"],
+      "statements": [
+        {
+          "id": "s1",
+          "text": "The tour guide [told us to buy] our subway tickets before entering the station.",
+          "correctChoice": "told us to buy"
+        },
+        {
+          "id": "s2",
+          "text": "The librarian [told us not to make] any noise in the reading hall.",
+          "correctChoice": "told us not to make"
+        },
+        {
+          "id": "s3",
+          "text": "She [asked us to wait] patiently by the entrance.",
+          "correctChoice": "asked us to wait"
+        }
+      ]
+    },
+    {
+      "id": "q3-gap",
+      "type": "gap-fill",
+      "question": "Read the rules for the school excursion and complete the sentences reporting what was said:",
+      "text": "1. Direct: \"Put your bags on the rack,\" the driver said to us.\nReported: The driver told [us to put] (us/put) our bags on the rack.\n\n2. Direct: \"Please don't eat hot food in the bus,\" he asked.\nReported: He asked us [not to eat] (not/eat) hot food in the bus.\n\n3. Direct: \"Stay together at the museum entrance,\" the teacher told us.\nReported: The teacher told [us to stay] (us/stay) together at the museum entrance.\n\n4. Direct: \"Don't take photos inside the gallery,\" the guide warned.\nReported: The guide told us [not to take] (not/take) photos inside the gallery.\n\n5. Direct: \"Please show me your tickets,\" the inspector asked me.\nReported: The inspector asked me [to show] (to/show) him my ticket."
+    },
+    {
+      "id": "q4-match",
+      "type": "matching",
+      "question": "Match the direct speech command/request to its corresponding reported speech form:",
+      "pairs": [
+        {
+          "id": "p1",
+          "leftText": "\"Help me, please!\"",
+          "rightText": "She asked him to help her."
+        },
+        {
+          "id": "p2",
+          "leftText": "\"Don't help him!\"",
+          "rightText": "She told him not to help him."
+        },
+        {
+          "id": "p3",
+          "leftText": "\"Hurry up!\"",
+          "rightText": "She told him to hurry up."
+        },
+        {
+          "id": "p4",
+          "leftText": "\"Please don't shout.\"",
+          "rightText": "She asked him not to shout."
+        }
+      ]
+    },
+    {
+      "id": "q5-order",
+      "type": "ordering",
+      "question": "Rearrange the words to make a correct reported speech command:",
+      "elements": ["The", "police", "officer", "told", "the", "suspect", "not", "to", "move", "his", "hands."]
+    },
+    {
+      "id": "q6-open",
+      "type": "open-question",
+      "question": "Write 2 reported commands. Think about what a teacher or your parents told you to do (or not to do) recently. Use 'told me to' and 'told me not to'.",
+      "keywords": ["told", "me", "to"],
+      "spellingTolerance": "lenient"
+    }
+  ]
+}

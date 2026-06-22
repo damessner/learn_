@@ -4,6 +4,9 @@ import { redirect } from "next/navigation";
 
 export async function Navbar() {
   const session = await getSession();
+  const isBreakGlass = !!(session &&
+    process.env.BREAKGLASS_PASSWORD_HASH &&
+    session.username === (process.env.BREAKGLASS_USERNAME ?? "_breakglass"));
 
   const handleLogout = async () => {
     "use server";
@@ -12,7 +15,17 @@ export async function Navbar() {
   };
 
   return (
-    <header className="border-b border-neutral-200 dark:border-neutral-900 bg-white/70 dark:bg-black/70 backdrop-blur-md sticky top-0 z-50">
+    <>
+      {isBreakGlass && (
+        <div
+          role="alert"
+          id="breakglass-banner"
+          className="bg-red-600 dark:bg-red-700 text-white text-center text-[11px] font-mono py-1.5 px-4 tracking-wide"
+        >
+          🚨 <strong>Break-glass</strong> emergency account active — create a permanent admin account, then log out.
+        </div>
+      )}
+      <header className="border-b border-neutral-200 dark:border-neutral-900 bg-white/70 dark:bg-black/70 backdrop-blur-md sticky top-0 z-50">
       <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
         <div className="flex items-center gap-6">
           <Link
@@ -81,5 +94,6 @@ export async function Navbar() {
         </nav>
       </div>
     </header>
+    </>
   );
 }

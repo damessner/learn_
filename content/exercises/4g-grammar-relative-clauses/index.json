@@ -1,0 +1,97 @@
+{
+  "id": "4g-grammar-relative-clauses",
+  "title": "Relative Clauses: The Dublin Guide",
+  "description": "Learn to use relative pronouns (who, which, that, whose, where) to combine sentences and add information (Grade 8 Core Standard).",
+  "type": "worksheet",
+  "tags": ["grammar", "relative-clauses", "clauses", "worksheet"],
+  "badgeName": "Tour Guide",
+  "badgeEmoji": "🗺️",
+  "questions": [
+    {
+      "id": "intro",
+      "type": "instruction",
+      "text": "### Relative Pronouns & Clauses\n\nRelative clauses give us more information about a noun. We connect them using relative pronouns:\n\n1. **who**: Used for **people**.\n   * *Example*: The tour guide **who** showed us Dublin was very friendly.\n2. **which / that**: Used for **things** and **animals**.\n   * *Example*: Dublin has a historic castle **which** was built in 1204.\n3. **where**: Used for **places**.\n   * *Example*: Glendalough is a valley **where** many monks once lived.\n4. **whose**: Used to show **possession** (belonging to someone).\n   * *Example*: That is the writer **whose** books are famous worldwide."
+    },
+    {
+      "id": "q1-mc",
+      "type": "multiple-choice",
+      "question": "Which relative pronoun correctly completes this sentence? 'Ireland is a beautiful country ______ landscapes are green and wild.'",
+      "options": [
+        "which",
+        "whose",
+        "where"
+      ],
+      "correctOptionIndex": 1,
+      "hint": "We use 'whose' to show possession or belonging ('the landscapes of Ireland')."
+    },
+    {
+      "id": "q2-click",
+      "type": "clickable-choice",
+      "question": "Choose the correct relative pronoun to describe tourist attractions in Dublin:",
+      "choices": ["where", "which", "who", "whose", "that"],
+      "statements": [
+        {
+          "id": "s1",
+          "text": "Trinity College has a huge library [where] you can see the Book of Kells.",
+          "correctChoice": "where"
+        },
+        {
+          "id": "s2",
+          "text": "Oscar Wilde was an Irish author [who] wrote many famous plays.",
+          "correctChoice": "who"
+        },
+        {
+          "id": "s3",
+          "text": "They boarded a double-decker bus [that] toured around the city center.",
+          "correctChoice": "that"
+        }
+      ]
+    },
+    {
+      "id": "q3-gap",
+      "type": "gap-fill",
+      "question": "Complete the travel guide about Dublin by writing who, which, whose, or where in the gaps:",
+      "text": "Dublin is a vibrant city [where] there is always something interesting to see. It is home to many writers [who|that] (who) became famous worldwide. If you visit, go to Temple Bar, [which] (which) is a historic area full of street music. You might meet people [whose] (whose) friendly accents will welcome you immediately. There are also many green parks [where] you can sit and relax. Don't forget to visit the River Liffey, [which] flows right through the middle of the city."
+    },
+    {
+      "id": "q4-match",
+      "type": "matching",
+      "question": "Match the sentence starters to their correct endings to form relative clauses:",
+      "pairs": [
+        {
+          "id": "p1",
+          "leftText": "This is the student...",
+          "rightText": "...who won the writing competition."
+        },
+        {
+          "id": "p2",
+          "leftText": "Dublin is the city...",
+          "rightText": "...where my cousins live."
+        },
+        {
+          "id": "p3",
+          "leftText": "Here is the book...",
+          "rightText": "...which was written by Oscar Wilde."
+        },
+        {
+          "id": "p4",
+          "leftText": "That is the teacher...",
+          "rightText": "...whose classroom is next to ours."
+        }
+      ]
+    },
+    {
+      "id": "q5-order",
+      "type": "ordering",
+      "question": "Rearrange the words to form a correct sentence with a relative clause:",
+      "elements": ["The", "bus", "which", "goes", "to", "the", "airport", "leaves", "from", "the", "main", "square."]
+    },
+    {
+      "id": "q6-open",
+      "type": "open-question",
+      "question": "Write 2 sentences describing your school or home town. Use 'where' in one sentence and 'who' or 'which' in the other (e.g. 'This is the school where...').",
+      "keywords": ["where"],
+      "spellingTolerance": "lenient"
+    }
+  ]
+}

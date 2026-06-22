@@ -25,9 +25,12 @@ export const DragDrop: React.FC<WidgetProps<DragDropConfig>> = ({
 
     while ((match = regex.exec(config.text)) !== null) {
       partsList.push(config.text.substring(lastIndex, match.index));
-      const rawContent = match[1] || match[2] || "";
+      let rawContent = match[1] || match[2] || "";
+      if (rawContent.startsWith("select:")) {
+        rawContent = rawContent.substring("select:".length);
+      }
       // Support optional ##-delimited options; first part is always the correct answer
-      const correctAnswer = rawContent.split(/##|\|/)[0];
+      const correctAnswer = rawContent.split(/##|\|/)[0]?.trim() || "";
       gapsList.push({ index: gapIndex, correctAnswer });
       gapIndex++;
       lastIndex = regex.lastIndex;

@@ -18,7 +18,104 @@ const BulkUsernameSchema = z
     "Username may only contain lowercase letters, digits, dot, underscore, or hyphen, and must start with a letter or digit"
   );
 
-export async function createClassroom(name: string) {
+import { getJoinedTeams, getTeamMembers } from "@/lib/microsoftGraph";
+
+export async function fetchTeacherTeams() {
+  const teacher = await requireTeacher();
+  try {
+    const teams = await getJoinedTeams(teacher.userId);
+    return { teams };
+  } catch (error: any) {
+    return { error: error.message || "Failed to fetch Teams classes." };
+  }
+}
+
+export async function syncClassroomRoster(classroomId: string) {
+  const teacher = await requireTeacher();
+  const classroom = await prisma.classroom.findFirst({
+    where: { id: classroomId, teacherId: teacher.userId },
+  });
+
+  if (!classroom || !classroom.msGraphClassId) {
+    return { error: "Classroom not found or not linked to Microsoft Teams." };
+  }
+
+  try {
+    const members = await getTeamMembers(teacher.userId, classroom.msGraphClassId);
+    // Filter for members who are NOT owners (i.e. students)
+    const studentMembers = members.filter((m: { roles: string[]; email?: string | null }) => !m.roles.includes("owner"));
+
+    let enrolledCount = 0;
+
+    for (const member of studentMembers) {
+      if (!member.email) continue;
+      const email = member.email.toLowerCase();
+
+      // Find or create student user
+      let student = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { microsoftEmail: email },
+            { username: email.split("@")[0] }
+          ]
+        }
+      });
+
+      if (!student) {
+        // Create new student account
+        const randomPass = Math.random().toString(36).substring(2, 12);
+        const passwordHash = await bcrypt.hash(randomPass, 10);
+        student = await prisma.user.create({
+          data: {
+            username: email.split("@")[0] + "_" + Math.floor(100 + Math.random() * 900), // append random digits for uniqueness
+            passwordHash,
+            role: "STUDENT",
+            active: true,
+            microsoftEmail: email,
+            microsoftId: member.userId,
+          }
+        });
+      } else if (!student.microsoftId) {
+        // Link student's Microsoft ID if they existed but weren't linked
+        student = await prisma.user.update({
+          where: { id: student.id },
+          data: {
+            microsoftId: member.userId,
+            microsoftEmail: email,
+          }
+        });
+      }
+
+      // Check enrollment
+      const enrolled = await prisma.classroomStudent.findUnique({
+        where: {
+          classroomId_studentId: {
+            classroomId: classroom.id,
+            studentId: student.id
+          }
+        }
+      });
+
+      if (!enrolled) {
+        await prisma.classroomStudent.create({
+          data: {
+            classroomId: classroom.id,
+            studentId: student.id
+          }
+        });
+        enrolledCount++;
+      }
+    }
+
+    revalidatePath("/teacher");
+    return { success: true, enrolledCount };
+  } catch (error: any) {
+    console.error("Failed to sync classroom roster:", error);
+    return { error: error.message || "Failed to sync roster from Microsoft Teams." };
+  }
+}
+
+export async function createClassroom(name: string, msGraphClassId?: string) {
   const teacher = await requireTeacher();
 
   if (!name || name.trim() === "") {
@@ -42,6 +139,7 @@ export async function createClassroom(name: string) {
         name: name.trim(),
         joinCode,
         teacherId: teacher.userId,
+        msGraphClassId: msGraphClassId || null,
       },
     });
 

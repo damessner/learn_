@@ -1,0 +1,97 @@
+{
+  "id": "4g-grammar-passive-voice",
+  "title": "The Passive Voice: Inventions and Discoveries",
+  "description": "Learn to use the Present Passive (am/is/are + Past Participle) and Past Passive (was/were + Past Participle) to focus on actions (Grade 8 Core Standard).",
+  "type": "worksheet",
+  "tags": ["grammar", "passive", "passive-voice", "worksheet"],
+  "badgeName": "History Buff",
+  "badgeEmoji": "🏛️",
+  "questions": [
+    {
+      "id": "intro",
+      "type": "instruction",
+      "text": "### The Passive Voice (Present & Past)\n\nWe use the **passive voice** when the action itself is more important than who does it, or when we do not know who did it.\n\n1. **Structure**: Subject + **be** + **Past Participle** (3rd form of the verb).\n2. **Present Passive** (*am / is / are* + Past Participle):\n   * **Usage**: General facts, routines, or processes.\n   * *Example*: Millions of emails **are sent** every day.\n3. **Past Passive** (*was / were* + Past Participle):\n   * **Usage**: Completed actions in the past (history, news events).\n   * *Example*: The telephone **was invented** in 1876.\n4. **The Agent (by)**: If we want to say who performed the action, we add **by** + person.\n   * *Example*: The painting **was bought by** Lord Canterville."
+    },
+    {
+      "id": "q1-mc",
+      "type": "multiple-choice",
+      "question": "Which sentence correctly changes this active sentence to the passive voice? 'Shakespeare wrote Hamlet.'",
+      "options": [
+        "Hamlet was written by Shakespeare.",
+        "Hamlet written by Shakespeare.",
+        "Hamlet is written by Shakespeare."
+      ],
+      "correctOptionIndex": 0,
+      "hint": "Since 'wrote' is in the past, we use the Past Passive ('was written') and add the agent with 'by'."
+    },
+    {
+      "id": "q2-click",
+      "type": "clickable-choice",
+      "question": "Choose the correct voice (active or passive) to complete the facts:",
+      "choices": ["was painted", "painted", "are visited", "visit", "was built", "built"],
+      "statements": [
+        {
+          "id": "s1",
+          "text": "Leonardo da Vinci [painted] the Mona Lisa in the 16th century.",
+          "correctChoice": "painted"
+        },
+        {
+          "id": "s2",
+          "text": "Famous art galleries [are visited] by thousands of tourists every week.",
+          "correctChoice": "are visited"
+        },
+        {
+          "id": "s3",
+          "text": "The Guggenheim Museum in New York [was built] in the 1950s.",
+          "correctChoice": "was built"
+        }
+      ]
+    },
+    {
+      "id": "q3-gap",
+      "type": "gap-fill",
+      "question": "Complete the history of paper-making by using the correct passive forms of the verbs in brackets (Present Passive or Past Passive):",
+      "text": "Today, paper [is used|uses] (use) all over the world for books, packaging, and money. But do you know its history? The first paper [was invented|invented] (invent) in China about 2,000 years ago. Back then, it [was made|made] (make) from old rags and plant fibers. Later, printing machines [were developed|developed] (develop) in Europe. Today, huge amounts of paper [are produced|produced] (produce) from wood in modern factories. Fortunately, a lot of old paper [is recycled] (recycle) every day to protect our forests."
+    },
+    {
+      "id": "q4-match",
+      "type": "matching",
+      "question": "Match the objects/inventions with their historical passive descriptions:",
+      "pairs": [
+        {
+          "id": "p1",
+          "leftText": "The pyramids in Egypt...",
+          "rightText": "...were built thousands of years ago."
+        },
+        {
+          "id": "p2",
+          "leftText": "The stolen paintings...",
+          "rightText": "...were found in a locked basement."
+        },
+        {
+          "id": "p3",
+          "leftText": "Coffee beans...",
+          "rightText": "...are grown in hot countries."
+        },
+        {
+          "id": "p4",
+          "leftText": "Our school magazine...",
+          "rightText": "...is printed twice a year."
+        }
+      ]
+    },
+    {
+      "id": "q5-order",
+      "type": "ordering",
+      "question": "Rearrange the elements to form a correct Past Passive sentence:",
+      "elements": ["The", "Canterville", "Ghost", "was", "never", "seen", "again", "after", "the", "funeral."]
+    },
+    {
+      "id": "q6-open",
+      "type": "open-question",
+      "question": "Write 2 passive sentences. In the first, describe something that is done/made today (Present Passive). In the second, describe an invention or historical event (Past Passive). Use 'by' in at least one sentence.",
+      "keywords": ["is", "was"],
+      "spellingTolerance": "lenient"
+    }
+  ]
+}

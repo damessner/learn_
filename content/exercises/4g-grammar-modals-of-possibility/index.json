@@ -1,0 +1,97 @@
+{
+  "id": "4g-grammar-modals-of-possibility",
+  "title": "Modals of Possibility: Solving Body Language",
+  "description": "Master the modals of possibility (might, may, could) and contrast them with certainty (can't, must) (Unit 9: Body talk).",
+  "type": "worksheet",
+  "tags": ["grammar", "modals", "possibility", "worksheet"],
+  "badgeName": "Mystery Solver",
+  "badgeEmoji": "🔮",
+  "questions": [
+    {
+      "id": "intro",
+      "type": "instruction",
+      "text": "### Modals of Possibility & Certainty\n\nWhen we are not 100% sure about a situation, we use modals to speculate:\n\n1. **Possibility (50% sure)**: We use **might**, **may**, or **could** + base verb.\n   * *Example*: He is looking at his phone. He **might be** lost.\n   * *Example*: It **may rain** later, so bring an umbrella.\n2. **Negative Possibility**: Use **might not** or **may not** (do not use *could not* for possibility, as *couldn't* means inability/impossibility).\n   * *Example*: She **might not come** to the party (it is possible she won't).\n3. **Certainty (90-100% sure)**:\n   * **Must**: When we are sure something is true.\n     * *Example*: She has a big smile. She **must be** very happy.\n   * **Can't**: When we are sure something is impossible.\n     * *Example*: He is yawning. He **can't be** fully awake."
+    },
+    {
+      "id": "q1-mc",
+      "type": "multiple-choice",
+      "question": "Which modal is best when you are 90% sure that something is impossible? 'He is wearing a heavy winter coat in summer. He ______ feel very comfortable.'",
+      "options": [
+        "must",
+        "can't",
+        "might"
+      ],
+      "correctOptionIndex": 1,
+      "hint": "We use 'can't' to express that something is logically impossible."
+    },
+    {
+      "id": "q2-click",
+      "type": "clickable-choice",
+      "question": "Choose the correct modal to complete the body language speculations:",
+      "choices": ["must be", "can't be", "might have", "might be", "could be", "must have"],
+      "statements": [
+        {
+          "id": "s1",
+          "text": "Sarah is biting her nails. She [might be] nervous about the exam.",
+          "correctChoice": "might be"
+        },
+        {
+          "id": "s2",
+          "text": "He has won a trip to New York! He [must be] thrilled!",
+          "correctChoice": "must be"
+        },
+        {
+          "id": "s3",
+          "text": "The wedding guests are laughing. The ceremony [can't be] boring.",
+          "correctChoice": "can't be"
+        }
+      ]
+    },
+    {
+      "id": "q3-gap",
+      "type": "gap-fill",
+      "question": "Complete the discussion about a mysterious wedding guest by writing might, must, or can't:",
+      "text": "A stranger is standing in the corner of the wedding hall. He [must] (must/can't) be a guest because he is wearing a very elegant suit. However, he is not talking to anyone. He [might|could] (might/must) feel lonely or shy. Look, he is looking at his watch again. He [might|may] (might/can't) want to leave early. He is not eating any food, so he [can't] (can't/must) be very hungry. Let's go over and talk to him; he [could|might] (could/must) be friendly!"
+    },
+    {
+      "id": "q4-match",
+      "type": "matching",
+      "question": "Match the clues in body language or situations to the logical speculations:",
+      "pairs": [
+        {
+          "id": "p1",
+          "leftText": "His arms are crossed and he is frowning.",
+          "rightText": "He might be angry."
+        },
+        {
+          "id": "p2",
+          "leftText": "She is shivering and rubbing her hands.",
+          "rightText": "She must feel cold."
+        },
+        {
+          "id": "p3",
+          "leftText": "They are shaking hands and smiling.",
+          "rightText": "They could be making a deal."
+        },
+        {
+          "id": "p4",
+          "leftText": "He hasn't slept for 24 hours.",
+          "rightText": "He must be exhausted."
+        }
+      ]
+    },
+    {
+      "id": "q5-order",
+      "type": "ordering",
+      "question": "Rearrange the words to form a speculation sentence about a situation:",
+      "elements": ["That", "strange", "gesture", "might", "mean", "something", "different", "in", "Asia."]
+    },
+    {
+      "id": "q6-open",
+      "type": "open-question",
+      "question": "Imagine your friend is yawning during a class presentation. Write 2 sentences speculating about why they are yawning. Use 'might' in one sentence and 'must' or 'can't' in the other.",
+      "keywords": ["yawning", "might"],
+      "spellingTolerance": "lenient"
+    }
+  ]
+}

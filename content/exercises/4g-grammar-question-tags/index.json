@@ -1,0 +1,97 @@
+{
+  "id": "4g-grammar-question-tags",
+  "title": "Question Tags: Making a Difference",
+  "description": "Learn to form correct question tags for statements (Unit 6: Kids make a difference).",
+  "type": "worksheet",
+  "tags": ["grammar", "question-tags", "worksheet"],
+  "badgeName": "Agreement Guru",
+  "badgeEmoji": "💬",
+  "questions": [
+    {
+      "id": "intro",
+      "type": "instruction",
+      "text": "### Question Tags Rules\n\nQuestion tags are short questions added to the end of sentences to check information or ask for agreement.\n\n1. **Basic Rule**:\n   * **Positive statement** + **negative tag**: You are helpful, **aren't you**?\n   * **Negative statement** + **positive tag**: They don't litter, **do they**?\n2. **Verb Matching**:\n   * Use the auxiliary verb from the statement (e.g., *can -> can't*, *will -> won't*, *have -> haven't*).\n   * If there is no auxiliary verb, use *do/does* (Present Simple) or *did* (Past Simple).\n     * *Example*: She helps others, **doesn't she**?\n     * *Example*: You joined the project, **didn't you**?\n3. **Subject Pronouns**: Use matching subject pronouns (*he, she, it, we, they, you, I*). Never use names in the tag.\n   * *Example*: Sarah is donating books, **isn't she**?\n4. **Tricky cases**:\n   * *I am* -> *aren't I?* (e.g., I am late, aren't I?)\n   * *Let's* -> *shall we?* (e.g., Let's clean up, shall we?)"
+    },
+    {
+      "id": "q1-mc",
+      "type": "multiple-choice",
+      "question": "Which question tag completes this sentence correctly? 'You haven't seen the charity poster, ______?'",
+      "options": [
+        "haven't you",
+        "have you",
+        "did you"
+      ],
+      "correctOptionIndex": 1,
+      "hint": "Since the statement is negative ('haven't'), the question tag must be positive ('have you')."
+    },
+    {
+      "id": "q2-click",
+      "type": "clickable-choice",
+      "question": "Choose the correct question tag for statements about our school projects:",
+      "choices": ["don't they", "do they", "isn't it", "is it", "won't they", "will they"],
+      "statements": [
+        {
+          "id": "s1",
+          "text": "Children make a huge difference in their communities, [don't they]?",
+          "correctChoice": "don't they"
+        },
+        {
+          "id": "s2",
+          "text": "Littering in the park isn't allowed, [is it]?",
+          "correctChoice": "is it"
+        },
+        {
+          "id": "s3",
+          "text": "Our classmates will donate their old toys, [won't they]?",
+          "correctChoice": "won't they"
+        }
+      ]
+    },
+    {
+      "id": "q3-gap",
+      "type": "gap-fill",
+      "question": "Complete the dialogue between Emma and Leo about their fundraising project by writing the correct question tags:",
+      "text": "Emma: We want to help poor families, [don't we] (do we)?\nLeo: Yes, of course. We can collect warm clothes, [can't we] (can we)?\nEmma: Great idea! Your brother worked at the donation center last winter, [didn't he] (did he)?\nLeo: Yes, he loved it. But we don't have much storage space here, [do we] (have we)?\nEmma: No, but the school principal said we could use the gym. That was nice of her, [wasn't it] (was it)?\nLeo: Definitely. Let's start tomorrow, [shall we] (will we)?"
+    },
+    {
+      "id": "q4-match",
+      "type": "matching",
+      "question": "Match the sentence starters to their correct question tags:",
+      "pairs": [
+        {
+          "id": "p1",
+          "leftText": "You are coming to the charity run,",
+          "rightText": "aren't you?"
+        },
+        {
+          "id": "p2",
+          "leftText": "Thomas doesn't like sorting rubbish,",
+          "rightText": "does he?"
+        },
+        {
+          "id": "p3",
+          "leftText": "I am responsible for the flyers,",
+          "rightText": "aren't I?"
+        },
+        {
+          "id": "p4",
+          "leftText": "She has finished her donation report,",
+          "rightText": "hasn't she?"
+        }
+      ]
+    },
+    {
+      "id": "q5-order",
+      "type": "ordering",
+      "question": "Rearrange the elements to form a sentence with a correct question tag:",
+      "elements": ["They", "helped", "the", "homeless", "shelter,", "didn't", "they?"]
+    },
+    {
+      "id": "q6-open",
+      "type": "open-question",
+      "question": "Write 3 questions with question tags checking facts about your friends or family (e.g. 'You like chocolate, don't you?'). Use different auxiliary verbs.",
+      "keywords": ["?", ","],
+      "spellingTolerance": "lenient"
+    }
+  ]
+}

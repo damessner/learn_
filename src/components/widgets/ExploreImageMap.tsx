@@ -191,17 +191,30 @@ export const ExploreImageMap: React.FC<WidgetProps<ExploreImageMapConfig>> = ({
           showPopup("Congratulations! You completed the quiz! 🌟");
           setQuizActive(false);
         }
-      } else {
-        // Incorrect
-        setAttempts((prev) => ({
-          ...prev,
-          [currentChallenge.id]: (prev[currentChallenge.id] || 0) + 1,
-        }));
 
-        if (currentChallenge.failAudio) {
-          playSound(currentChallenge.failAudio);
+        // Also change scene if correct hotspot has a change-scene action
+        if (hotspot.action.type === "change-scene" && hotspot.action.scene) {
+          setCurrentSceneId(hotspot.action.scene);
+        }
+      } else {
+        // Transition scene if it's a change-scene hotspot without penalty
+        if (hotspot.action.type === "change-scene" && hotspot.action.scene) {
+          setCurrentSceneId(hotspot.action.scene);
+          if (hotspot.popupText) {
+            showPopup(hotspot.popupText);
+          }
         } else {
-          showPopup("Try again! ❌");
+          // Incorrect
+          setAttempts((prev) => ({
+            ...prev,
+            [currentChallenge.id]: (prev[currentChallenge.id] || 0) + 1,
+          }));
+
+          if (currentChallenge.failAudio) {
+            playSound(currentChallenge.failAudio);
+          } else {
+            showPopup("Try again! ❌");
+          }
         }
       }
     }
@@ -371,11 +384,7 @@ export const ExploreImageMap: React.FC<WidgetProps<ExploreImageMapConfig>> = ({
             <button
               key={sceneId}
               onClick={() => {
-                if (!quizActive || isReadOnly) {
-                  setCurrentSceneId(sceneId);
-                } else {
-                  showPopup("Exit quiz mode to change rooms manually!");
-                }
+                setCurrentSceneId(sceneId);
               }}
               className={`px-2 py-0.5 rounded border transition ${
                 currentSceneId === sceneId
@@ -386,7 +395,7 @@ export const ExploreImageMap: React.FC<WidgetProps<ExploreImageMapConfig>> = ({
               {sceneId}
             </button>
           ))}
-          {currentSceneId !== config.startScene && (!quizActive || isReadOnly) && (
+          {currentSceneId !== config.startScene && (
             <button
               onClick={() => setCurrentSceneId(config.startScene)}
               className="text-neutral-500 hover:text-black dark:hover:text-white flex items-center gap-0.5"

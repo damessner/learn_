@@ -1,0 +1,97 @@
+{
+  "id": "4g-grammar-gerund-infinitive",
+  "title": "Gerund vs. Infinitive: The Hobby Club",
+  "description": "Learn which verbs are followed by the Gerund (-ing form) and which are followed by the to-Infinitive (Grade 8 Core Standard).",
+  "type": "worksheet",
+  "tags": ["grammar", "gerund", "infinitive", "worksheet"],
+  "badgeName": "Pattern Wizard",
+  "badgeEmoji": "🔮",
+  "questions": [
+    {
+      "id": "intro",
+      "type": "instruction",
+      "text": "### Gerund vs. to-Infinitive\n\nIn English, when two verbs are placed together, the second verb must be in a specific form: either the **Gerund** (-ing form) or the **to-Infinitive**.\n\n1. **Verbs followed by the Gerund** (verb + V-ing):\n   * **Common Verbs**: *enjoy, hate, finish, stop, avoid, stand (can't stand), practice, look forward to*.\n   * *Example*: I enjoy **reading** book reviews.\n   * *Example*: He hates **cleaning** up rubbish.\n2. **Verbs followed by the to-Infinitive** (verb + to + verb):\n   * **Common Verbs**: *want, decide, hope, plan, learn, agree, promise, forget, would like*.\n   * *Example*: We decided **to create** a school magazine.\n   * *Example*: She hopes **to visit** Dublin next year."
+    },
+    {
+      "id": "q1-mc",
+      "type": "multiple-choice",
+      "question": "Which sentence is grammatically correct?",
+      "options": [
+        "We plan going to the cinema on Saturday.",
+        "We plan to go to the cinema on Saturday.",
+        "We plan for going to the cinema on Saturday."
+      ],
+      "correctOptionIndex": 1,
+      "hint": "The verb 'plan' is always followed by the to-infinitive: 'plan to go'."
+    },
+    {
+      "id": "q2-click",
+      "type": "clickable-choice",
+      "question": "Choose the correct verb forms to complete the hobbies discussion:",
+      "choices": ["playing", "to play", "reading", "to read", "joining", "to join"],
+      "statements": [
+        {
+          "id": "s1",
+          "text": "Tom can't stand [playing] video games all weekend long.",
+          "correctChoice": "playing"
+        },
+        {
+          "id": "s2",
+          "text": "Sarah would like [to read] more books about flying doctors.",
+          "correctChoice": "to read"
+        },
+        {
+          "id": "s3",
+          "text": "I have decided [to join] the school volunteer group.",
+          "correctChoice": "to join"
+        }
+      ]
+    },
+    {
+      "id": "q3-gap",
+      "type": "gap-fill",
+      "question": "Complete the conversation at the Hobby Club by using the correct forms (Gerund or to-Infinitive) of the verbs in brackets:",
+      "text": "Leo: What are you planning [to do|doing] (do) this afternoon, Mia?\nMia: I hope [to finish|finishing] (finish) writing my review of the book we read. What about you?\nLeo: I want [to practice|practicing] (practice) playing the guitar. I enjoy [singing] (sing) in the band, and we hope [to perform] (perform) at the school festival next month.\nMia: That sounds great! You should avoid [making] (make) too much noise, though. The librarian hates [being] (be) interrupted when she is sorting the new collections."
+    },
+    {
+      "id": "q4-match",
+      "type": "matching",
+      "question": "Match the verb starters to their correct grammatical verb complements:",
+      "pairs": [
+        {
+          "id": "p1",
+          "leftText": "She finished...",
+          "rightText": "...writing her diary entry."
+        },
+        {
+          "id": "p2",
+          "leftText": "We promised...",
+          "rightText": "...to protect the environment."
+        },
+        {
+          "id": "p3",
+          "leftText": "They stopped...",
+          "rightText": "...talking when the exam started."
+        },
+        {
+          "id": "p4",
+          "leftText": "I forgot...",
+          "rightText": "...to turn off my computer screen."
+        }
+      ]
+    },
+    {
+      "id": "q5-order",
+      "type": "ordering",
+      "question": "Rearrange the words to form a correct sentence with a gerund/infinitive combination:",
+      "elements": ["He", "learned", "to", "speak", "English", "fluently", "by", "avoiding", "speaking", "German."]
+    },
+    {
+      "id": "q6-open",
+      "type": "open-question",
+      "question": "Write 2 sentences about your own activities. In the first, describe something you enjoy doing (use a gerund). In the second, describe something you plan or hope to do in the future (use a to-infinitive).",
+      "keywords": ["enjoy", "hope", "plan", "to"],
+      "spellingTolerance": "lenient"
+    }
+  ]
+}

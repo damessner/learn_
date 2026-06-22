@@ -34,7 +34,10 @@ function parseGapAnswers(text: string): string[] {
   let match: RegExpExecArray | null;
 
   while ((match = regex.exec(text)) !== null) {
-    const raw = (match[1] || match[2] || "").trim();
+    let raw = (match[1] || match[2] || "").trim();
+    if (raw.startsWith("select:")) {
+      raw = raw.substring("select:".length).trim();
+    }
     const correct = raw.split(/##|\|/)[0]?.trim() || "";
     answers.push(correct);
   }
@@ -447,7 +450,7 @@ function scoreLiveQuiz(config: UnknownRecord, state: unknown): number {
   return clampScore((correct / questions.length) * 100);
 }
 
-function scoreQuestionByType(question: UnknownRecord, state: unknown): number {
+export function scoreQuestionByType(question: UnknownRecord, state: unknown): number {
   switch (question.type) {
     case "multiple-choice":
       return scoreMultipleChoice({ questions: [question] }, state);

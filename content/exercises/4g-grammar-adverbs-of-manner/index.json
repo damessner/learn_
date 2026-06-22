@@ -1,0 +1,97 @@
+{
+  "id": "4g-grammar-adverbs-of-manner",
+  "title": "Adverbs of Manner: Doing Things Well",
+  "description": "Learn to form and use adverbs of manner (slowly, well, fast) to describe how actions are performed (Unit 6: Kids make a difference).",
+  "type": "worksheet",
+  "tags": ["grammar", "adverbs", "adverbs-of-manner", "worksheet"],
+  "badgeName": "Style Icon",
+  "badgeEmoji": "✨",
+  "questions": [
+    {
+      "id": "intro",
+      "type": "instruction",
+      "text": "### Adjectives vs. Adverbs of Manner\n\n1. **Adjectives** describe **nouns** (people, places, things).\n   * *Example*: She is a **careful** runner (describes 'runner').\n2. **Adverbs of Manner** describe **verbs** (how someone does something).\n   * *Example*: She runs **carefully** (describes 'runs').\n3. **Forming Adverbs**:\n   * Regular: Add **-ly** to the adjective (e.g., *quick -> quickly*, *quiet -> quietly*).\n   * Spelling rules:\n     * Ends in **-y**: change to **-ily** (e.g., *happy -> happily*, *easy -> easily*).\n     * Ends in **-le**: replace with **-ly** (e.g., *gentle -> gently*).\n4. **Irregular Adverbs**:\n   * *good* -> **well**\n   * *fast* -> **fast**\n   * *hard* -> **hard**\n   * *late* -> **late**"
+    },
+    {
+      "id": "q1-mc",
+      "type": "multiple-choice",
+      "question": "Which sentence is grammatically correct?",
+      "options": [
+        "The children worked happy on their school project.",
+        "The children worked happily on their school project.",
+        "The children worked happyly on their school project."
+      ],
+      "correctOptionIndex": 1,
+      "hint": "Change '-y' in 'happy' to '-i' before adding '-ly'."
+    },
+    {
+      "id": "q2-click",
+      "type": "clickable-choice",
+      "question": "Choose the correct words to complete the sentences describing the school sports day:",
+      "choices": ["loudly", "loud", "good", "well", "fast", "fastly"],
+      "statements": [
+        {
+          "id": "s1",
+          "text": "The spectators cheered [loudly] when the runners crossed the finish line.",
+          "correctChoice": "loudly"
+        },
+        {
+          "id": "s2",
+          "text": "The school band played their instruments really [well] today.",
+          "correctChoice": "well"
+        },
+        {
+          "id": "s3",
+          "text": "Leo ran so [fast] that he won the first prize.",
+          "correctChoice": "fast"
+        }
+      ]
+    },
+    {
+      "id": "q3-gap",
+      "type": "gap-fill",
+      "question": "Fill in the gaps with the correct forms (Adjectives or Adverbs of Manner) of the words in brackets:",
+      "text": "Last Sunday, we organised a charity bake sale. We planned the event very [carefully|careful] (careful) so nothing would go wrong. Maria baked a [beautiful|beautifully] (beautiful) chocolate cake. The weather was great, and customers arrived [early] (early). They bought our cupcakes [greedily|greedy] (greedy) because they looked delicious. In the end, we raised money [easily|easy] (easy) for the local animal shelter. We walked home [happily|happy] (happy) after a hard day of work."
+    },
+    {
+      "id": "q4-match",
+      "type": "matching",
+      "question": "Match the adjectives with their corresponding adverb of manner forms:",
+      "pairs": [
+        {
+          "id": "p1",
+          "leftText": "good",
+          "rightText": "well"
+        },
+        {
+          "id": "p2",
+          "leftText": "easy",
+          "rightText": "easily"
+        },
+        {
+          "id": "p3",
+          "leftText": "hard",
+          "rightText": "hard"
+        },
+        {
+          "id": "p4",
+          "leftText": "polite",
+          "rightText": "politely"
+        }
+      ]
+    },
+    {
+      "id": "q5-order",
+      "type": "ordering",
+      "question": "Rearrange the words to make a correct sentence describing an action:",
+      "elements": ["The", "students", "answered", "the", "teacher's", "questions", "politely."]
+    },
+    {
+      "id": "q6-open",
+      "type": "open-question",
+      "question": "Write 2 sentences describing how you do things. In the first sentence, use the irregular adverb 'well'. In the second sentence, use a regular adverb ending in '-ily' (e.g., easily, happily, heavily).",
+      "keywords": ["well"],
+      "spellingTolerance": "lenient"
+    }
+  ]
+}

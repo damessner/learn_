@@ -1,12 +1,12 @@
 "use server";
-
 import { fetchEducationalMeme } from "@/lib/gemini";
 import { PIXABAY_API_KEY } from "@/lib/env";
+import { prisma } from "@/lib/db";
 
 /**
  * Generates an educational meme with a fun language learning pun and a background image from Pixabay.
  */
-export async function generateMasteryMeme(topic: string) {
+export async function generateMasteryMeme(topic: string, submissionId?: string | null) {
   try {
     const memeData = await fetchEducationalMeme(topic);
     
@@ -23,10 +23,23 @@ export async function generateMasteryMeme(topic: string) {
       }
     }
 
+    const finalImageUrl = imageUrl || "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=600&auto=format&fit=crop";
+
+    // Persist to database if a valid submission ID is provided
+    if (submissionId) {
+      await prisma.submission.update({
+        where: { id: submissionId },
+        data: {
+          memeText: memeData.text,
+          memeImageUrl: finalImageUrl,
+        },
+      });
+    }
+
     return {
       success: true,
       text: memeData.text,
-      imageUrl: imageUrl || "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=600&auto=format&fit=crop",
+      imageUrl: finalImageUrl,
     };
   } catch (err: unknown) {
     console.error("Failed to generate mastery meme:", err);

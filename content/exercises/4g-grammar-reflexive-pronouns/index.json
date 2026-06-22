@@ -1,0 +1,97 @@
+{
+  "id": "4g-grammar-reflexive-pronouns",
+  "title": "Reflexive Pronouns: Self-Reliance",
+  "description": "Learn to use reflexive pronouns (myself, himself, themselves) and understand when they are needed in English (Unit 11: Ready for reading).",
+  "type": "worksheet",
+  "tags": ["grammar", "reflexive-pronouns", "worksheet"],
+  "badgeName": "Self-Reliance Expert",
+  "badgeEmoji": "🧘",
+  "questions": [
+    {
+      "id": "intro",
+      "type": "instruction",
+      "text": "### Reflexive Pronouns\n\nWe use **reflexive pronouns** when the subject and the object of a verb are the same person or thing.\n\n1. **Singular Forms**:\n   * I -> **myself**\n   * you (one person) -> **yourself**\n   * he -> **himself**\n   * she -> **herself**\n   * it -> **itself**\n2. **Plural Forms**:\n   * we -> **ourselves**\n   * you (more than one person) -> **yourselves**\n   * they -> **themselves**\n3. **Idiom - 'by + reflexive pronoun'**: This means 'alone' or 'without help'.\n   * *Example*: We built the bookcase **by ourselves**.\n4. **Caution (German vs. English)**: Many verbs are reflexive in German but **not** in English! Do not translate literally:\n   * *sich konzentrieren* -> to concentrate (NOT to concentrate oneself)\n   * *sich erholen* -> to relax (NOT to relax oneself)\n   * *sich beeilen* -> to hurry (NOT to hurry oneself)"
+    },
+    {
+      "id": "q1-mc",
+      "type": "multiple-choice",
+      "question": "Which sentence is grammatically correct?",
+      "options": [
+        "We bought ourselves some new novels at the school bookshop.",
+        "We bought usselves some new novels at the school bookshop.",
+        "We bought ourself some new novels at the school bookshop."
+      ],
+      "correctOptionIndex": 0,
+      "hint": "The plural reflexive pronoun for 'we' is 'ourselves'."
+    },
+    {
+      "id": "q2-click",
+      "type": "clickable-choice",
+      "question": "Choose the correct pronoun to complete the sentence (reflexive vs. object pronoun):",
+      "choices": ["him", "himself", "them", "themselves", "us", "ourselves"],
+      "statements": [
+        {
+          "id": "s1",
+          "text": "He looked at [himself] in the mirror and smiled.",
+          "correctChoice": "himself"
+        },
+        {
+          "id": "s2",
+          "text": "Leo called [him] yesterday to ask about the homework.",
+          "correctChoice": "him"
+        },
+        {
+          "id": "s3",
+          "text": "They painted the entire reading room [themselves] without any help.",
+          "correctChoice": "themselves"
+        }
+      ]
+    },
+    {
+      "id": "q3-gap",
+      "type": "gap-fill",
+      "question": "Complete the story of the library club members using the correct reflexive pronouns:",
+      "text": "Last week, our class decided to create a quiet reading corner. I painted a beautiful poster [myself] (me/myself). My classmate Sarah made a couple of bookshelves [herself] (her/herself). The boys helped [themselves] (themselves/them) to the extra wood and constructed the seats. Our teacher, Mr. Collins, didn't do much; he just sat and enjoyed [himself] (himself/him) reading a book. In the end, we looked at our work and felt very proud of [ourselves] (ourselves/us). We proved that kids can build great things by [themselves] (themselves/yourselves)!"
+    },
+    {
+      "id": "q4-match",
+      "type": "matching",
+      "question": "Match the subject pronouns to their corresponding reflexive pronouns:",
+      "pairs": [
+        {
+          "id": "p1",
+          "leftText": "You (singular)",
+          "rightText": "yourself"
+        },
+        {
+          "id": "p2",
+          "leftText": "You (plural)",
+          "rightText": "yourselves"
+        },
+        {
+          "id": "p3",
+          "leftText": "She",
+          "rightText": "herself"
+        },
+        {
+          "id": "p4",
+          "leftText": "It",
+          "rightText": "itself"
+        }
+      ]
+    },
+    {
+      "id": "q5-order",
+      "type": "ordering",
+      "question": "Rearrange the words to make a correct English sentence:",
+      "elements": ["The", "little", "cat", "cleaned", "itself", "after", "drinking", "the", "milk."]
+    },
+    {
+      "id": "q6-open",
+      "type": "open-question",
+      "question": "Write 2 sentences about things you did completely by yourself recently. Use 'by myself' in at least one sentence.",
+      "keywords": ["myself", "by"],
+      "spellingTolerance": "lenient"
+    }
+  ]
+}

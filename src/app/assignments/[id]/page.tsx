@@ -9,8 +9,10 @@ import { getAttemptMultiplier } from "@/lib/scoring";
 
 export default async function AssignmentPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const session = await getSession();
   if (!session) {
@@ -18,6 +20,8 @@ export default async function AssignmentPage({
   }
 
   const { id: assignmentId } = await params;
+  const resolvedSearchParams = await searchParams;
+  const isRedo = resolvedSearchParams.redo === "true";
 
   // Fetch assignment from database
   const assignment = await prisma.assignment.findUnique({
@@ -89,7 +93,7 @@ export default async function AssignmentPage({
   ]);
 
   let savedAnswers = undefined;
-  if (pastSubmission) {
+  if (pastSubmission && !isRedo) {
     try {
       savedAnswers = JSON.parse(pastSubmission.answersJson);
     } catch (e) {

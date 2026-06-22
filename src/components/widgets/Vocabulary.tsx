@@ -375,7 +375,17 @@ const VocabularyInner: React.FC<WidgetProps<VocabularyConfig>> = ({
   const handleSpeak = (text: string, isGerman: boolean = false) => {
     if (typeof window !== "undefined" && window.speechSynthesis) {
       window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
+      
+      let cleanedText = text;
+      if (isGerman) {
+        if (cleanedText.includes("/")) {
+          cleanedText = cleanedText.split("/")[0].trim();
+        }
+        cleanedText = cleanedText.replace(/\([^)]*\)/g, "");
+        cleanedText = cleanedText.replace(/\s+/g, " ").trim();
+      }
+
+      const utterance = new SpeechSynthesisUtterance(cleanedText);
       utterance.lang = isGerman ? "de-DE" : "en-US";
       window.speechSynthesis.speak(utterance);
     }

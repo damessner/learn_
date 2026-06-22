@@ -205,9 +205,26 @@ async function main() {
     {
       id: "4g-grammar",
       title: "4G Grammar",
-      description: "Showcase Course: Advanced Grammar covering Past Continuous, Past Perfect, Reported Speech, and Conditionals (Units 1, 2, 3, 4, 10).",
+      description: "Showcase Course: Comprehensive English Grammar for 4th Grade NMS (covering tenses, reported speech, conditionals, question tags, adverbs, modals, reflexive pronouns, passive voice, relative clauses, gerunds, and word formation).",
       order: 1,
-      exerciseIds: ["4g-grammar-past-tenses", "4g-grammar-reported-speech", "4g-grammar-conditionals", "4g-writing-ireland"],
+      exerciseIds: [
+        "4g-grammar-past-tenses",
+        "4g-grammar-past-perfect",
+        "4g-grammar-reported-speech",
+        "4g-grammar-reported-commands",
+        "4g-grammar-question-tags",
+        "4g-grammar-adverbs-of-manner",
+        "4g-grammar-future-and-requests",
+        "4g-grammar-present-perfect-vs-past-simple",
+        "4g-grammar-modals-of-possibility",
+        "4g-grammar-conditionals",
+        "4g-grammar-reflexive-pronouns",
+        "4g-grammar-word-formation",
+        "4g-grammar-passive-voice",
+        "4g-grammar-gerund-infinitive",
+        "4g-grammar-relative-clauses",
+        "4g-writing-ireland"
+      ],
     },
     {
       id: "4g-vocabulary",

@@ -44,3 +44,13 @@ export const OPENCODE_MODEL = optionalEnv("OPENCODE_MODEL", "deepseek-v4-flash")
 export const OLLAMA_API_BASE = optionalEnv("OLLAMA_API_BASE", "http://localhost:11434");
 export const OLLAMA_MODEL = optionalEnv("OLLAMA_MODEL", "gemma2");
 
+// Break-glass emergency admin account (env-only credential, never stored in DB)
+export const BREAKGLASS_USERNAME = optionalEnv("BREAKGLASS_USERNAME", "_breakglass");
+export const BREAKGLASS_PASSWORD_HASH = optionalEnv("BREAKGLASS_PASSWORD_HASH");
+
+// Microsoft Graph API Configuration (optional)
+export const MS_CLIENT_ID = optionalEnv("MS_CLIENT_ID");
+export const MS_CLIENT_SECRET = optionalEnv("MS_CLIENT_SECRET");
+export const MS_REDIRECT_URI = optionalEnv("MS_REDIRECT_URI");
+
+

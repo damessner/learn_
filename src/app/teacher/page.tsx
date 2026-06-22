@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
 import SyncButton from "./SyncButton";
+import SyncRosterButton from "./SyncRosterButton";
 import CreateClassroomForm from "./CreateClassroomForm";
 import AssignExerciseForm from "./AssignExerciseForm";
 import Link from "next/link";
@@ -40,6 +41,11 @@ export default async function TeacherDashboard({
   if (session.role === "STUDENT") {
     redirect("/student");
   }
+
+  const userDetails = await prisma.user.findUnique({
+    where: { id: session.userId },
+    select: { microsoftEmail: true },
+  });
 
   const todayStr = new Date().toISOString().split("T")[0];
   const wordOfTheDay = await getOrGenerateWordOfTheDay(todayStr);
@@ -133,6 +139,19 @@ export default async function TeacherDashboard({
             </p>
           </div>
           <div className="flex items-center gap-3">
+            {userDetails?.microsoftEmail ? (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 border border-green-500 bg-green-50 dark:bg-green-950/20 rounded text-xs font-mono text-green-600 dark:text-green-400">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                TEAMS: {userDetails.microsoftEmail}
+              </div>
+            ) : (
+              <a
+                href="/api/auth/microsoft/login"
+                className="flex items-center gap-1.5 px-3 py-1.5 border border-[#ff2a2e] hover:bg-[#ff2a2e]/10 rounded text-xs font-mono uppercase font-semibold text-[#ff2a2e] transition"
+              >
+                Link Teams
+              </a>
+            )}
             <Link
               href="/teacher/aloys"
               className="border border-neutral-300 dark:border-neutral-800 bg-transparent text-black dark:text-white font-mono text-xs uppercase tracking-wider py-1.5 px-4 rounded-none hover:border-black dark:hover:border-white transition"
@@ -290,7 +309,7 @@ export default async function TeacherDashboard({
 
           <div className="p-6 border border-neutral-200 dark:border-neutral-900 rounded-none bg-white/40 dark:bg-black/20 backdrop-blur-sm">
             <AssignExerciseForm
-              classrooms={classrooms.map((c) => ({ id: c.id, name: c.name }))}
+              classrooms={classrooms.map((c) => ({ id: c.id, name: c.name, msGraphClassId: c.msGraphClassId }))}
               exercises={exercises.map((e) => ({
                 id: e.id,
                 title: e.title,
@@ -338,6 +357,11 @@ export default async function TeacherDashboard({
                             {classroom.joinCode}
                           </code>
                         </p>
+                        {classroom.msGraphClassId && (
+                          <div className="mt-2">
+                            <SyncRosterButton classroomId={classroom.id} />
+                          </div>
+                        )}
                       </div>
                       <span className="text-[10px] border border-neutral-300 dark:border-neutral-800 bg-transparent text-neutral-600 dark:text-neutral-350 px-2 py-0.5 rounded-none font-mono tracking-widest uppercase font-bold">
                         {classroom.students.length} Pupils

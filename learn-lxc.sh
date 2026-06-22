@@ -330,6 +330,11 @@ install_learn() {
   pct exec "$CT_ID" -- git clone --depth 1 https://github.com/damessner/learn_.git /opt/learn
   ok "Repository cloned"
 
+  # Create dedicated service user (least-privilege principle)
+  msg "Creating 'learn' service user..."
+  pct exec "$CT_ID" -- bash -c "groupadd -f learn && (id learn &>/dev/null || useradd -r -g learn -d /opt/learn -s /usr/sbin/nologin learn)"
+  ok "Service user 'learn' created"
+
   # Generate .env
   msg "Configuring environment..."
   local secret
@@ -371,26 +376,62 @@ SESSION_SECRET=\"${secret}\"
 EOF"
   ok "Environment configured"
 
-  # Install npm deps, build
+  # Set ownership before building — service user needs write access
+  msg "Setting file ownership (learn:learn)..."
+  pct exec "$CT_ID" -- chown -R learn:learn /opt/learn
+  ok "Ownership set"
+
+  # Install npm deps, build — run as learn user so build artefacts are not owned by root
   msg "Installing npm packages (this may take a few minutes)..."
-  pct exec "$CT_ID" -- bash -c "cd /opt/learn && npm install --no-audit --no-fund --loglevel=error"
+  pct exec "$CT_ID" -- bash -c "cd /opt/learn && runuser -u learn -- npm install --no-audit --no-fund --loglevel=error"
   ok "npm packages installed"
 
   msg "Generating Prisma client..."
-  pct exec "$CT_ID" -- bash -c "cd /opt/learn && npx prisma generate"
+  pct exec "$CT_ID" -- bash -c "cd /opt/learn && runuser -u learn -- npx prisma generate"
   ok "Prisma client generated"
 
   msg "Pushing database schema..."
-  pct exec "$CT_ID" -- bash -c "cd /opt/learn && npx prisma db push --accept-data-loss"
+  pct exec "$CT_ID" -- bash -c "cd /opt/learn && runuser -u learn -- npx prisma db push --accept-data-loss"
   ok "Schema pushed"
 
   msg "Seeding database..."
-  pct exec "$CT_ID" -- bash -c "cd /opt/learn && npx prisma db seed" || note "Seed skipped (data may exist)"
+  pct exec "$CT_ID" -- bash -c "cd /opt/learn && runuser -u learn -- npx prisma db seed" || note "Seed skipped (data may exist)"
   ok "Database seeded"
 
   msg "Building Next.js bundle (may take several minutes)..."
-  pct exec "$CT_ID" -- bash -c "cd /opt/learn && npm run build"
+  pct exec "$CT_ID" -- bash -c "cd /opt/learn && runuser -u learn -- npm run build"
   ok "Build complete"
+
+  # Generate break-glass emergency admin credential
+  msg "Generating break-glass emergency admin credential..."
+  local bg_pw bg_hash
+  bg_pw=$(openssl rand -base64 48 | tr -dc 'a-zA-Z0-9' | head -c 24)
+  # Hash inside container (bcryptjs available post npm-install)
+  bg_hash=$(pct exec "$CT_ID" -- node -e "const b=require('/opt/learn/node_modules/bcryptjs');console.log(b.hashSync('${bg_pw}',10))")
+  # Append static block with single-quoted heredoc (no variable expansion inside)
+  pct exec "$CT_ID" -- bash -c "cat >> /opt/learn/.env <<'BGENV'
+
+# Break-glass emergency admin account — last-resort access when all admins are locked out.
+BREAKGLASS_USERNAME=\"_breakglass\"
+BGENV"
+  # Write hash in single quotes so dotenv never expands the \$2b\$10\$... bcrypt prefix
+  pct exec "$CT_ID" -- bash -c "printf \"BREAKGLASS_PASSWORD_HASH='%s'\\n\" '${bg_hash}' >> /opt/learn/.env"
+  pct exec "$CT_ID" -- chown learn:learn /opt/learn/.env
+  ok "Break-glass credential generated"
+
+  echo ""
+  echo -e "${BOLD}${RD}  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${CL}"
+  echo -e "${BOLD}${RD}  🚨  BREAK-GLASS CREDENTIAL — SAVE THIS NOW  🚨${CL}"
+  echo -e "${BOLD}${RD}  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${CL}"
+  echo ""
+  echo -e "     Username : ${DGN}_breakglass${CL}"
+  echo -e "     Password : ${GN}${BOLD}${bg_pw}${CL}"
+  echo ""
+  echo -e "  ${YW}This password is shown ONCE. Only the bcrypt hash is saved — not the plaintext.${CL}"
+  echo -e "  ${YW}Store it in your password manager immediately.${CL}"
+  echo ""
+  echo -e "${BOLD}${RD}  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${CL}"
+  echo ""
 
   # systemd service
   msg "Configuring systemd service..."
@@ -401,13 +442,20 @@ After=network.target
 
 [Service]
 Type=exec
-User=root
+User=learn
+Group=learn
 WorkingDirectory=/opt/learn
 Environment=NODE_ENV=production
 Environment=HOST=0.0.0.0
 ExecStart=\$(which npm) start
 Restart=always
 RestartSec=10
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/opt/learn
+CapabilityBoundingSet=
 
 [Install]
 WantedBy=multi-user.target
@@ -445,6 +493,113 @@ rm -f /etc/nginx/sites-enabled/default
 ln -sf /etc/nginx/sites-available/learn /etc/nginx/sites-enabled/
 systemctl start nginx"
     ok "nginx configured for ${CT_DN}"
+  fi
+}
+
+# ----- Container Hardening -----
+harden_container() {
+  echo ""
+  if ! prompt_yesno "Harden Container" \
+    "Apply security hardening inside the container?
+
+  ✦ fail2ban  — Ban IPs after 5 failed SSH logins (1-hour ban)
+  ✦ nftables  — Firewall: allow 22/${APP_PORT}/80/443, drop all else
+  ✦ SSH       — Optionally disable password auth (key-only login)
+
+Recommended before any internet-facing exposure."; then
+    note "Hardening skipped. Re-run learn-expose.sh to set up access."
+    return
+  fi
+
+  # ── fail2ban ──
+  msg "Installing fail2ban..."
+  pct exec "$CT_ID" -- bash -c "apt-get install -y -qq fail2ban"
+  ok "fail2ban installed"
+
+  msg "Configuring fail2ban SSH jail..."
+  pct exec "$CT_ID" -- bash -c "mkdir -p /etc/fail2ban/jail.d && cat > /etc/fail2ban/jail.d/learn.conf <<'JAIL'
+[sshd]
+enabled  = true
+maxretry = 5
+findtime = 600
+bantime  = 3600
+JAIL
+systemctl enable --now fail2ban"
+  ok "fail2ban active — SSH: 5 failures → 1 h ban"
+
+  # ── nftables firewall ──
+  msg "Installing nftables firewall..."
+  pct exec "$CT_ID" -- bash -c "apt-get install -y -qq nftables"
+  pct exec "$CT_ID" -- bash -c "cat > /etc/nftables.conf <<NFT
+#!/usr/sbin/nft -f
+# Learn Platform firewall — generated by learn-lxc.sh
+flush ruleset
+
+table inet filter {
+    chain input {
+        type filter hook input priority 0; policy drop;
+        iif lo accept
+        ct state established,related accept
+        ct state invalid drop
+        ip  protocol icmp   accept
+        ip6 nexthdr  icmpv6 accept
+        tcp dport 22 accept
+        tcp dport ${APP_PORT} accept
+        tcp dport { 80, 443 } accept
+    }
+    chain forward {
+        type filter hook forward priority 0; policy drop;
+    }
+    chain output {
+        type filter hook output priority 0; policy accept;
+    }
+}
+NFT"
+  if pct exec "$CT_ID" -- bash -c "nft -f /etc/nftables.conf 2>/dev/null && systemctl enable --now nftables 2>/dev/null"; then
+    ok "nftables firewall active (allow SSH/${APP_PORT}/80/443 — drop all else)"
+  else
+    fail "nftables could not load inside this LXC (CAP_NET_ADMIN not available in unprivileged container)."
+    note "Alternative — enable the Proxmox web UI firewall for CT ${CT_ID}:"
+    note "  Proxmox UI → CT ${CT_ID} → Firewall → Add rules for ports 22, ${APP_PORT}, 80, 443"
+    note "  Datacenter → Firewall → Options → Enable firewall: Yes"
+  fi
+
+  # ── SSH hardening ──
+  echo ""
+  note "┌────────────────────────────────────────────────────────────┐"
+  note "│ SSH Hardening (optional)                                   │"
+  note "│                                                            │"
+  note "│ Disabling password auth stops brute-force attacks cold.    │"
+  note "│ You need an SSH key pair to log in after this step.        │"
+  note "│                                                            │"
+  note "│ Paste your PUBLIC key (from your workstation's             │"
+  note "│ ~/.ssh/id_*.pub) — or leave blank to skip.                 │"
+  note "└────────────────────────────────────────────────────────────┘"
+  echo ""
+
+  local ssh_pubkey
+  ssh_pubkey=$(prompt_input "SSH Public Key" \
+    "Paste your SSH public key (or leave blank to skip):" "")
+
+  if [[ -n "$ssh_pubkey" ]]; then
+    msg "Installing SSH public key inside container..."
+    pct exec "$CT_ID" -- bash -c "
+      mkdir -p /root/.ssh
+      chmod 700 /root/.ssh
+      echo '${ssh_pubkey}' >> /root/.ssh/authorized_keys
+      chmod 600 /root/.ssh/authorized_keys"
+    ok "SSH public key installed in /root/.ssh/authorized_keys"
+
+    msg "Disabling SSH password authentication..."
+    pct exec "$CT_ID" -- bash -c "
+      sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
+      sed -i 's/^#*PermitRootLogin.*/PermitRootLogin prohibit-password/' /etc/ssh/sshd_config
+      systemctl restart sshd 2>/dev/null || systemctl restart ssh 2>/dev/null || true"
+    ok "SSH hardened — password auth disabled, key-only login active"
+    note "To SSH in: ssh root@<container-ip>  (using your private key)"
+  else
+    note "SSH key not provided — password auth remains enabled."
+    note "Add a key later: pct exec ${CT_ID} -- bash -c \"echo '<key>' >> /root/.ssh/authorized_keys\""
   fi
 }
 
@@ -543,6 +698,7 @@ main() {
   download_template
   create_container
   install_learn
+  harden_container
   configure_env
 
   summary

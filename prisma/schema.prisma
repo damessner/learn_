@@ -29,6 +29,13 @@ model User {
   aloysConversations AloysConversation[]
   createdExercises  Exercise[]         @relation("CreatorExercises")
   ratings           Rating[]
+
+  // Microsoft Integration
+  microsoftId       String?   @unique
+  microsoftEmail    String?
+  msAccessToken     String?
+  msRefreshToken    String?
+  msTokenExpiresAt  DateTime?
 }
 
 model Classroom {
@@ -39,6 +46,7 @@ model Classroom {
   createdAt        DateTime           @default(now())
   aiDiagnostic     String?
   aiDiagnosticDate DateTime?
+  msGraphClassId   String?   @unique
 
   // Relations
   teacher           User               @relation("TeacherClassrooms", fields: [teacherId], references: [id], onDelete: Cascade)
@@ -101,6 +109,7 @@ model Assignment {
   dueDate           DateTime?
   createdAt         DateTime          @default(now())
   courseAssignmentId String?
+  msGraphAssignmentId String?         @unique
 
   // Relations
   classroom        Classroom         @relation(fields: [classroomId], references: [id], onDelete: Cascade)
@@ -136,6 +145,10 @@ model Submission {
   teacherScore   Float?
   reviewedAt     DateTime?
   draft          Boolean    @default(false)
+
+  // Meme Achievements
+  memeText       String?
+  memeImageUrl   String?
 
   // Relations
   assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
