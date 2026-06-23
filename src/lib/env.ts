@@ -52,5 +52,6 @@ export const BREAKGLASS_PASSWORD_HASH = optionalEnv("BREAKGLASS_PASSWORD_HASH");
 export const MS_CLIENT_ID = optionalEnv("MS_CLIENT_ID");
 export const MS_CLIENT_SECRET = optionalEnv("MS_CLIENT_SECRET");
 export const MS_REDIRECT_URI = optionalEnv("MS_REDIRECT_URI");
+export const MS_TENANT_ID = optionalEnv("MS_TENANT_ID", "common");
 
 

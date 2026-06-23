@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { MS_CLIENT_ID, MS_REDIRECT_URI } from "@/lib/env";
+import { MS_CLIENT_ID, MS_REDIRECT_URI, MS_TENANT_ID } from "@/lib/env";
 
 export async function GET() {
   if (!MS_CLIENT_ID || !MS_REDIRECT_URI) {
@@ -32,7 +32,7 @@ export async function GET() {
     "EduAssignments.ReadWrite"
   ].join(" ");
 
-  const authUrl = new URL("https://login.microsoftonline.com/common/oauth2/v2.0/authorize");
+  const authUrl = new URL(`https://login.microsoftonline.com/${MS_TENANT_ID}/oauth2/v2.0/authorize`);
   authUrl.searchParams.append("client_id", MS_CLIENT_ID);
   authUrl.searchParams.append("response_type", "code");
   authUrl.searchParams.append("redirect_uri", MS_REDIRECT_URI);

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { MS_CLIENT_ID, MS_CLIENT_SECRET, MS_REDIRECT_URI } from "@/lib/env";
+import { MS_CLIENT_ID, MS_CLIENT_SECRET, MS_REDIRECT_URI, MS_TENANT_ID } from "@/lib/env";
 import { decryptToken, encryptToken } from "@/lib/crypto";
 
 /**
@@ -45,7 +45,7 @@ export async function getValidAccessToken(userId: string): Promise<string> {
   }
 
   try {
-    const response = await fetch("https://login.microsoftonline.com/common/oauth2/v2.0/token", {
+    const response = await fetch(`https://login.microsoftonline.com/${MS_TENANT_ID}/oauth2/v2.0/token`, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
