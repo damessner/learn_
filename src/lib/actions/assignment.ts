@@ -73,7 +73,7 @@ export async function assignExercise(
         const headersList = await headers();
         const host = headersList.get("host") || "localhost:3000";
         const protocol = host.startsWith("localhost") ? "http" : "https";
-        const targetUrl = `${protocol}://${host}/student/assignments/${assignment.id}`;
+        const targetUrl = `${protocol}://${host}/assignments/${assignment.id}`;
 
         const msGraphAssignmentId = await createTeamsAssignment(
           teacher.userId,
