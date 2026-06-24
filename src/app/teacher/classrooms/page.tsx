@@ -8,6 +8,7 @@ import { ArrowLeft, Users, BarChart2, ExternalLink, Key } from "lucide-react";
 import SyncRosterButton from "../SyncRosterButton";
 import CreateClassroomForm from "../CreateClassroomForm";
 import ClassroomDiagnosticCard from "./[id]/ClassroomDiagnosticCard";
+import ImportClassroomButton from "./ImportClassroomButton";
 import { getExerciseFromDisk } from "@/lib/exercises";
 import { getExerciseMaxPoints } from "@/lib/points";
 
@@ -187,8 +188,11 @@ export default async function ClassroomsInsightsPage() {
               In-depth view of student learning patterns, struggles, and diagnostics.
             </p>
           </div>
-          <div className="p-4 border border-neutral-200 dark:border-neutral-900 rounded bg-white/40 dark:bg-black/20 backdrop-blur-sm shrink-0 md:w-80">
+          <div className="p-4 border border-neutral-200 dark:border-neutral-900 rounded bg-white/40 dark:bg-black/20 backdrop-blur-sm shrink-0 md:w-80 space-y-4">
             <CreateClassroomForm />
+            <div className="border-t border-neutral-200 dark:border-neutral-800 pt-4">
+              <ImportClassroomButton />
+            </div>
           </div>
         </div>
 
@@ -234,6 +238,13 @@ export default async function ClassroomsInsightsPage() {
                       >
                         Gradebook <ExternalLink className="w-2.5 h-2.5" />
                       </Link>
+                      <a
+                        href={`/api/teacher/classrooms/${cls.id}/export`}
+                        className="inline-flex items-center gap-1 text-[10px] font-mono uppercase px-2 py-0.5 border border-neutral-300 dark:border-neutral-800 rounded bg-transparent hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black transition"
+                        download
+                      >
+                        Export JSON
+                      </a>
                     </h2>
                     <div className="flex flex-wrap items-center gap-4 mt-1.5 text-xs font-mono text-neutral-500">
                       <span className="flex items-center gap-1">

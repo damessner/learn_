@@ -32,7 +32,7 @@ export const DATABASE_URL = requireEnv("DATABASE_URL");
 
 // Gemini API (optional)
 export const GEMINI_API_KEY = optionalEnv("GEMINI_API_KEY");
-export const GEMINI_MODEL = optionalEnv("GEMINI_MODEL", "gemini-3.5-flash");
+export const GEMINI_MODEL = optionalEnv("GEMINI_MODEL", "gemini-1.5-flash");
 
 // Pixabay API (optional)
 export const PIXABAY_API_KEY = optionalEnv("PIXABAY_API_KEY");

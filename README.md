@@ -54,17 +54,22 @@ Designed around the **MORE!** textbook series for Austrian English classes (Grad
 - **Live Quiz Host** — Create and host Kahoot-like real-time synchronous quizzes supporting single choice, multiple choice, word ordering, and text inputs with live charts and a student leaderboard.
 - **Aloys AI Socratic Tutor** — Monitor student conversations with Aloys, an AI tutor persona that guides learning through Socratic questioning rather than giving direct answers. View full transcripts of student chats, lesson completions, and quiz results.
 - **Master Course Organizer** — Arrange exercises into units and courses with drag-and-drop reordering and assign them to classrooms in bulk.
+- **Course-Centric Assignment Model** — Clean, course-oriented workflow that organizes worksheets into Courses, which are then assigned to Classrooms, ensuring sequential syllabus progression.
+- **Course Insights Analytics Dashboard** — In-depth dashboard displaying class average scores, completion percentages, student spotlights (Top Achievers, Struggling, Inactive), toughest/easiest worksheets, and a comprehensive student progression grid.
 - **Roster & Class Gradebook Matrix** — View a unified grid of student performance per assignment, drill down into student profiles to inspect attempts, and reset student passwords directly.
+- **Worksheet & Course Exporters/Importers (ZIP)** — Package full worksheets (with assets) or courses (with structure and nested worksheets) into ZIP archives to transfer between instances, with automated conflict resolution for IDs.
+- **Classroom Exporter/Importer (JSON)** — Export and import classroom rosters and student accounts using JSON.
 - **Bulk Import/Export** — Add students in bulk using CSV/JSON formatted lists, and export the entire classroom gradebook to CSV for external school records.
 - **Grading & Scoring Reviews** — Review student answers, view submission timelines, grade student open responses (media or free text), and overwrite automated scores.
 - **Content Sync** — Synchronize exercises defined as JSON or Markdown on disk directly into the database. Handles soft-deletes smoothly.
 - **Badges System** — Assign custom badge names and emojis to any exercise during creation or editing. Badges are displayed to students upon completion on their dashboard and in the teacher's student profile view, providing visual achievement milestones.
 - **Multi-Page Worksheets** — Split worksheets into multiple pages with optional gate scoring (students must reach a minimum score to advance), enforcing sequential completion and mastery thresholds.
 - **AI Socratic Hints** — Automatically generate Socratic guiding hints for any worksheet question via Gemini, helping students without giving answers.
-- **Classroom AI Diagnostics** — Generate AI-powered diagnostic reports for any classroom, analyzing student performance and providing actionable teaching recommendations.
+- **Classroom AI Diagnostics** — Generate AI-powered diagnostic reports for any classroom, analyzing student performance and providing actionable teaching recommendations (fully supporting Gemini, OpenCode, and Ollama providers).
 - **Ratings System** — Rate exercises 1–5 stars per teacher, with aggregated ratings visible in the teacher pool for quality curation.
-- **Teacher Exercise Pool** — Browse and use exercises shared across teachers, with ratings and metadata for discoverability.
+- **Teacher Exercise Pool** — Browse, import, and use exercises shared across teachers, with ratings and metadata for discoverability.
 - **Word of the Day** — Display a featured vocabulary word daily on student dashboards, configurable via exercise tags.
+
 
 ### 🧑‍🎓 For Students
 

@@ -1,4 +1,12 @@
-import { GEMINI_API_KEY, GEMINI_MODEL } from "@/lib/env";
+import {
+  GEMINI_API_KEY,
+  GEMINI_MODEL,
+  ALOYS_AI_PROVIDER,
+  OPENCODE_API_KEY,
+  OPENCODE_MODEL,
+  OLLAMA_API_BASE,
+  OLLAMA_MODEL
+} from "@/lib/env";
 import { prisma } from "@/lib/db";
 
 export interface GeminiCriteriaFeedback {
@@ -1072,13 +1080,7 @@ export async function generateClassroomDiagnosticReport(
     lowScoringExercises: Array<{ title: string; average: number }>;
   }
 ): Promise<string> {
-  if (!GEMINI_API_KEY) {
-    throw new Error("AI services are currently unavailable: GEMINI_API_KEY is not configured.");
-  }
-
-  const model = GEMINI_MODEL || "gemini-3.5-flash";
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
-
+  const provider = ALOYS_AI_PROVIDER || "opencode";
   const systemInstructionText = `
 You are an expert pedagogical diagnostics assistant and neuroscience-backed learning consultant.
 Your task is to write a highly concise, professional, and encouraging diagnostic report and action plan for a middle school English teacher.
@@ -1115,38 +1117,105 @@ ${stats.strugglingStudents.length > 0
 Please generate the Markdown diagnostic report.
 `;
 
-  const requestBody = {
-    contents: [{ role: "user", parts: [{ text: userPrompt }] }],
-    systemInstruction: { parts: [{ text: systemInstructionText }] },
-  };
-
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 35_000);
-  
-  try {
-    const response = await fetch(url, {
+  if (provider === "opencode") {
+    if (!OPENCODE_API_KEY) {
+      throw new Error("AI services are currently unavailable: OPENCODE_API_KEY is not configured.");
+    }
+    const response = await fetch("https://opencode.ai/zen/go/v1/chat/completions", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(requestBody),
-      signal: controller.signal,
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${OPENCODE_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: OPENCODE_MODEL || "deepseek-v4-flash",
+        messages: [
+          { role: "system", content: systemInstructionText },
+          { role: "user", content: userPrompt }
+        ],
+      }),
     });
-    clearTimeout(timeoutId);
 
     if (!response.ok) {
-      const errText = await response.text().catch(() => "Unknown error");
-      throw new Error(`Gemini API failed with status ${response.status}: ${errText}`);
+      const errText = await response.text();
+      throw new Error(`OpenCode GO API failure (${response.status}): ${errText}`);
     }
-
     const data = await response.json();
-    const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    const rawText = data.choices?.[0]?.message?.content;
     if (!rawText) {
-      throw new Error("Empty response from Gemini.");
+      throw new Error("Empty response from OpenCode.");
     }
     return rawText.trim();
-  } catch (err) {
-    console.error("Failed to generate class diagnostics:", err);
-    throw err;
   }
+
+  if (provider === "gemini") {
+    if (!GEMINI_API_KEY) {
+      throw new Error("AI services are currently unavailable: GEMINI_API_KEY is not configured.");
+    }
+    const model = GEMINI_MODEL || "gemini-1.5-flash";
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+
+    const requestBody = {
+      contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+      systemInstruction: { parts: [{ text: systemInstructionText }] },
+    };
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 35_000);
+
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestBody),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errText = await response.text().catch(() => "Unknown error");
+        throw new Error(`Gemini API failed with status ${response.status}: ${errText}`);
+      }
+
+      const data = await response.json();
+      const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!rawText) {
+        throw new Error("Empty response from Gemini.");
+      }
+      return rawText.trim();
+    } catch (err) {
+      console.error("Failed to generate class diagnostics via Gemini:", err);
+      throw err;
+    }
+  }
+
+  if (provider === "ollama") {
+    const response = await fetch(`${OLLAMA_API_BASE}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: OLLAMA_MODEL || "gemma2",
+        messages: [
+          { role: "system", content: systemInstructionText },
+          { role: "user", content: userPrompt }
+        ],
+        stream: false,
+      }),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Ollama API failure (${response.status}): ${errText}`);
+    }
+    const data = await response.json();
+    const rawText = data.message?.content;
+    if (!rawText) {
+      throw new Error("Empty response from Ollama.");
+    }
+    return rawText.trim();
+  }
+
+  throw new Error(`Unknown AI provider configured: ${provider}`);
 }
 
 

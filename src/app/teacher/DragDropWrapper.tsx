@@ -136,6 +136,46 @@ export default function DragDropWrapper({
   const [assignError, setAssignError] = useState<string | null>(null);
   const [assignSuccess, setAssignSuccess] = useState(false);
 
+  // Course Import State
+  const [courseImporting, setCourseImporting] = useState(false);
+  const [courseImportError, setCourseImportError] = useState<string | null>(null);
+
+  const handleCourseImportClick = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".zip";
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      setCourseImporting(true);
+      setCourseImportError(null);
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      try {
+        const res = await fetch("/api/teacher/courses/import", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(text || "Failed to import course");
+        }
+
+        router.refresh();
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Failed to import course";
+        setCourseImportError(message);
+      } finally {
+        setCourseImporting(false);
+      }
+    };
+    input.click();
+  };
+
   // Course assignment state
   const [assigningCourse, setAssigningCourse] = useState<{ id: string; title: string } | null>(null);
   const [courseSelectedClassrooms, setCourseSelectedClassrooms] = useState<string[]>([]);
@@ -314,6 +354,18 @@ export default function DragDropWrapper({
               Create Classroom
             </button>
             <CreateCourseForm classrooms={classrooms} />
+            <div className="relative shrink-0">
+              {courseImportError && (
+                <span className="text-[10px] text-red-500 font-mono absolute -top-5 right-0 bg-white dark:bg-neutral-900 px-1 border border-red-250 dark:border-neutral-800 rounded">{courseImportError}</span>
+              )}
+              <button
+                onClick={handleCourseImportClick}
+                disabled={courseImporting}
+                className="flex items-center gap-1 px-3 py-1.5 bg-neutral-100 hover:bg-neutral-250 dark:bg-neutral-900 dark:hover:bg-neutral-800 text-neutral-800 dark:text-neutral-250 border border-neutral-350 dark:border-neutral-800 rounded text-xs font-mono uppercase font-semibold transition shadow shrink-0 cursor-pointer disabled:opacity-50"
+              >
+                {courseImporting ? "Importing..." : "📥 Import Course ZIP"}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -373,6 +425,14 @@ export default function DragDropWrapper({
                       >
                         Assign
                       </button>
+                      <a
+                        href={`/api/teacher/courses/${course.id}/export`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-[10px] font-bold font-mono uppercase tracking-wider border border-neutral-350 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 px-2 py-1 rounded transition text-neutral-700 dark:text-neutral-300 cursor-pointer"
+                        download
+                      >
+                        Export ZIP
+                      </a>
                       <button
                         onClick={(e) => {
                           e.preventDefault();
@@ -406,10 +466,17 @@ export default function DragDropWrapper({
                           className="inline-flex items-center gap-1.5 text-[10px] bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded font-mono"
                         >
                           {ca.classroom.name}
+                          <Link
+                            href={`/teacher/insights?courseId=${course.id}&classroomId=${ca.classroom.id}`}
+                            className="text-indigo-650 dark:text-indigo-400 font-bold hover:underline ml-1"
+                            title="View Course Insights"
+                          >
+                            📊 Insight
+                          </Link>
                           <button
                             onClick={() => handleUnassignCourse(ca.id)}
                             disabled={unassigningCourseAssignment === ca.id}
-                            className="hover:text-red-600 dark:hover:text-red-400 cursor-pointer disabled:opacity-50"
+                            className="hover:text-red-600 dark:hover:text-red-400 cursor-pointer disabled:opacity-50 border-l border-blue-200 dark:border-blue-900/50 pl-1 ml-1"
                             title="Unassign course"
                           >
                             <X className="w-2.5 h-2.5" />

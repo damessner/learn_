@@ -78,6 +78,46 @@ export default function PoolClientPage({
   // Bulk Assign State
   const [selectedExerciseIds, setSelectedExerciseIds] = useState<string[]>([]);
 
+  // Import State
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+
+  const handleImportClick = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".zip";
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      setImporting(true);
+      setImportError(null);
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      try {
+        const res = await fetch("/api/teacher/exercises/import", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(text || "Failed to import worksheet");
+        }
+
+        router.refresh();
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Failed to import worksheet";
+        setImportError(message);
+      } finally {
+        setImporting(false);
+      }
+    };
+    input.click();
+  };
+
   const handleToggleSelectExercise = (id: string) => {
     setSelectedExerciseIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
@@ -258,6 +298,18 @@ export default function PoolClientPage({
           <p className="text-xs text-neutral-500 font-mono">
             Explore worksheets, tasks, and quizzes created by all teachers in the platform.
           </p>
+        </div>
+        <div className="flex items-center gap-4 shrink-0">
+          {importError && (
+            <span className="text-xs text-red-550 font-mono">{importError}</span>
+          )}
+          <button
+            onClick={handleImportClick}
+            disabled={importing}
+            className="border border-neutral-350 dark:border-neutral-850 bg-black text-white dark:bg-white dark:text-black font-mono text-xs uppercase tracking-wider py-1.5 px-4 hover:opacity-90 transition flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+          >
+            {importing ? "Importing..." : "📥 Import Worksheet"}
+          </button>
         </div>
       </div>
 
@@ -597,6 +649,14 @@ export default function PoolClientPage({
                       Preview
                       <ExternalLink className="w-3 h-3" />
                     </Link>
+
+                    <a
+                      href={`/api/teacher/exercises/${ex.id}/export`}
+                      className="underline hover:no-underline text-neutral-600 dark:text-neutral-450 flex items-center gap-0.5"
+                      download
+                    >
+                      Export
+                    </a>
 
                     <button
                       type="button"
