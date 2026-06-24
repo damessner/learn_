@@ -4,7 +4,7 @@ import { syncExercisesToDb } from "@/lib/exercises";
 
 export async function POST() {
   const session = await getSession();
-  if (!session || session.role !== "TEACHER") {
+  if (!session || session.role !== "ADMIN") {
     return NextResponse.json(
       { success: false, error: "Unauthorized" },
       { status: 401 }

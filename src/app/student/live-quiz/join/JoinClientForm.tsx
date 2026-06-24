@@ -45,9 +45,13 @@ export default function JoinClientForm({ userId, defaultNickname }: JoinClientFo
       const res = await joinLiveSession(pin, nickname, userId);
       if (res.error) {
         setError(res.error);
-      } else if (res.success && res.sessionId && res.participantId) {
+      } else if (res.success && res.sessionId && res.participantId && res.participantToken) {
         // Navigate to student play screen
-        router.push(`/student/live-quiz/play/${res.sessionId}?participantId=${res.participantId}`);
+        const params = new URLSearchParams({
+          participantId: res.participantId,
+          participantToken: res.participantToken,
+        });
+        router.push(`/student/live-quiz/play/${res.sessionId}?${params.toString()}`);
       }
     } catch (err) {
       console.error(err);
