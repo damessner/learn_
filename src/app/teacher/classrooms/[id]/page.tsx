@@ -12,6 +12,7 @@ import AddStudentForm from "./AddStudentForm";
 import ResetPasswordButton from "./ResetPasswordButton";
 import { getExerciseMaxPoints } from "@/lib/points";
 import ClassroomDiagnosticCard from "./ClassroomDiagnosticCard";
+import AutoRosterSync from "./AutoRosterSync";
 
 export default async function ClassroomRosterPage({
   params,
@@ -589,6 +590,9 @@ export default async function ClassroomRosterPage({
                 </table>
               </div>
             </div>
+          )}
+          {classroom.msGraphClassId && (
+            <AutoRosterSync classroomId={classroomId} />
           )}
         </div>
       </main>

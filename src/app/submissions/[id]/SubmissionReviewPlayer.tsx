@@ -8,7 +8,7 @@ import { ArrowLeft, Clock, Award, User } from "lucide-react";
 import Link from "next/link";
 import { getExerciseTypeLabel } from "@/lib/exerciseLabels";
 import { getAttemptMultiplier } from "@/lib/scoring";
-import { overrideSubmissionGrade } from "@/lib/actions/submission";
+import { overrideSubmissionGrade, retryTeamsGradeSync } from "@/lib/actions/submission";
 
 interface WorksheetQuestionData {
   id: string;
@@ -52,21 +52,35 @@ interface SubmissionReviewPlayerProps {
   teacherScore?: number;
   feedback?: string;
   reviewedAt?: string;
+  teamsSyncStatus?: string;
+  teamsSyncError?: string;
+  hasTeamsLink?: boolean;
 }
 
 function TeacherOverrideForm({
   submissionId,
   initialScore,
   initialFeedback,
+  teamsSyncStatus,
+  teamsSyncError,
+  hasTeamsLink,
 }: {
   submissionId: string;
   initialScore: number;
   initialFeedback: string;
+  teamsSyncStatus?: string;
+  teamsSyncError?: string;
+  hasTeamsLink?: boolean;
 }) {
   const [score, setScore] = useState(initialScore);
   const [feedback, setFeedback] = useState(initialFeedback);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // Teams sync state
+  const [syncStatus, setSyncStatus] = useState<string | undefined>(teamsSyncStatus);
+  const [syncError, setSyncError] = useState<string | undefined>(teamsSyncError);
+  const [retrying, setRetrying] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,6 +92,9 @@ function TeacherOverrideForm({
         setMessage({ type: "error", text: res.error });
       } else {
         setMessage({ type: "success", text: "Grade override and feedback saved!" });
+        // Set sync status to success as it triggers sync in background
+        setSyncStatus("SUCCESS");
+        setSyncError(undefined);
       }
     } catch (err: unknown) {
       setMessage({ type: "error", text: err instanceof Error ? err.message : "An error occurred." });
@@ -86,8 +103,29 @@ function TeacherOverrideForm({
     }
   };
 
+  const handleRetrySync = async () => {
+    setRetrying(true);
+    try {
+      const res = await retryTeamsGradeSync(submissionId);
+      if (res.error) {
+        setSyncStatus("FAILED");
+        setSyncError(res.error);
+      } else {
+        setSyncStatus("SUCCESS");
+        setSyncError(undefined);
+        setMessage({ type: "success", text: "Grade successfully synced to Teams!" });
+        setTimeout(() => setMessage(null), 3000);
+      }
+    } catch (err: unknown) {
+      setSyncStatus("FAILED");
+      setSyncError(err instanceof Error ? err.message : "Sync failed");
+    } finally {
+      setRetrying(false);
+    }
+  };
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-3">
+    <form onSubmit={handleSubmit} className="space-y-4">
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="w-full sm:w-1/4 space-y-1">
           <label className="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider block">
@@ -117,10 +155,45 @@ function TeacherOverrideForm({
         </div>
       </div>
 
+      {hasTeamsLink && (
+        <div className="border border-dashed border-neutral-300 dark:border-neutral-800 p-3 bg-white/50 dark:bg-neutral-900/50 flex items-center justify-between text-xs rounded">
+          <div className="space-y-1">
+            <span className="text-[10px] text-neutral-450 uppercase font-bold tracking-wider font-mono">
+              Microsoft Teams Grade Sync
+            </span>
+            <div className="flex items-center gap-1.5 font-mono">
+              {syncStatus === "SUCCESS" ? (
+                <span className="text-green-600 dark:text-green-400 font-bold">✓ SYNCED</span>
+              ) : syncStatus === "FAILED" ? (
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-red-650 dark:text-red-400 font-bold">⚠ FAILED</span>
+                  {syncError && (
+                    <span className="text-[10px] text-neutral-500 italic font-sans normal-case block">
+                      {syncError}
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <span className="text-neutral-500">PENDING / NOT SYNCED</span>
+              )}
+            </div>
+          </div>
+          
+          <button
+            type="button"
+            disabled={retrying}
+            onClick={handleRetrySync}
+            className="px-2.5 py-1 border border-neutral-400 dark:border-neutral-700 bg-transparent text-neutral-700 dark:text-neutral-300 text-[10px] uppercase tracking-wider font-mono font-bold hover:border-black dark:hover:border-white transition disabled:opacity-50 cursor-pointer"
+          >
+            {retrying ? "Syncing..." : "Sync / Retry Now"}
+          </button>
+        </div>
+      )}
+
       <div className="flex items-center justify-between gap-4 pt-1">
         {message && (
           <span className={`text-xs font-semibold ${
-            message.type === "success" ? "text-green-600" : "text-red-650"
+            message.type === "success" ? "text-green-600" : "text-red-655"
           }`}>
             {message.text}
           </span>
@@ -154,6 +227,9 @@ export default function SubmissionReviewPlayer({
   teacherScore,
   feedback,
   reviewedAt,
+  teamsSyncStatus,
+  teamsSyncError,
+  hasTeamsLink,
 }: SubmissionReviewPlayerProps) {
   const exercise = React.useMemo(() => {
     if (exerciseJson) {
@@ -253,6 +329,9 @@ export default function SubmissionReviewPlayer({
               submissionId={submissionId!}
               initialScore={teacherScore ?? Math.round(effectiveScore)}
               initialFeedback={feedback ?? ""}
+              teamsSyncStatus={teamsSyncStatus}
+              teamsSyncError={teamsSyncError}
+              hasTeamsLink={hasTeamsLink}
             />
           ) : (
             <div className="space-y-2 text-sm">

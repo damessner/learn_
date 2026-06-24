@@ -7,6 +7,7 @@ export default defineConfig({
     environment: "node",
     include: ["src/**/*.test.ts"],
     exclude: ["node_modules", ".next"],
+    fileParallelism: false,
     env: {
       SESSION_SECRET: "test-secret-key-min-32-chars-long!!",
       DATABASE_URL: "file:./test.db",

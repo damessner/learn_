@@ -100,6 +100,9 @@ export default async function SubmissionReviewPage({
           teacherScore={submission.teacherScore ?? undefined}
           feedback={submission.feedback ?? undefined}
           reviewedAt={submission.reviewedAt ? submission.reviewedAt.toISOString() : undefined}
+          teamsSyncStatus={submission.teamsSyncStatus ?? undefined}
+          teamsSyncError={submission.teamsSyncError ?? undefined}
+          hasTeamsLink={!!(submission.assignment.msGraphAssignmentId && submission.assignment.classroom.msGraphClassId)}
         />
       </main>
     </>

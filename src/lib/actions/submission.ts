@@ -125,8 +125,20 @@ export async function submitAssignment(assignmentId: string, answers: unknown, c
           studentUser.microsoftId,
           effectiveScore,
           100
-        ).catch((err) => {
+        ).then(async () => {
+          await prisma.submission.update({
+            where: { id: sub.id },
+            data: { teamsSyncStatus: "SUCCESS", teamsSyncError: null }
+          });
+        }).catch(async (err) => {
           console.error("Failed to sync grade to Teams on submit:", err);
+          await prisma.submission.update({
+            where: { id: sub.id },
+            data: { 
+              teamsSyncStatus: "FAILED", 
+              teamsSyncError: err instanceof Error ? err.message : String(err)
+            }
+          });
         });
       }
     }
@@ -195,8 +207,20 @@ export async function overrideSubmissionGrade(
           studentUser.microsoftId,
           teacherScore,
           100
-        ).catch((err) => {
+        ).then(async () => {
+          await prisma.submission.update({
+            where: { id: submissionId },
+            data: { teamsSyncStatus: "SUCCESS", teamsSyncError: null }
+          });
+        }).catch(async (err) => {
           console.error("Failed to sync override grade to Teams:", err);
+          await prisma.submission.update({
+            where: { id: submissionId },
+            data: { 
+              teamsSyncStatus: "FAILED", 
+              teamsSyncError: err instanceof Error ? err.message : String(err)
+            }
+          });
         });
       }
     }
@@ -206,5 +230,75 @@ export async function overrideSubmissionGrade(
   } catch (e: unknown) {
     console.error("Failed to override grade:", e);
     return { error: "Failed to override grade" };
+  }
+}
+
+export async function retryTeamsGradeSync(submissionId: string) {
+  const teacher = await requireTeacher();
+
+  if (!submissionId || typeof submissionId !== "string" || submissionId.length > 128) {
+    return { error: "Invalid submission ID" };
+  }
+
+  try {
+    const submission = await prisma.submission.findUnique({
+      where: { id: submissionId },
+      include: {
+        student: true,
+        assignment: {
+          include: {
+            classroom: true,
+          },
+        },
+      },
+    });
+
+    if (!submission || submission.assignment.classroom.teacherId !== teacher.userId) {
+      return { error: "Access denied" };
+    }
+
+    const { msGraphAssignmentId, classroom } = submission.assignment;
+    if (!msGraphAssignmentId || !classroom.msGraphClassId) {
+      return { error: "This assignment is not linked to Microsoft Teams." };
+    }
+
+    if (!submission.student.microsoftId) {
+      return { error: "Student does not have a linked Microsoft account." };
+    }
+
+    const scoreToSend = submission.teacherScore !== null ? submission.teacherScore : submission.effectiveScore;
+
+    const { submitGradeToTeams } = await import("@/lib/microsoftGraph");
+    await submitGradeToTeams(
+      teacher.userId,
+      classroom.msGraphClassId,
+      msGraphAssignmentId,
+      submission.student.microsoftId,
+      scoreToSend,
+      100
+    );
+
+    // Save success status
+    await prisma.submission.update({
+      where: { id: submissionId },
+      data: {
+        teamsSyncStatus: "SUCCESS",
+        teamsSyncError: null,
+      },
+    });
+
+    revalidatePath(`/submissions/${submissionId}`);
+    return { success: true };
+  } catch (err: unknown) {
+    console.error("Manual retry sync to Teams failed:", err);
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    await prisma.submission.update({
+      where: { id: submissionId },
+      data: {
+        teamsSyncStatus: "FAILED",
+        teamsSyncError: errorMsg,
+      },
+    });
+    return { error: `Teams Sync failed: ${errorMsg}` };
   }
 }
