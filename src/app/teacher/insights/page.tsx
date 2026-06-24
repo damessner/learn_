@@ -13,7 +13,7 @@ export default async function CourseInsightsPage({
   searchParams: Promise<{ courseId?: string; classroomId?: string }>;
 }) {
   const session = await getSession();
-  if (!session || session.role !== "TEACHER") {
+  if (!session || (session.role !== "TEACHER" && session.role !== "ADMIN")) {
     redirect("/login");
   }
 

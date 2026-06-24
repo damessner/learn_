@@ -19,7 +19,7 @@ export async function GET(
 
     const zipBuffer = await exportCourseZip(id);
 
-    return new Response(zipBuffer, {
+    return new Response(new Uint8Array(zipBuffer), {
       headers: {
         "Content-Type": "application/zip",
         "Content-Disposition": `attachment; filename="course-${id}.zip"`,
