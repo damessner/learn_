@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { importWorksheetZip } from "@/lib/actions/exporter";
 
+const MAX_EXERCISE_IMPORT_BYTES = 10 * 1024 * 1024;
+const ZIP_MIME_TYPES = new Set([
+  "application/zip",
+  "application/x-zip-compressed",
+  "application/octet-stream",
+]);
+
 export async function POST(request: NextRequest) {
   const session = await getSession();
   if (!session || session.role !== "TEACHER") {
@@ -13,6 +20,12 @@ export async function POST(request: NextRequest) {
     const file = formData.get("file") as File | null;
     if (!file) {
       return new NextResponse("No file uploaded", { status: 400 });
+    }
+    if (!file.name.toLowerCase().endsWith(".zip") || !ZIP_MIME_TYPES.has(file.type || "application/octet-stream")) {
+      return new NextResponse("Invalid file type", { status: 400 });
+    }
+    if (file.size > MAX_EXERCISE_IMPORT_BYTES) {
+      return new NextResponse("Upload exceeds the maximum size limit", { status: 400 });
     }
 
     const arrayBuffer = await file.arrayBuffer();

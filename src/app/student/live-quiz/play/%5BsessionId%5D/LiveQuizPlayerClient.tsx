@@ -7,6 +7,7 @@ import { Check, X, Award, Clock, ArrowRight, Loader2, ListCollapse } from "lucid
 interface LiveQuizPlayerClientProps {
   sessionId: string;
   participantId: string;
+  participantToken: string;
 }
 
 interface GameState {
@@ -16,12 +17,7 @@ interface GameState {
   timeRemaining: number;
   participantsCount: number;
   responsesCount: number;
-  participants: Array<{
-    id: string;
-    name: string;
-    score: number;
-    rank: number;
-  }>;
+  participantRank: number | null;
   participantDetails: {
     name: string;
     score: number;
@@ -39,7 +35,7 @@ interface GameState {
   } | null;
 }
 
-export default function LiveQuizPlayerClient({ sessionId, participantId }: LiveQuizPlayerClientProps) {
+export default function LiveQuizPlayerClient({ sessionId, participantId, participantToken }: LiveQuizPlayerClientProps) {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
   const [orderedWords, setOrderedWords] = useState<string[]>([]);
@@ -52,7 +48,12 @@ export default function LiveQuizPlayerClient({ sessionId, participantId }: LiveQ
   useEffect(() => {
     const fetchState = async () => {
       try {
-        const res = await fetch(`/api/live-quiz/sync?sessionId=${sessionId}&participantId=${participantId}`);
+        const params = new URLSearchParams({
+          sessionId,
+          participantId,
+          participantToken,
+        });
+        const res = await fetch(`/api/live-quiz/sync?${params.toString()}`);
         if (res.ok) {
           const data = await res.json();
           setGameState(data);
@@ -65,27 +66,30 @@ export default function LiveQuizPlayerClient({ sessionId, participantId }: LiveQ
     fetchState();
     const interval = setInterval(fetchState, 1200);
     return () => clearInterval(interval);
-  }, [sessionId, participantId]);
+  }, [sessionId, participantId, participantToken]);
 
   // Reset local states on question change
   const currentIdx = gameState?.currentQuestionIdx;
   const gameStatus = gameState?.status;
   const rawWords = gameState?.question?.words;
 
-  const [prevKey, setPrevKey] = useState<string | null>(null);
   const currentKey = gameState ? `${currentIdx}-${gameStatus}-${rawWords ? rawWords.join(",") : ""}` : null;
 
-  if (currentKey !== prevKey) {
-    setPrevKey(currentKey);
+  useEffect(() => {
+    if (!currentKey) return;
+
     setSelectedIndices([]);
     setTextAnswer("");
     setLocalError(null);
     setSubmitting(false);
     if (rawWords) {
       setOrderedWords([]);
-      setShuffledWords(rawWords);
+      setShuffledWords([...rawWords].sort(() => Math.random() - 0.5));
+    } else {
+      setOrderedWords([]);
+      setShuffledWords([]);
     }
-  }
+  }, [currentKey, rawWords]);
 
   if (!gameState) {
     return (
@@ -103,7 +107,13 @@ export default function LiveQuizPlayerClient({ sessionId, participantId }: LiveQ
     setLocalError(null);
 
     try {
-      const res = await submitLiveAnswer(sessionId, participantId, gameState.currentQuestionIdx, JSON.stringify(idx));
+      const res = await submitLiveAnswer(
+        sessionId,
+        participantId,
+        gameState.currentQuestionIdx,
+        JSON.stringify(idx),
+        participantToken
+      );
       if (res.error) {
         setLocalError(res.error);
         setSubmitting(false);
@@ -125,7 +135,8 @@ export default function LiveQuizPlayerClient({ sessionId, participantId }: LiveQ
         sessionId,
         participantId,
         gameState.currentQuestionIdx,
-        JSON.stringify(selectedIndices)
+        JSON.stringify(selectedIndices),
+        participantToken
       );
       if (res.error) {
         setLocalError(res.error);
@@ -160,7 +171,8 @@ export default function LiveQuizPlayerClient({ sessionId, participantId }: LiveQ
         sessionId,
         participantId,
         gameState.currentQuestionIdx,
-        JSON.stringify(orderedWords)
+        JSON.stringify(orderedWords),
+        participantToken
       );
       if (res.error) {
         setLocalError(res.error);
@@ -183,7 +195,8 @@ export default function LiveQuizPlayerClient({ sessionId, participantId }: LiveQ
         sessionId,
         participantId,
         gameState.currentQuestionIdx,
-        JSON.stringify(textAnswer.trim())
+        JSON.stringify(textAnswer.trim()),
+        participantToken
       );
       if (res.error) {
         setLocalError(res.error);
@@ -496,7 +509,7 @@ export default function LiveQuizPlayerClient({ sessionId, participantId }: LiveQ
               <div>
                 <span className="text-[10px] font-mono text-neutral-400 block uppercase">Rank</span>
                 <span className="text-xl font-extrabold font-mono text-purple-650 dark:text-purple-400">
-                  #{gameState.participants.find((p) => p.id === participantId)?.rank || "-"}
+                  {gameState.participantRank ? `#${gameState.participantRank}` : "-"}
                 </span>
               </div>
               <div>
@@ -528,7 +541,7 @@ export default function LiveQuizPlayerClient({ sessionId, participantId }: LiveQ
               <div>
                 <span className="text-neutral-400 block uppercase text-[9px]">Final Rank</span>
                 <span className="text-lg font-extrabold text-amber-600">
-                  #{gameState.participants.find((p) => p.id === participantId)?.rank || "-"}
+                  {gameState.participantRank ? `#${gameState.participantRank}` : "-"}
                 </span>
               </div>
               <div className="h-6 w-[1px] bg-neutral-200 dark:bg-neutral-800"></div>

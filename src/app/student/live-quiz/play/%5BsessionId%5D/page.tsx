@@ -7,18 +7,18 @@ export default async function LiveQuizPlayPage({
   searchParams,
 }: {
   params: Promise<{ sessionId: string }>;
-  searchParams: Promise<{ participantId?: string }>;
+  searchParams: Promise<{ participantId?: string; participantToken?: string }>;
 }) {
   const { sessionId } = await params;
-  const { participantId } = await searchParams;
+  const { participantId, participantToken } = await searchParams;
 
-  if (!participantId) {
+  if (!participantId || !participantToken) {
     return (
       <>
         <Navbar />
         <main className="max-w-md mx-auto py-12 px-4 text-center space-y-4">
           <div className="p-6 border border-red-200 rounded-xl bg-red-50 text-red-700">
-            Invalid session: missing participant parameter. Please join again.
+            Invalid session: missing participant access token. Please join again.
           </div>
         </main>
       </>
@@ -31,6 +31,7 @@ export default async function LiveQuizPlayPage({
       <LiveQuizPlayerClient
         sessionId={sessionId}
         participantId={participantId}
+        participantToken={participantToken}
       />
     </>
   );

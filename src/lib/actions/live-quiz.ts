@@ -6,6 +6,10 @@ import { requireTeacher } from "./auth-helpers";
 import { getExerciseFromDisk } from "@/lib/exercises";
 import { getAttemptMultiplier } from "@/lib/scoring";
 import { evaluateAnswerCorrectness } from "@/lib/live-quiz-utils";
+import {
+  createLiveQuizParticipantToken,
+  parseLiveQuizParticipantToken,
+} from "@/lib/live-quiz-auth";
 
 // Generate a random 6-digit PIN
 function generatePin(): string {
@@ -105,7 +109,12 @@ export async function joinLiveSession(pin: string, nickname: string, userId?: st
       },
     });
     if (existingUser) {
-      return { success: true, participantId: existingUser.id, sessionId: session.id };
+      return {
+        success: true,
+        participantId: existingUser.id,
+        participantToken: createLiveQuizParticipantToken(session.id, existingUser.id),
+        sessionId: session.id,
+      };
     }
   }
 
@@ -118,7 +127,12 @@ export async function joinLiveSession(pin: string, nickname: string, userId?: st
     },
   });
 
-  return { success: true, participantId: participant.id, sessionId: session.id };
+  return {
+    success: true,
+    participantId: participant.id,
+    participantToken: createLiveQuizParticipantToken(session.id, participant.id),
+    sessionId: session.id,
+  };
 }
 
 /**
@@ -151,8 +165,14 @@ export async function submitLiveAnswer(
   sessionId: string,
   participantId: string,
   questionIdx: number,
-  answerJson: string
+  answerJson: string,
+  participantToken: string
 ) {
+  const tokenPayload = parseLiveQuizParticipantToken(participantToken);
+  if (!tokenPayload || tokenPayload.sessionId !== sessionId || tokenPayload.participantId !== participantId) {
+    return { error: "Invalid participant session." };
+  }
+
   // Can be student or guest
   const session = await prisma.liveQuizSession.findUnique({
     where: { id: sessionId },

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import crypto from "crypto";
 import { MS_CLIENT_ID, MS_REDIRECT_URI, MS_TENANT_ID } from "@/lib/env";
 
 export async function GET() {
@@ -11,7 +12,7 @@ export async function GET() {
   }
 
   // Generate a random state for CSRF protection
-  const state = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+  const state = crypto.randomBytes(32).toString("hex");
   
   const cookieStore = await cookies();
   cookieStore.set("oauth_state", state, {
